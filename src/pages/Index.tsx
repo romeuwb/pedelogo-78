@@ -1,10 +1,9 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapPin, Search, Star, Clock } from 'lucide-react';
-import { LoginModal } from '@/components/auth/LoginModal';
+import LoginModal from '@/components/auth/LoginModal';
 
 const Index = () => {
   const [showLogin, setShowLogin] = useState(false);
@@ -158,7 +157,7 @@ const Index = () => {
         </div>
       </section>
 
-      <LoginModal open={showLogin} onOpenChange={setShowLogin} />
+      <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
     </div>
   );
 };
