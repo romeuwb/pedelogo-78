@@ -31,12 +31,14 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
         .single();
 
       if (error) throw error;
-      setGoogleMapsApiKey(data.valor);
-      return data.valor;
+      // Handle Json type properly
+      const apiKey = typeof data.valor === 'string' ? data.valor : String(data.valor || '');
+      setGoogleMapsApiKey(apiKey);
+      return apiKey;
     },
   });
 
-  // Get order details with delivery tracking
+  // Get order details with delivery tracking - fixing relationship ambiguity
   const { data: orderData, isLoading, refetch } = useQuery({
     queryKey: ['orderTracking', orderId],
     queryFn: async () => {
@@ -45,21 +47,23 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
         .select(`
           *,
           order_items (*),
-          restaurant_details:restaurante_id (
+          restaurant_details!orders_restaurante_id_fkey (
             nome_fantasia,
             endereco,
             telefone
           ),
-          delivery_details:entregador_id (
+          delivery_details!orders_entregador_id_fkey (
             user_id,
             localizacao_atual,
-            status_online,
-            delivery_profiles:user_id (
+            status_online
+          ),
+          delivery_profile:delivery_details!orders_entregador_id_fkey (
+            profiles!delivery_details_user_id_fkey (
               nome,
               telefone
             )
           ),
-          client_profiles:cliente_id (
+          client_profile:profiles!orders_cliente_id_fkey (
             nome,
             telefone
           )
@@ -220,12 +224,14 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
     // Delivery person marker
     if (orderData.delivery_details?.localizacao_atual) {
       const loc = orderData.delivery_details.localizacao_atual;
-      markers.push({
-        id: 'delivery',
-        position: { lat: loc.lat, lng: loc.lng },
-        title: `Entregador: ${orderData.delivery_details.delivery_profiles?.nome || 'Sem nome'}`,
-        type: 'delivery' as const
-      });
+      if (typeof loc === 'object' && loc && 'lat' in loc && 'lng' in loc) {
+        markers.push({
+          id: 'delivery',
+          position: { lat: loc.lat as number, lng: loc.lng as number },
+          title: `Entregador: ${orderData.delivery_profile?.profiles?.nome || 'Sem nome'}`,
+          type: 'delivery' as const
+        });
+      }
     }
 
     return markers;
@@ -291,7 +297,7 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
               <div>
                 <p className="text-sm text-gray-600">Entregador</p>
                 <p className="font-medium">
-                  {orderData.delivery_details?.delivery_profiles?.nome || 'Não atribuído'}
+                  {orderData.delivery_profile?.profiles?.nome || 'Não atribuído'}
                 </p>
               </div>
             </div>
@@ -401,12 +407,12 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {userType === 'customer' && orderData.delivery_details?.delivery_profiles && (
+              {userType === 'customer' && orderData.delivery_profile?.profiles && (
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <p className="font-medium">Entregador</p>
                     <p className="text-sm text-gray-600">
-                      {orderData.delivery_details.delivery_profiles.nome}
+                      {orderData.delivery_profile.profiles.nome}
                     </p>
                   </div>
                   <div className="flex space-x-2">
@@ -420,12 +426,12 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
                 </div>
               )}
               
-              {userType === 'delivery' && orderData.client_profiles && (
+              {userType === 'delivery' && orderData.client_profile && (
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <p className="font-medium">Cliente</p>
                     <p className="text-sm text-gray-600">
-                      {orderData.client_profiles.nome}
+                      {orderData.client_profile.nome}
                     </p>
                   </div>
                   <div className="flex space-x-2">
