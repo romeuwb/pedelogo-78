@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,7 +41,7 @@ export const EnhancedProductForm = ({
     codigo_barras: product?.codigo_barras || '',
     unidade: product?.unidade || 'Unidade',
     // Novos campos
-    imagens: product?.imagens || [],
+    images: product?.images || [],
     opcoes: product?.opcoes || [],
     peso_volume: product?.peso_volume || '',
     informacoes_nutricionais: product?.informacoes_nutricionais || {},
@@ -283,8 +282,8 @@ export const EnhancedProductForm = ({
             <CardContent>
               <ProductImageManager
                 productId={product?.id}
-                images={formData.imagens}
-                onImagesChange={(images) => setFormData({...formData, imagens})}
+                images={formData.images}
+                onImagesChange={(images) => setFormData({...formData, images})}
               />
             </CardContent>
           </Card>
