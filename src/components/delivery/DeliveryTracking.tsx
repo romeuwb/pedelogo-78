@@ -38,41 +38,79 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
     },
   });
 
-  // Get order details with delivery tracking - fixing relationship ambiguity
+  // Get order details with delivery tracking - simplified query to avoid relationship issues
   const { data: orderData, isLoading, refetch } = useQuery({
     queryKey: ['orderTracking', orderId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get the main order data
+      const { data: order, error: orderError } = await supabase
         .from('orders')
-        .select(`
-          *,
-          order_items (*),
-          restaurant_details!orders_restaurante_id_fkey (
-            nome_fantasia,
-            endereco,
-            telefone
-          ),
-          delivery_details!orders_entregador_id_fkey (
-            user_id,
-            localizacao_atual,
-            status_online
-          ),
-          delivery_profile:delivery_details!orders_entregador_id_fkey (
-            profiles!delivery_details_user_id_fkey (
-              nome,
-              telefone
-            )
-          ),
-          client_profile:profiles!orders_cliente_id_fkey (
-            nome,
-            telefone
-          )
-        `)
+        .select('*')
         .eq('id', orderId)
         .single();
 
-      if (error) throw error;
-      return data;
+      if (orderError) throw orderError;
+
+      // Get order items
+      const { data: orderItems, error: itemsError } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', orderId);
+
+      if (itemsError) throw itemsError;
+
+      // Get restaurant details
+      const { data: restaurant, error: restaurantError } = await supabase
+        .from('restaurant_details')
+        .select('nome_fantasia, endereco')
+        .eq('id', order.restaurante_id)
+        .single();
+
+      if (restaurantError) console.warn('Restaurant not found:', restaurantError);
+
+      // Get delivery details if assigned
+      let deliveryDetails = null;
+      let deliveryProfile = null;
+      if (order.entregador_id) {
+        const { data: delivery, error: deliveryError } = await supabase
+          .from('delivery_details')
+          .select('user_id, localizacao_atual, status_online')
+          .eq('id', order.entregador_id)
+          .single();
+
+        if (!deliveryError && delivery) {
+          deliveryDetails = delivery;
+          
+          // Get delivery person profile
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('nome')
+            .eq('user_id', delivery.user_id)
+            .single();
+
+          if (!profileError && profile) {
+            deliveryProfile = profile;
+          }
+        }
+      }
+
+      // Get client profile
+      const { data: clientProfile, error: clientError } = await supabase
+        .from('profiles')
+        .select('nome')
+        .eq('user_id', order.cliente_id)
+        .single();
+
+      if (clientError) console.warn('Client profile not found:', clientError);
+
+      return {
+        ...order,
+        order_items: orderItems,
+        restaurant_details: restaurant,
+        delivery_details: deliveryDetails,
+        delivery_profile: deliveryProfile,
+        client_profile: clientProfile
+      };
     },
     refetchInterval: userType === 'customer' ? 30000 : 10000,
   });
@@ -228,7 +266,7 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
         markers.push({
           id: 'delivery',
           position: { lat: loc.lat as number, lng: loc.lng as number },
-          title: `Entregador: ${orderData.delivery_profile?.profiles?.nome || 'Sem nome'}`,
+          title: `Entregador: ${orderData.delivery_profile?.nome || 'Sem nome'}`,
           type: 'delivery' as const
         });
       }
@@ -297,7 +335,7 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
               <div>
                 <p className="text-sm text-gray-600">Entregador</p>
                 <p className="font-medium">
-                  {orderData.delivery_profile?.profiles?.nome || 'Não atribuído'}
+                  {orderData.delivery_profile?.nome || 'Não atribuído'}
                 </p>
               </div>
             </div>
@@ -407,12 +445,12 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {userType === 'customer' && orderData.delivery_profile?.profiles && (
+              {userType === 'customer' && orderData.delivery_profile && (
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <p className="font-medium">Entregador</p>
                     <p className="text-sm text-gray-600">
-                      {orderData.delivery_profile.profiles.nome}
+                      {orderData.delivery_profile.nome}
                     </p>
                   </div>
                   <div className="flex space-x-2">
