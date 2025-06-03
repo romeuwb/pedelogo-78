@@ -5,9 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Dialog,
   DialogContent,
@@ -21,10 +21,12 @@ import {
   Eye, 
   EyeOff, 
   Search,
-  Filter,
   Package,
-  DollarSign
+  DollarSign,
+  Settings
 } from 'lucide-react';
+import { ProductCategoryManager } from './ProductCategoryManager';
+import { EnhancedProductForm } from './EnhancedProductForm';
 
 interface RestaurantMenuPanelProps {
   restaurantId: string;
@@ -35,6 +37,7 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState('products');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -96,145 +99,137 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
     }
   });
 
-  const ProductForm = ({ product, onClose }: { product?: any; onClose: () => void }) => {
-    const [formData, setFormData] = useState({
-      nome: product?.nome || '',
-      descricao: product?.descricao || '',
-      preco: product?.preco || '',
-      category_id: product?.category_id || '',
-      disponivel: product?.disponivel !== false,
-      vegetariano: product?.vegetariano || false,
-      vegano: product?.vegano || false,
-      livre_gluten: product?.livre_gluten || false,
-      livre_lactose: product?.livre_lactose || false
-    });
+  const saveProduct = useMutation({
+    mutationFn: async (data: any) => {
+      const productData = {
+        ...data,
+        restaurant_id: restaurantId,
+        preco: parseFloat(data.preco)
+      };
 
-    const saveProduct = useMutation({
-      mutationFn: async (data: any) => {
-        const productData = {
-          ...data,
-          restaurant_id: restaurantId,
-          preco: parseFloat(data.preco)
-        };
-
-        if (product) {
-          const { error } = await supabase
-            .from('restaurant_products')
-            .update(productData)
-            .eq('id', product.id);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase
-            .from('restaurant_products')
-            .insert(productData);
-          if (error) throw error;
-        }
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['restaurant-products'] });
-        toast({
-          title: product ? "Produto atualizado" : "Produto criado",
-          description: `Produto ${product ? 'atualizado' : 'criado'} com sucesso.`,
-        });
-        onClose();
+      if (editingProduct) {
+        const { error } = await supabase
+          .from('restaurant_products')
+          .update(productData)
+          .eq('id', editingProduct.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('restaurant_products')
+          .insert(productData);
+        if (error) throw error;
       }
-    });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['restaurant-products'] });
+      queryClient.invalidateQueries({ queryKey: ['product-categories'] });
+      toast({
+        title: editingProduct ? "Produto atualizado" : "Produto criado",
+        description: `Produto ${editingProduct ? 'atualizado' : 'criado'} com sucesso.`,
+      });
+      setIsAddingProduct(false);
+      setEditingProduct(null);
+    }
+  });
 
-    return (
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Nome</label>
-          <Input
-            value={formData.nome}
-            onChange={(e) => setFormData({...formData, nome: e.target.value})}
-            placeholder="Nome do produto"
-          />
-        </div>
+  const ProductCard = ({ product }: { product: any }) => (
+    <Card key={product.id}>
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <div className="flex items-center space-x-2 mb-2">
+              <h3 className="font-semibold text-lg">{product.nome}</h3>
+              {product.category && (
+                <Badge 
+                  variant="secondary"
+                  style={{ backgroundColor: product.category.cor }}
+                >
+                  {product.category.nome}
+                </Badge>
+              )}
+              {product.favorito && (
+                <Badge variant="outline">⭐ Popular</Badge>
+              )}
+            </div>
+            
+            {product.descricao && (
+              <p className="text-gray-600 mb-2">{product.descricao}</p>
+            )}
+            
+            <div className="flex items-center space-x-4 text-sm text-gray-500 mb-2">
+              <span className="flex items-center">
+                <DollarSign className="h-4 w-4 mr-1" />
+                R$ {product.preco?.toFixed(2)}
+              </span>
+              {product.tempo_preparo && (
+                <span>{product.tempo_preparo} min</span>
+              )}
+              {product.peso_volume && (
+                <span>{product.peso_volume}</span>
+              )}
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Descrição</label>
-          <Textarea
-            value={formData.descricao}
-            onChange={(e) => setFormData({...formData, descricao: e.target.value})}
-            placeholder="Descrição do produto"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Preço</label>
-            <Input
-              type="number"
-              step="0.01"
-              value={formData.preco}
-              onChange={(e) => setFormData({...formData, preco: e.target.value})}
-              placeholder="0.00"
-            />
+            <div className="flex items-center space-x-2 text-sm">
+              {product.vegetariano && <Badge variant="outline">🌱 Vegetariano</Badge>}
+              {product.vegano && <Badge variant="outline">🌿 Vegano</Badge>}
+              {product.livre_gluten && <Badge variant="outline">🚫 Sem Glúten</Badge>}
+              {product.livre_lactose && <Badge variant="outline">🥛 Sem Lactose</Badge>}
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Categoria</label>
-            <select
-              value={formData.category_id}
-              onChange={(e) => setFormData({...formData, category_id: e.target.value})}
-              className="w-full px-3 py-2 border rounded-md"
+
+          <div className="flex items-center space-x-2">
+            <Button
+              size="sm"
+              variant={product.disponivel ? "default" : "secondary"}
+              onClick={() => toggleProductAvailability.mutate({
+                productId: product.id,
+                available: !product.disponivel
+              })}
             >
-              <option value="">Selecione uma categoria</option>
-              {categories?.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.nome}</option>
-              ))}
-            </select>
+              {product.disponivel ? (
+                <>
+                  <Eye className="h-4 w-4 mr-1" />
+                  Disponível
+                </>
+              ) : (
+                <>
+                  <EyeOff className="h-4 w-4 mr-1" />
+                  Indisponível
+                </>
+              )}
+            </Button>
+
+            <Dialog 
+              open={editingProduct?.id === product.id} 
+              onOpenChange={(open) => !open && setEditingProduct(null)}
+            >
+              <DialogTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditingProduct(product)}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Editar Produto</DialogTitle>
+                </DialogHeader>
+                <EnhancedProductForm
+                  product={editingProduct}
+                  categories={categories || []}
+                  onSave={(data) => saveProduct.mutate(data)}
+                  onCancel={() => setEditingProduct(null)}
+                  isLoading={saveProduct.isPending}
+                />
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={formData.vegetariano}
-              onChange={(e) => setFormData({...formData, vegetariano: e.target.checked})}
-            />
-            <span>Vegetariano</span>
-          </label>
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={formData.vegano}
-              onChange={(e) => setFormData({...formData, vegano: e.target.checked})}
-            />
-            <span>Vegano</span>
-          </label>
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={formData.livre_gluten}
-              onChange={(e) => setFormData({...formData, livre_gluten: e.target.checked})}
-            />
-            <span>Sem Glúten</span>
-          </label>
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={formData.livre_lactose}
-              onChange={(e) => setFormData({...formData, livre_lactose: e.target.checked})}
-            />
-            <span>Sem Lactose</span>
-          </label>
-        </div>
-
-        <div className="flex justify-end space-x-2">
-          <Button variant="outline" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button 
-            onClick={() => saveProduct.mutate(formData)}
-            disabled={saveProduct.isPending}
-          >
-            {saveProduct.isPending ? 'Salvando...' : (product ? 'Atualizar' : 'Criar')}
-          </Button>
-        </div>
-      </div>
-    );
-  };
+      </CardContent>
+    </Card>
+  );
 
   if (isLoading) {
     return <div className="p-6">Carregando cardápio...</div>;
@@ -251,140 +246,112 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
               Adicionar Produto
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Adicionar Produto</DialogTitle>
+              <DialogTitle>Adicionar Novo Produto</DialogTitle>
             </DialogHeader>
-            <ProductForm onClose={() => setIsAddingProduct(false)} />
+            <EnhancedProductForm
+              categories={categories || []}
+              onSave={(data) => saveProduct.mutate(data)}
+              onCancel={() => setIsAddingProduct(false)}
+              isLoading={saveProduct.isPending}
+            />
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Filtros */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Buscar produtos..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-3 py-2 border rounded-md md:w-48"
-            >
-              <option value="all">Todas as categorias</option>
-              {categories?.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.nome}</option>
-              ))}
-            </select>
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="products">Produtos</TabsTrigger>
+          <TabsTrigger value="categories">Categorias</TabsTrigger>
+          <TabsTrigger value="settings">Configurações</TabsTrigger>
+        </TabsList>
 
-      {/* Lista de produtos */}
-      <div className="grid gap-4">
-        {products?.map((product) => (
-          <Card key={product.id}>
-            <CardContent className="p-4">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <h3 className="font-semibold text-lg">{product.nome}</h3>
-                    {product.category && (
-                      <Badge 
-                        variant="secondary"
-                        style={{ backgroundColor: product.category.cor }}
-                      >
-                        {product.category.nome}
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  {product.descricao && (
-                    <p className="text-gray-600 mb-2">{product.descricao}</p>
-                  )}
-                  
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
-                    <span className="flex items-center">
-                      <DollarSign className="h-4 w-4 mr-1" />
-                      R$ {product.preco?.toFixed(2)}
-                    </span>
-                    {product.vegetariano && <Badge variant="outline">Vegetariano</Badge>}
-                    {product.vegano && <Badge variant="outline">Vegano</Badge>}
-                    {product.livre_gluten && <Badge variant="outline">Sem Glúten</Badge>}
-                    {product.livre_lactose && <Badge variant="outline">Sem Lactose</Badge>}
-                  </div>
+        <TabsContent value="products" className="space-y-6">
+          {/* Filtros */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Buscar produtos..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
-
-                <div className="flex items-center space-x-2">
-                  <Button
-                    size="sm"
-                    variant={product.disponivel ? "default" : "secondary"}
-                    onClick={() => toggleProductAvailability.mutate({
-                      productId: product.id,
-                      available: !product.disponivel
-                    })}
-                  >
-                    {product.disponivel ? (
-                      <>
-                        <Eye className="h-4 w-4 mr-1" />
-                        Disponível
-                      </>
-                    ) : (
-                      <>
-                        <EyeOff className="h-4 w-4 mr-1" />
-                        Indisponível
-                      </>
-                    )}
-                  </Button>
-
-                  <Dialog 
-                    open={editingProduct?.id === product.id} 
-                    onOpenChange={(open) => !open && setEditingProduct(null)}
-                  >
-                    <DialogTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setEditingProduct(product)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Editar Produto</DialogTitle>
-                      </DialogHeader>
-                      <ProductForm 
-                        product={editingProduct} 
-                        onClose={() => setEditingProduct(null)} 
-                      />
-                    </DialogContent>
-                  </Dialog>
-                </div>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="px-3 py-2 border rounded-md md:w-48"
+                >
+                  <option value="all">Todas as categorias</option>
+                  {categories?.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.nome}</option>
+                  ))}
+                </select>
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
 
-      {!products?.length && (
-        <div className="text-center py-12">
-          <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-600 mb-2">
-            Nenhum produto encontrado
-          </h3>
-          <p className="text-gray-500">
-            Comece adicionando produtos ao seu cardápio.
-          </p>
-        </div>
-      )}
+          {/* Lista de produtos */}
+          <div className="grid gap-4">
+            {products?.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+
+          {!products?.length && (
+            <div className="text-center py-12">
+              <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-600 mb-2">
+                Nenhum produto encontrado
+              </h3>
+              <p className="text-gray-500">
+                Comece adicionando produtos ao seu cardápio.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="categories">
+          <ProductCategoryManager restaurantId={restaurantId} />
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Settings className="h-5 w-5 mr-2" />
+                Configurações do Cardápio
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">Funcionalidades Avançadas</h4>
+                <ul className="text-sm text-blue-800 space-y-2">
+                  <li>• <strong>Combos:</strong> Crie ofertas especiais combinando produtos</li>
+                  <li>• <strong>Importação em massa:</strong> Importe produtos via planilha CSV</li>
+                  <li>• <strong>Horários especiais:</strong> Configure disponibilidade por horário</li>
+                  <li>• <strong>Preços dinâmicos:</strong> Ajuste preços automaticamente</li>
+                </ul>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <Button variant="outline" className="h-20 flex-col">
+                  <Package className="h-6 w-6 mb-2" />
+                  Importar Produtos
+                </Button>
+                <Button variant="outline" className="h-20 flex-col">
+                  <Settings className="h-6 w-6 mb-2" />
+                  Configurar Combos
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
