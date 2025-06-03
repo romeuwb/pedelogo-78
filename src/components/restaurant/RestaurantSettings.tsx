@@ -91,16 +91,18 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
   });
 
   const HorarioForm = () => {
+    const defaultHorarios = {
+      segunda: { abertura: '08:00', fechamento: '22:00', ativo: true },
+      terca: { abertura: '08:00', fechamento: '22:00', ativo: true },
+      quarta: { abertura: '08:00', fechamento: '22:00', ativo: true },
+      quinta: { abertura: '08:00', fechamento: '22:00', ativo: true },
+      sexta: { abertura: '08:00', fechamento: '22:00', ativo: true },
+      sabado: { abertura: '08:00', fechamento: '22:00', ativo: true },
+      domingo: { abertura: '08:00', fechamento: '22:00', ativo: false }
+    };
+
     const [horarios, setHorarios] = useState(
-      settings?.horario_funcionamento || {
-        segunda: { abertura: '08:00', fechamento: '22:00', ativo: true },
-        terca: { abertura: '08:00', fechamento: '22:00', ativo: true },
-        quarta: { abertura: '08:00', fechamento: '22:00', ativo: true },
-        quinta: { abertura: '08:00', fechamento: '22:00', ativo: true },
-        sexta: { abertura: '08:00', fechamento: '22:00', ativo: true },
-        sabado: { abertura: '08:00', fechamento: '22:00', ativo: true },
-        domingo: { abertura: '08:00', fechamento: '22:00', ativo: false }
-      }
+      settings?.horario_funcionamento || defaultHorarios
     );
 
     const diasSemana = [
@@ -131,7 +133,10 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
                 checked={horarios[dia.key]?.ativo || false}
                 onChange={(e) => setHorarios({
                   ...horarios,
-                  [dia.key]: { ...horarios[dia.key], ativo: e.target.checked }
+                  [dia.key]: { 
+                    ...horarios[dia.key] || { abertura: '08:00', fechamento: '22:00' }, 
+                    ativo: e.target.checked 
+                  }
                 })}
               />
               <span>Aberto</span>
@@ -146,7 +151,10 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
                     value={horarios[dia.key]?.abertura || '08:00'}
                     onChange={(e) => setHorarios({
                       ...horarios,
-                      [dia.key]: { ...horarios[dia.key], abertura: e.target.value }
+                      [dia.key]: { 
+                        ...horarios[dia.key] || { fechamento: '22:00', ativo: true }, 
+                        abertura: e.target.value 
+                      }
                     })}
                     className="w-24"
                   />
@@ -158,7 +166,10 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
                     value={horarios[dia.key]?.fechamento || '22:00'}
                     onChange={(e) => setHorarios({
                       ...horarios,
-                      [dia.key]: { ...horarios[dia.key], fechamento: e.target.value }
+                      [dia.key]: { 
+                        ...horarios[dia.key] || { abertura: '08:00', ativo: true }, 
+                        fechamento: e.target.value 
+                      }
                     })}
                     className="w-24"
                   />
@@ -180,7 +191,6 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
       nome_fantasia: restaurant?.nome_fantasia || '',
       descricao: restaurant?.descricao || '',
       endereco: restaurant?.endereco || '',
-      telefone: restaurant?.telefone || '',
       taxa_entrega: restaurant?.taxa_entrega || 0,
       tempo_entrega_min: restaurant?.tempo_entrega_min || 30
     });
