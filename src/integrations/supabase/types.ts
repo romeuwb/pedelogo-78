@@ -322,6 +322,61 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_communications: {
+        Row: {
+          cliente_id: string
+          created_at: string | null
+          enviada_por: string | null
+          id: string
+          mensagem: string
+          order_id: string
+          restaurant_id: string
+          tipo_mensagem: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string | null
+          enviada_por?: string | null
+          id?: string
+          mensagem: string
+          order_id: string
+          restaurant_id: string
+          tipo_mensagem: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string | null
+          enviada_por?: string | null
+          id?: string
+          mensagem?: string
+          order_id?: string
+          restaurant_id?: string
+          tipo_mensagem?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_communications_enviada_por_fkey"
+            columns: ["enviada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "customer_communications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_communications_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_details: {
         Row: {
           aceita_termos: boolean | null
@@ -1029,6 +1084,164 @@ export type Database = {
           },
         ]
       }
+      restaurant_message_templates: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          id: string
+          mensagem: string
+          restaurant_id: string
+          tipo: string
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          id?: string
+          mensagem: string
+          restaurant_id: string
+          tipo: string
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          id?: string
+          mensagem?: string
+          restaurant_id?: string
+          tipo?: string
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_message_templates_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_payouts: {
+        Row: {
+          comprovante_url: string | null
+          created_at: string | null
+          data_processamento: string | null
+          id: string
+          observacoes: string | null
+          periodo_fim: string
+          periodo_inicio: string
+          restaurant_id: string
+          status: string | null
+          updated_at: string | null
+          valor_bruto: number
+          valor_comissao: number
+          valor_liquido: number
+        }
+        Insert: {
+          comprovante_url?: string | null
+          created_at?: string | null
+          data_processamento?: string | null
+          id?: string
+          observacoes?: string | null
+          periodo_fim: string
+          periodo_inicio: string
+          restaurant_id: string
+          status?: string | null
+          updated_at?: string | null
+          valor_bruto: number
+          valor_comissao: number
+          valor_liquido: number
+        }
+        Update: {
+          comprovante_url?: string | null
+          created_at?: string | null
+          data_processamento?: string | null
+          id?: string
+          observacoes?: string | null
+          periodo_fim?: string
+          periodo_inicio?: string
+          restaurant_id?: string
+          status?: string | null
+          updated_at?: string | null
+          valor_bruto?: number
+          valor_comissao?: number
+          valor_liquido?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_payouts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_product_availability: {
+        Row: {
+          created_at: string | null
+          data_indisponibilidade: string | null
+          disponivel: boolean | null
+          id: string
+          motivo_indisponibilidade: string | null
+          previsao_retorno: string | null
+          product_id: string
+          restaurant_id: string
+          updated_at: string | null
+          usuario_responsavel: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          data_indisponibilidade?: string | null
+          disponivel?: boolean | null
+          id?: string
+          motivo_indisponibilidade?: string | null
+          previsao_retorno?: string | null
+          product_id: string
+          restaurant_id: string
+          updated_at?: string | null
+          usuario_responsavel?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          data_indisponibilidade?: string | null
+          disponivel?: boolean | null
+          id?: string
+          motivo_indisponibilidade?: string | null
+          previsao_retorno?: string | null
+          product_id?: string
+          restaurant_id?: string
+          updated_at?: string | null
+          usuario_responsavel?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_product_availability_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_product_availability_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_product_availability_usuario_responsavel_fkey"
+            columns: ["usuario_responsavel"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       restaurant_products: {
         Row: {
           ativo: boolean | null
@@ -1119,26 +1332,112 @@ export type Database = {
           },
         ]
       }
+      restaurant_promotions: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          data_fim: string
+          data_inicio: string
+          descricao: string | null
+          dias_semana: number[] | null
+          horario_fim: string | null
+          horario_inicio: string | null
+          id: string
+          limite_uso: number | null
+          nome: string
+          produtos_aplicaveis: string[] | null
+          restaurant_id: string
+          tipo_promocao: string
+          updated_at: string | null
+          usos_realizados: number | null
+          valor_desconto: number | null
+          valor_minimo_pedido: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          data_fim: string
+          data_inicio: string
+          descricao?: string | null
+          dias_semana?: number[] | null
+          horario_fim?: string | null
+          horario_inicio?: string | null
+          id?: string
+          limite_uso?: number | null
+          nome: string
+          produtos_aplicaveis?: string[] | null
+          restaurant_id: string
+          tipo_promocao: string
+          updated_at?: string | null
+          usos_realizados?: number | null
+          valor_desconto?: number | null
+          valor_minimo_pedido?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          data_fim?: string
+          data_inicio?: string
+          descricao?: string | null
+          dias_semana?: number[] | null
+          horario_fim?: string | null
+          horario_inicio?: string | null
+          id?: string
+          limite_uso?: number | null
+          nome?: string
+          produtos_aplicaveis?: string[] | null
+          restaurant_id?: string
+          tipo_promocao?: string
+          updated_at?: string | null
+          usos_realizados?: number | null
+          valor_desconto?: number | null
+          valor_minimo_pedido?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_promotions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurant_settings: {
         Row: {
+          area_entrega: Json | null
           configuracao: Json | null
+          configuracoes_notificacao: Json | null
           created_at: string
+          dados_bancarios: Json | null
+          horario_funcionamento: Json | null
           id: string
           restaurant_id: string
+          status_online: boolean | null
           updated_at: string
         }
         Insert: {
+          area_entrega?: Json | null
           configuracao?: Json | null
+          configuracoes_notificacao?: Json | null
           created_at?: string
+          dados_bancarios?: Json | null
+          horario_funcionamento?: Json | null
           id?: string
           restaurant_id: string
+          status_online?: boolean | null
           updated_at?: string
         }
         Update: {
+          area_entrega?: Json | null
           configuracao?: Json | null
+          configuracoes_notificacao?: Json | null
           created_at?: string
+          dados_bancarios?: Json | null
+          horario_funcionamento?: Json | null
           id?: string
           restaurant_id?: string
+          status_online?: boolean | null
           updated_at?: string
         }
         Relationships: [
@@ -1148,6 +1447,95 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "restaurant_details"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_special_hours: {
+        Row: {
+          created_at: string | null
+          data: string
+          fechado: boolean | null
+          horario_abertura: string | null
+          horario_fechamento: string | null
+          id: string
+          motivo: string | null
+          restaurant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          data: string
+          fechado?: boolean | null
+          horario_abertura?: string | null
+          horario_fechamento?: string | null
+          id?: string
+          motivo?: string | null
+          restaurant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          data?: string
+          fechado?: boolean | null
+          horario_abertura?: string | null
+          horario_fechamento?: string | null
+          id?: string
+          motivo?: string | null
+          restaurant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_special_hours_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_status_log: {
+        Row: {
+          created_at: string | null
+          id: string
+          motivo: string | null
+          restaurant_id: string
+          status_anterior: boolean | null
+          status_novo: boolean | null
+          usuario_responsavel: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          motivo?: string | null
+          restaurant_id: string
+          status_anterior?: boolean | null
+          status_novo?: boolean | null
+          usuario_responsavel?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          motivo?: string | null
+          restaurant_id?: string
+          status_anterior?: boolean | null
+          status_novo?: boolean | null
+          usuario_responsavel?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_status_log_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_status_log_usuario_responsavel_fkey"
+            columns: ["usuario_responsavel"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -1256,6 +1644,58 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_responses: {
+        Row: {
+          created_at: string | null
+          id: string
+          respondido_por: string | null
+          resposta: string
+          restaurant_id: string
+          review_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          respondido_por?: string | null
+          resposta: string
+          restaurant_id: string
+          review_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          respondido_por?: string | null
+          resposta?: string
+          restaurant_id?: string
+          review_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_responses_respondido_por_fkey"
+            columns: ["respondido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "review_responses_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_responses_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
             referencedColumns: ["id"]
           },
         ]
