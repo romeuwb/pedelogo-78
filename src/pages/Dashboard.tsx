@@ -101,12 +101,7 @@ const Dashboard = () => {
         );
 
       case 'entregador':
-        return (
-          <DeliveryApp 
-            userId={user.id} 
-            deliveryDetails={deliveryDetails} 
-          />
-        );
+        return <DeliveryApp />;
 
       case 'cliente':
         return (

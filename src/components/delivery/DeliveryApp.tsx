@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,6 +21,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { DeliveryEarningsData } from '@/types/delivery';
 import DeliveryDashboard from './DeliveryDashboard';
 import DeliveryOrders from './DeliveryOrders';
 import DeliveryEarnings from './DeliveryEarnings';
@@ -41,9 +41,14 @@ const DeliveryApp = () => {
   useEffect(() => {
     if (user) {
       loadDeliveryDetails();
-      loadDailyStats();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (deliveryDetails) {
+      loadDailyStats();
+    }
+  }, [deliveryDetails]);
 
   const loadDeliveryDetails = async () => {
     try {
@@ -84,9 +89,10 @@ const DeliveryApp = () => {
 
       if (error) throw error;
 
-      if (data) {
-        setDailyEarnings(data.total_ganhos || 0);
-        setDeliveryCount(data.total_entregas || 0);
+      if (data && typeof data === 'object') {
+        const earningsData = data as DeliveryEarningsData;
+        setDailyEarnings(earningsData.total_ganhos || 0);
+        setDeliveryCount(earningsData.total_entregas || 0);
       }
     } catch (error) {
       console.error('Erro ao carregar estatísticas diárias:', error);
@@ -108,13 +114,15 @@ const DeliveryApp = () => {
       if (error) throw error;
 
       // Registrar histórico de status
-      await supabase
-        .from('delivery_status_history')
-        .insert({
-          delivery_detail_id: deliveryDetails.id,
-          status_anterior: isOnline,
-          status_novo: newStatus
-        });
+      if (deliveryDetails?.id) {
+        await supabase
+          .from('delivery_status_history')
+          .insert({
+            delivery_detail_id: deliveryDetails.id,
+            status_anterior: isOnline,
+            status_novo: newStatus
+          });
+      }
 
       setIsOnline(newStatus);
       toast.success(newStatus ? 'Você está online!' : 'Você está offline');

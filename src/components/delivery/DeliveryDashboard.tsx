@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +15,7 @@ import {
   Phone
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { DeliveryEarningsData } from '@/types/delivery';
 
 const DeliveryDashboard = ({ deliveryDetails, isOnline, currentOrder, setCurrentOrder }) => {
   const [availableOrders, setAvailableOrders] = useState([]);
@@ -87,12 +87,13 @@ const DeliveryDashboard = ({ deliveryDetails, isOnline, currentOrder, setCurrent
 
       if (error) throw error;
 
-      if (data) {
+      if (data && typeof data === 'object') {
+        const earningsData = data as DeliveryEarningsData;
         setTodayStats({
-          entregas: data.total_entregas || 0,
-          ganhos: data.total_ganhos || 0,
+          entregas: earningsData.total_entregas || 0,
+          ganhos: earningsData.total_ganhos || 0,
           rating: deliveryDetails.rating_medio || 0,
-          distancia: data.distancia_total || 0
+          distancia: earningsData.distancia_total || 0
         });
       }
     } catch (error) {
