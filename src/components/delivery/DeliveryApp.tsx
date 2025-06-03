@@ -90,7 +90,7 @@ const DeliveryApp = () => {
       if (error) throw error;
 
       if (data && typeof data === 'object') {
-        const earningsData = data as DeliveryEarningsData;
+        const earningsData = data as unknown as DeliveryEarningsData;
         setDailyEarnings(earningsData.total_ganhos || 0);
         setDeliveryCount(earningsData.total_entregas || 0);
       }

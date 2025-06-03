@@ -88,7 +88,7 @@ const DeliveryDashboard = ({ deliveryDetails, isOnline, currentOrder, setCurrent
       if (error) throw error;
 
       if (data && typeof data === 'object') {
-        const earningsData = data as DeliveryEarningsData;
+        const earningsData = data as unknown as DeliveryEarningsData;
         setTodayStats({
           entregas: earningsData.total_entregas || 0,
           ganhos: earningsData.total_ganhos || 0,
