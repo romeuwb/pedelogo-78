@@ -176,6 +176,332 @@ export type Database = {
         }
         Relationships: []
       }
+      client_cart: {
+        Row: {
+          created_at: string
+          id: string
+          itens: Json
+          observacoes: string | null
+          restaurant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          itens?: Json
+          observacoes?: string | null
+          restaurant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          itens?: Json
+          observacoes?: string | null
+          restaurant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_cart_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_coupon_history: {
+        Row: {
+          coupon_id: string
+          data_utilizacao: string
+          id: string
+          order_id: string | null
+          user_id: string
+          valor_desconto: number
+        }
+        Insert: {
+          coupon_id: string
+          data_utilizacao?: string
+          id?: string
+          order_id?: string | null
+          user_id: string
+          valor_desconto: number
+        }
+        Update: {
+          coupon_id?: string
+          data_utilizacao?: string
+          id?: string
+          order_id?: string | null
+          user_id?: string
+          valor_desconto?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_coupon_history_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_coupon_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_favorites: {
+        Row: {
+          created_at: string
+          id: string
+          restaurant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          restaurant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          restaurant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_favorites_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_notifications: {
+        Row: {
+          created_at: string
+          dados_extras: Json | null
+          data_leitura: string | null
+          id: string
+          lida: boolean
+          mensagem: string
+          order_id: string | null
+          tipo: string
+          titulo: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dados_extras?: Json | null
+          data_leitura?: string | null
+          id?: string
+          lida?: boolean
+          mensagem: string
+          order_id?: string | null
+          tipo: string
+          titulo: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dados_extras?: Json | null
+          data_leitura?: string | null
+          id?: string
+          lida?: boolean
+          mensagem?: string
+          order_id?: string | null
+          tipo?: string
+          titulo?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_notifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_payment_methods: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          dados_pagamento: Json | null
+          id: string
+          nome_metodo: string
+          padrao: boolean
+          tipo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          dados_pagamento?: Json | null
+          id?: string
+          nome_metodo: string
+          padrao?: boolean
+          tipo: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          dados_pagamento?: Json | null
+          id?: string
+          nome_metodo?: string
+          padrao?: boolean
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      client_preferences: {
+        Row: {
+          created_at: string
+          endereco_padrao_id: string | null
+          faixa_preco_preferida: string | null
+          id: string
+          metodo_pagamento_padrao_id: string | null
+          modo_escuro: boolean | null
+          notificacoes_email: boolean | null
+          notificacoes_promocoes: boolean | null
+          notificacoes_push: boolean | null
+          notificacoes_sms: boolean | null
+          raio_entrega_preferido: number | null
+          tempo_maximo_entrega: number | null
+          tipos_cozinha_preferidos: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          endereco_padrao_id?: string | null
+          faixa_preco_preferida?: string | null
+          id?: string
+          metodo_pagamento_padrao_id?: string | null
+          modo_escuro?: boolean | null
+          notificacoes_email?: boolean | null
+          notificacoes_promocoes?: boolean | null
+          notificacoes_push?: boolean | null
+          notificacoes_sms?: boolean | null
+          raio_entrega_preferido?: number | null
+          tempo_maximo_entrega?: number | null
+          tipos_cozinha_preferidos?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          endereco_padrao_id?: string | null
+          faixa_preco_preferida?: string | null
+          id?: string
+          metodo_pagamento_padrao_id?: string | null
+          modo_escuro?: boolean | null
+          notificacoes_email?: boolean | null
+          notificacoes_promocoes?: boolean | null
+          notificacoes_push?: boolean | null
+          notificacoes_sms?: boolean | null
+          raio_entrega_preferido?: number | null
+          tempo_maximo_entrega?: number | null
+          tipos_cozinha_preferidos?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_preferences_endereco_padrao_id_fkey"
+            columns: ["endereco_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "user_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_preferences_metodo_pagamento_padrao_id_fkey"
+            columns: ["metodo_pagamento_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "client_payment_methods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_recommendations: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          motivo_recomendacao: string
+          restaurant_id: string
+          score: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          motivo_recomendacao: string
+          restaurant_id: string
+          score?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          motivo_recomendacao?: string
+          restaurant_id?: string
+          score?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_recommendations_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_search_history: {
+        Row: {
+          categoria: string | null
+          created_at: string
+          filtros_aplicados: Json | null
+          id: string
+          termo_pesquisa: string
+          user_id: string
+        }
+        Insert: {
+          categoria?: string | null
+          created_at?: string
+          filtros_aplicados?: Json | null
+          id?: string
+          termo_pesquisa: string
+          user_id: string
+        }
+        Update: {
+          categoria?: string | null
+          created_at?: string
+          filtros_aplicados?: Json | null
+          id?: string
+          termo_pesquisa?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       client_subscriptions: {
         Row: {
           cliente_id: string
@@ -893,16 +1219,20 @@ export type Database = {
       profiles: {
         Row: {
           ativo: boolean
+          avatar_url: string | null
           cadastro_completo: boolean | null
           created_at: string
           data_nascimento: string | null
+          data_ultimo_acesso: string | null
           documento: string | null
           email: string
           email_confirmado: boolean | null
           endereco: string | null
           genero: string | null
           id: string
+          idioma: string | null
           nome: string
+          preferencias_notificacao: Json | null
           telefone: string | null
           tipo: Database["public"]["Enums"]["user_type"]
           updated_at: string
@@ -910,16 +1240,20 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          avatar_url?: string | null
           cadastro_completo?: boolean | null
           created_at?: string
           data_nascimento?: string | null
+          data_ultimo_acesso?: string | null
           documento?: string | null
           email: string
           email_confirmado?: boolean | null
           endereco?: string | null
           genero?: string | null
           id?: string
+          idioma?: string | null
           nome: string
+          preferencias_notificacao?: Json | null
           telefone?: string | null
           tipo: Database["public"]["Enums"]["user_type"]
           updated_at?: string
@@ -927,16 +1261,20 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          avatar_url?: string | null
           cadastro_completo?: boolean | null
           created_at?: string
           data_nascimento?: string | null
+          data_ultimo_acesso?: string | null
           documento?: string | null
           email?: string
           email_confirmado?: boolean | null
           endereco?: string | null
           genero?: string | null
           id?: string
+          idioma?: string | null
           nome?: string
+          preferencias_notificacao?: Json | null
           telefone?: string | null
           tipo?: Database["public"]["Enums"]["user_type"]
           updated_at?: string
@@ -2109,6 +2447,10 @@ export type Database = {
     }
     Functions: {
       cleanup_expired_invites: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_expired_recommendations: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
