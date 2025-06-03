@@ -131,13 +131,16 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
               <input
                 type="checkbox"
                 checked={horarios[dia.key]?.ativo || false}
-                onChange={(e) => setHorarios({
-                  ...horarios,
-                  [dia.key]: { 
-                    ...horarios[dia.key] || { abertura: '08:00', fechamento: '22:00' }, 
-                    ativo: e.target.checked 
-                  }
-                })}
+                onChange={(e) => {
+                  const currentHorario = horarios[dia.key] || { abertura: '08:00', fechamento: '22:00' };
+                  setHorarios({
+                    ...horarios,
+                    [dia.key]: { 
+                      ...currentHorario, 
+                      ativo: e.target.checked 
+                    }
+                  });
+                }}
               />
               <span>Aberto</span>
             </label>
@@ -149,13 +152,16 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
                   <Input
                     type="time"
                     value={horarios[dia.key]?.abertura || '08:00'}
-                    onChange={(e) => setHorarios({
-                      ...horarios,
-                      [dia.key]: { 
-                        ...horarios[dia.key] || { fechamento: '22:00', ativo: true }, 
-                        abertura: e.target.value 
-                      }
-                    })}
+                    onChange={(e) => {
+                      const currentHorario = horarios[dia.key] || { fechamento: '22:00', ativo: true };
+                      setHorarios({
+                        ...horarios,
+                        [dia.key]: { 
+                          ...currentHorario, 
+                          abertura: e.target.value 
+                        }
+                      });
+                    }}
                     className="w-24"
                   />
                 </div>
@@ -164,13 +170,16 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
                   <Input
                     type="time"
                     value={horarios[dia.key]?.fechamento || '22:00'}
-                    onChange={(e) => setHorarios({
-                      ...horarios,
-                      [dia.key]: { 
-                        ...horarios[dia.key] || { abertura: '08:00', ativo: true }, 
-                        fechamento: e.target.value 
-                      }
-                    })}
+                    onChange={(e) => {
+                      const currentHorario = horarios[dia.key] || { abertura: '08:00', ativo: true };
+                      setHorarios({
+                        ...horarios,
+                        [dia.key]: { 
+                          ...currentHorario, 
+                          fechamento: e.target.value 
+                        }
+                      });
+                    }}
                     className="w-24"
                   />
                 </div>
