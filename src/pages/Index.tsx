@@ -5,39 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapPin, Search, Star, Clock } from 'lucide-react';
 import LoginModal from '@/components/auth/LoginModal';
+import RestaurantList from '@/components/RestaurantList';
 
 const Index = () => {
   const [showLogin, setShowLogin] = useState(false);
-
-  const restaurants = [
-    {
-      id: 1,
-      name: "Pizza Express",
-      rating: 4.5,
-      deliveryTime: "25-35 min",
-      category: "Pizza",
-      image: "/placeholder.svg",
-      promo: "Frete Grátis"
-    },
-    {
-      id: 2,
-      name: "Burger House",
-      rating: 4.2,
-      deliveryTime: "30-40 min",
-      category: "Hambúrguer",
-      image: "/placeholder.svg",
-      promo: "20% OFF"
-    },
-    {
-      id: 3,
-      name: "Sushi Master",
-      rating: 4.8,
-      deliveryTime: "40-50 min",
-      category: "Japonês",
-      image: "/placeholder.svg",
-      promo: null
-    }
-  ];
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   return (
     <div className="min-h-screen">
@@ -102,33 +74,7 @@ const Index = () => {
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">Restaurantes em Destaque</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {restaurants.map((restaurant) => (
-              <Card key={restaurant.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="aspect-video bg-gray-200 relative">
-                  {restaurant.promo && (
-                    <div className="absolute top-4 left-4 bg-red-500 text-white px-2 py-1 rounded text-sm font-semibold">
-                      {restaurant.promo}
-                    </div>
-                  )}
-                </div>
-                <CardContent className="p-4">
-                  <h3 className="font-bold text-lg mb-2">{restaurant.name}</h3>
-                  <p className="text-gray-600 mb-3">{restaurant.category}</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-1">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm font-medium">{restaurant.rating}</span>
-                    </div>
-                    <div className="flex items-center space-x-1 text-gray-600">
-                      <Clock className="h-4 w-4" />
-                      <span className="text-sm">{restaurant.deliveryTime}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <RestaurantList selectedCategory={selectedCategory} />
         </div>
       </section>
 

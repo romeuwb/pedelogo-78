@@ -188,11 +188,6 @@ export const useAuth = () => {
         description: "Bem-vindo de volta!",
       });
 
-      // Aguardar um momento antes de redirecionar para garantir que o estado foi atualizado
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 500);
-
       return { data, error: null };
     } catch (error: any) {
       console.error('Erro no login:', error);
@@ -225,7 +220,7 @@ export const useAuth = () => {
         description: "Até logo!",
       });
 
-      // Redirecionar para home
+      // Redirecionar para home apenas se bem-sucedido
       window.location.href = '/';
     } catch (error: any) {
       console.error('Erro no logout:', error);
