@@ -8,11 +8,16 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Filter, X, Clock } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
+interface SearchResults {
+  restaurants: any[];
+  products: any[];
+}
+
 const ClientSearch = () => {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchHistory, setSearchHistory] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState<SearchResults>({ restaurants: [], products: [] });
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     categoria: '',
@@ -135,7 +140,7 @@ const ClientSearch = () => {
       </div>
 
       {/* Search History */}
-      {searchHistory.length > 0 && !searchResults.restaurants && (
+      {searchHistory.length > 0 && !searchResults.restaurants.length && !searchResults.products.length && (
         <div className="bg-white rounded-lg p-4 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-900">Pesquisas recentes</h3>
@@ -168,7 +173,7 @@ const ClientSearch = () => {
       )}
 
       {/* Search Results */}
-      {searchResults.restaurants && (
+      {(searchResults.restaurants.length > 0 || searchResults.products.length > 0) && (
         <div className="space-y-4">
           {/* Restaurants Results */}
           {searchResults.restaurants.length > 0 && (
@@ -258,7 +263,7 @@ const ClientSearch = () => {
           )}
 
           {/* No Results */}
-          {searchResults.restaurants.length === 0 && searchResults.products.length === 0 && (
+          {searchResults.restaurants.length === 0 && searchResults.products.length === 0 && searchTerm && (
             <Card>
               <CardContent className="p-6 text-center text-gray-500">
                 <Search size={48} className="mx-auto mb-4 text-gray-300" />

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -161,7 +160,7 @@ const ClientProfile = () => {
               {editing ? (
                 <form onSubmit={(e) => {
                   e.preventDefault();
-                  const formData = new FormData(e.target);
+                  const formData = new FormData(e.currentTarget as HTMLFormElement);
                   updateProfile({
                     nome: formData.get('nome'),
                     telefone: formData.get('telefone'),
