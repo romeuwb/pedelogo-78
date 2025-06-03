@@ -46,14 +46,17 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     document.head.appendChild(script);
 
     return () => {
-      document.head.removeChild(script);
+      const existingScript = document.querySelector(`script[src*="maps.googleapis.com"]`);
+      if (existingScript) {
+        document.head.removeChild(existingScript);
+      }
     };
   }, [apiKey]);
 
   const initializeMap = () => {
-    if (!mapRef.current || !window.google) return;
+    if (!mapRef.current || !(window as any).google) return;
 
-    const mapInstance = new window.google.maps.Map(mapRef.current, {
+    const mapInstance = new (window as any).google.maps.Map(mapRef.current, {
       center,
       zoom,
       styles: [
@@ -74,7 +77,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         const lng = event.latLng.lng();
         
         // Reverse geocoding to get address
-        const geocoder = new window.google.maps.Geocoder();
+        const geocoder = new (window as any).google.maps.Geocoder();
         geocoder.geocode({ location: { lat, lng } }, (results: any[], status: any) => {
           if (status === 'OK' && results[0]) {
             onLocationSelect({
@@ -90,17 +93,17 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 
   // Add markers to map
   useEffect(() => {
-    if (!map || !window.google) return;
+    if (!map || !(window as any).google) return;
 
     markers.forEach(marker => {
-      const mapMarker = new window.google.maps.Marker({
+      const mapMarker = new (window as any).google.maps.Marker({
         position: marker.position,
         map,
         title: marker.title,
         icon: getMarkerIcon(marker.type)
       });
 
-      const infoWindow = new window.google.maps.InfoWindow({
+      const infoWindow = new (window as any).google.maps.InfoWindow({
         content: `<div><strong>${marker.title}</strong></div>`
       });
 
@@ -133,7 +136,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             map.setCenter(location);
             map.setZoom(15);
             
-            new window.google.maps.Marker({
+            new (window as any).google.maps.Marker({
               position: location,
               map,
               title: 'Sua localização',
@@ -158,16 +161,16 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   };
 
   const searchLocation = () => {
-    if (!searchAddress || !map || !window.google) return;
+    if (!searchAddress || !map || !(window as any).google) return;
 
-    const geocoder = new window.google.maps.Geocoder();
+    const geocoder = new (window as any).google.maps.Geocoder();
     geocoder.geocode({ address: searchAddress }, (results: any[], status: any) => {
       if (status === 'OK' && results[0]) {
         const location = results[0].geometry.location;
         map.setCenter(location);
         map.setZoom(15);
         
-        new window.google.maps.Marker({
+        new (window as any).google.maps.Marker({
           position: location,
           map,
           title: searchAddress

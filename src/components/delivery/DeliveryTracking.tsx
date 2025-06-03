@@ -17,7 +17,24 @@ interface DeliveryTrackingProps {
 export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, userType }) => {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [deliveryLocation, setDeliveryLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>('');
   const { toast } = useToast();
+
+  // Get Google Maps API key from system configurations
+  useQuery({
+    queryKey: ['systemConfig', 'google_maps_api_key'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('system_configurations')
+        .select('valor')
+        .eq('chave', 'google_maps_api_key')
+        .single();
+
+      if (error) throw error;
+      setGoogleMapsApiKey(data.valor);
+      return data.valor;
+    },
+  });
 
   // Get order details with delivery tracking
   const { data: orderData, isLoading, refetch } = useQuery({
@@ -37,12 +54,12 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
             user_id,
             localizacao_atual,
             status_online,
-            profiles:user_id (
+            delivery_profiles:user_id (
               nome,
               telefone
             )
           ),
-          client_profile:cliente_id (
+          client_profiles:cliente_id (
             nome,
             telefone
           )
@@ -53,7 +70,7 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
       if (error) throw error;
       return data;
     },
-    refetchInterval: userType === 'customer' ? 30000 : 10000, // Refresh every 30s for customers, 10s for others
+    refetchInterval: userType === 'customer' ? 30000 : 10000,
   });
 
   // Update delivery location
@@ -185,7 +202,7 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
       markers.push({
         id: 'restaurant',
         position: { lat: -23.5505, lng: -46.6333 }, // Default position
-        title: orderData.restaurant_details.nome_fantasia,
+        title: orderData.restaurant_details.nome_fantasia || 'Restaurante',
         type: 'restaurant' as const
       });
     }
@@ -206,7 +223,7 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
       markers.push({
         id: 'delivery',
         position: { lat: loc.lat, lng: loc.lng },
-        title: `Entregador: ${orderData.delivery_details.profiles?.nome || 'Sem nome'}`,
+        title: `Entregador: ${orderData.delivery_details.delivery_profiles?.nome || 'Sem nome'}`,
         type: 'delivery' as const
       });
     }
@@ -274,7 +291,7 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
               <div>
                 <p className="text-sm text-gray-600">Entregador</p>
                 <p className="font-medium">
-                  {orderData.delivery_details?.profiles?.nome || 'Não atribuído'}
+                  {orderData.delivery_details?.delivery_profiles?.nome || 'Não atribuído'}
                 </p>
               </div>
             </div>
@@ -373,6 +390,7 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
         markers={getMapMarkers()}
         showRouting={true}
         center={deliveryLocation || { lat: -23.5505, lng: -46.6333 }}
+        apiKey={googleMapsApiKey}
       />
 
       {/* Contact Information */}
@@ -383,12 +401,12 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {userType === 'customer' && orderData.delivery_details?.profiles && (
+              {userType === 'customer' && orderData.delivery_details?.delivery_profiles && (
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <p className="font-medium">Entregador</p>
                     <p className="text-sm text-gray-600">
-                      {orderData.delivery_details.profiles.nome}
+                      {orderData.delivery_details.delivery_profiles.nome}
                     </p>
                   </div>
                   <div className="flex space-x-2">
@@ -402,12 +420,12 @@ export const DeliveryTracking: React.FC<DeliveryTrackingProps> = ({ orderId, use
                 </div>
               )}
               
-              {userType === 'delivery' && orderData.client_profile && (
+              {userType === 'delivery' && orderData.client_profiles && (
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <p className="font-medium">Cliente</p>
                     <p className="text-sm text-gray-600">
-                      {orderData.client_profile.nome}
+                      {orderData.client_profiles.nome}
                     </p>
                   </div>
                   <div className="flex space-x-2">
