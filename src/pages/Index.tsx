@@ -1,182 +1,164 @@
 
 import { useState } from 'react';
-import Header from '@/components/Header';
-import CategoryFilter from '@/components/CategoryFilter';
-import RestaurantList from '@/components/RestaurantList';
-import UserTypeModal from '@/components/UserTypeModal';
-import LoginModal from '@/components/auth/LoginModal';
-import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, MapPin } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { MapPin, Search, Star, Clock } from 'lucide-react';
+import { LoginModal } from '@/components/auth/LoginModal';
 
 const Index = () => {
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [isUserTypeModalOpen, setIsUserTypeModalOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [selectedUserType, setSelectedUserType] = useState<string>();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [location, setLocation] = useState('São Paulo, SP');
-  
-  const { user, profile, signOut } = useAuth();
+  const [showLogin, setShowLogin] = useState(false);
 
-  const handleOpenUserModal = () => {
-    if (user) {
-      signOut();
-    } else {
-      setIsUserTypeModalOpen(true);
+  const restaurants = [
+    {
+      id: 1,
+      name: "Pizza Express",
+      rating: 4.5,
+      deliveryTime: "25-35 min",
+      category: "Pizza",
+      image: "/placeholder.svg",
+      promo: "Frete Grátis"
+    },
+    {
+      id: 2,
+      name: "Burger House",
+      rating: 4.2,
+      deliveryTime: "30-40 min",
+      category: "Hambúrguer",
+      image: "/placeholder.svg",
+      promo: "20% OFF"
+    },
+    {
+      id: 3,
+      name: "Sushi Master",
+      rating: 4.8,
+      deliveryTime: "40-50 min",
+      category: "Japonês",
+      image: "/placeholder.svg",
+      promo: null
     }
-  };
-
-  const handleUserTypeSelect = (userType: string) => {
-    setSelectedUserType(userType);
-    setIsUserTypeModalOpen(false);
-    setIsLoginModalOpen(true);
-  };
-
-  const handleLoginModalClose = () => {
-    setIsLoginModalOpen(false);
-    setSelectedUserType(undefined);
-  };
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50">
-      <Header onOpenUserModal={handleOpenUserModal} />
-      
+    <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="py-12 px-4">
-        <div className="container mx-auto text-center">
+      <section className="bg-gradient-to-r from-orange-500 to-red-500 text-white py-20">
+        <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-6xl font-bold mb-6">
-            <span className="gradient-delivery bg-clip-text text-transparent">
-              Sabor na porta
-            </span>
+            A melhor comida
             <br />
-            <span className="text-gray-800">de casa! 🍕</span>
+            <span className="text-yellow-300">de casa!</span> 🍕
           </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Descubra os melhores restaurantes da sua região e peça sua comida favorita 
-            com entrega rápida e segura.
+          <p className="text-xl mb-8 max-w-2xl mx-auto">
+            Descubra os melhores restaurantes da sua região e peça sua comida 
+            favorita com entrega rápida e segura.
           </p>
           
-          {/* Search Section */}
-          <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg p-6 mb-8">
+          {/* Search Bar */}
+          <div className="max-w-4xl mx-auto bg-white rounded-lg p-4 shadow-lg">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                 <Input
                   placeholder="Buscar restaurantes ou pratos..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-12 h-12 text-lg border-0 focus:ring-2 focus:ring-delivery-orange"
+                  className="pl-10 h-12 text-gray-900"
                 />
               </div>
               <div className="flex-1 relative">
-                <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                 <Input
-                  placeholder="Onde você está?"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="pl-12 h-12 text-lg border-0 focus:ring-2 focus:ring-delivery-orange"
+                  placeholder="São Paulo, SP"
+                  className="pl-10 h-12 text-gray-900"
                 />
               </div>
-              <Button className="h-12 px-8 gradient-delivery text-white hover:opacity-90 transition-opacity">
+              <Button className="h-12 px-8 bg-orange-500 hover:bg-orange-600">
                 Buscar
               </Button>
             </div>
           </div>
-
-          {user && profile && (
-            <div className="mb-8 p-4 bg-white/80 rounded-xl max-w-md mx-auto">
-              <p className="text-sm text-gray-600">
-                Olá, <span className="font-semibold text-delivery-orange">{profile.nome}</span>!
-              </p>
-              <p className="text-xs text-gray-500">
-                Tipo: {profile.tipo} • {profile.email}
-              </p>
-            </div>
-          )}
         </div>
       </section>
 
-      {/* Categories Section */}
-      <section className="py-8 px-4 bg-white/50">
-        <div className="container mx-auto">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-            Categorias Populares
-          </h2>
-          <CategoryFilter 
-            selectedCategory={selectedCategory} 
-            onCategoryChange={setSelectedCategory} 
-          />
-        </div>
-      </section>
-
-      {/* Restaurants Section */}
-      <section className="py-12 px-4">
-        <div className="container mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-800">
-              {selectedCategory === 'all' ? 'Todos os Restaurantes' : 'Restaurantes Filtrados'}
-            </h2>
-            <p className="text-gray-500">
-              Encontre o que você está procurando
-            </p>
+      {/* Categories */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-12">Categorias Populares</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+            {['Pizza', 'Hambúrguer', 'Japonês', 'Italiana', 'Mexicana', 'Brasileira'].map((category) => (
+              <Card key={category} className="text-center hover:shadow-lg transition-shadow cursor-pointer">
+                <CardContent className="p-6">
+                  <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">🍕</span>
+                  </div>
+                  <h3 className="font-semibold">{category}</h3>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-          
-          <RestaurantList selectedCategory={selectedCategory} />
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-800 text-white py-12 px-4">
-        <div className="container mx-auto text-center">
-          <div className="text-3xl font-bold gradient-delivery bg-clip-text text-transparent mb-4">
-            🍕 PedeLogo
+      {/* Featured Restaurants */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-12">Restaurantes em Destaque</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {restaurants.map((restaurant) => (
+              <Card key={restaurant.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="aspect-video bg-gray-200 relative">
+                  {restaurant.promo && (
+                    <div className="absolute top-4 left-4 bg-red-500 text-white px-2 py-1 rounded text-sm font-semibold">
+                      {restaurant.promo}
+                    </div>
+                  )}
+                </div>
+                <CardContent className="p-4">
+                  <h3 className="font-bold text-lg mb-2">{restaurant.name}</h3>
+                  <p className="text-gray-600 mb-3">{restaurant.category}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="text-sm font-medium">{restaurant.rating}</span>
+                    </div>
+                    <div className="flex items-center space-x-1 text-gray-600">
+                      <Clock className="h-4 w-4" />
+                      <span className="text-sm">{restaurant.deliveryTime}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-          <p className="text-gray-400 mb-8">
-            Conectando você aos melhores sabores da sua cidade
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-16 bg-orange-500 text-white">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold mb-6">Pronto para começar?</h2>
+          <p className="text-xl mb-8 max-w-2xl mx-auto">
+            Junte-se a milhares de pessoas que já descobriram a praticidade 
+            de pedir comida pelo nosso app.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-sm">
-            <div>
-              <h3 className="font-semibold mb-2">Para Clientes</h3>
-              <ul className="space-y-1 text-gray-400">
-                <li>Como funciona</li>
-                <li>Entrega grátis</li>
-                <li>Promoções</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-2">Para Restaurantes</h3>
-              <ul className="space-y-1 text-gray-400">
-                <li>Seja parceiro</li>
-                <li>Portal do restaurante</li>
-                <li>Suporte</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-2">Para Entregadores</h3>
-              <ul className="space-y-1 text-gray-400">
-                <li>Trabalhe conosco</li>
-                <li>App do entregador</li>
-                <li>Ganhos</li>
-              </ul>
-            </div>
+          <div className="space-x-4">
+            <Button 
+              onClick={() => setShowLogin(true)}
+              className="bg-white text-orange-500 hover:bg-gray-100 px-8 py-3"
+            >
+              Criar Conta
+            </Button>
+            <Button 
+              onClick={() => setShowLogin(true)}
+              variant="outline" 
+              className="border-white text-white hover:bg-white hover:text-orange-500 px-8 py-3"
+            >
+              Fazer Login
+            </Button>
           </div>
         </div>
-      </footer>
+      </section>
 
-      {/* Modals */}
-      <UserTypeModal 
-        isOpen={isUserTypeModalOpen} 
-        onClose={() => setIsUserTypeModalOpen(false)}
-        onSelectUserType={handleUserTypeSelect}
-      />
-      
-      <LoginModal 
-        isOpen={isLoginModalOpen} 
-        onClose={handleLoginModalClose}
-        userType={selectedUserType}
-      />
+      <LoginModal open={showLogin} onOpenChange={setShowLogin} />
     </div>
   );
 };
