@@ -1,13 +1,34 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, User, Settings } from "lucide-react";
+import { Bell, User, Settings, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface HeaderProps {
   onOpenUserModal: () => void;
 }
 
 const Header = ({ onOpenUserModal }: HeaderProps) => {
+  const { user, profile, signOut } = useAuth();
+
+  const getUserTypeDisplay = (tipo: string) => {
+    const types: { [key: string]: string } = {
+      cliente: "Cliente",
+      restaurante: "Restaurante", 
+      entregador: "Entregador",
+      admin: "Administrador"
+    };
+    return types[tipo] || tipo;
+  };
+
   return (
     <header className="bg-white/90 backdrop-blur-md border-b border-orange-100 sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
@@ -41,13 +62,51 @@ const Header = ({ onOpenUserModal }: HeaderProps) => {
               </Badge>
             </Button>
             
-            <Button 
-              onClick={onOpenUserModal}
-              className="gradient-delivery text-white hover:opacity-90 transition-opacity shadow-delivery"
-            >
-              <User className="h-4 w-4 mr-2" />
-              Entrar
-            </Button>
+            {user && profile ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="gradient-delivery text-white hover:opacity-90 transition-opacity shadow-delivery">
+                    <User className="h-4 w-4 mr-2" />
+                    {profile.nome.split(' ')[0]}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{profile.nome}</p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {profile.email}
+                      </p>
+                      <Badge variant="secondary" className="w-fit text-xs mt-1">
+                        {getUserTypeDisplay(profile.tipo)}
+                      </Badge>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Perfil</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Configurações</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={signOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sair</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button 
+                onClick={onOpenUserModal}
+                className="gradient-delivery text-white hover:opacity-90 transition-opacity shadow-delivery"
+              >
+                <User className="h-4 w-4 mr-2" />
+                Entrar
+              </Button>
+            )}
           </div>
         </div>
       </div>

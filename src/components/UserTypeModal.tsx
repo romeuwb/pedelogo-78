@@ -7,11 +7,12 @@ import { User, Package, Users, Settings } from "lucide-react";
 interface UserTypeModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSelectUserType: (userType: string) => void;
 }
 
 const userTypes = [
   {
-    type: "customer",
+    type: "cliente",
     title: "Cliente",
     description: "Faça pedidos dos seus restaurantes favoritos",
     icon: User,
@@ -20,7 +21,7 @@ const userTypes = [
     borderColor: "border-blue-200"
   },
   {
-    type: "restaurant",
+    type: "restaurante",
     title: "Restaurante",
     description: "Gerencie seu estabelecimento e pedidos",
     icon: Package,
@@ -29,7 +30,7 @@ const userTypes = [
     borderColor: "border-green-200"
   },
   {
-    type: "delivery",
+    type: "entregador",
     title: "Entregador",
     description: "Entregue pedidos e ganhe dinheiro",
     icon: Users,
@@ -48,11 +49,10 @@ const userTypes = [
   }
 ];
 
-const UserTypeModal = ({ isOpen, onClose }: UserTypeModalProps) => {
+const UserTypeModal = ({ isOpen, onClose, onSelectUserType }: UserTypeModalProps) => {
   const handleUserTypeSelect = (userType: string) => {
     console.log(`Selected user type: ${userType}`);
-    // Here you would navigate to the specific login/dashboard for each user type
-    onClose();
+    onSelectUserType(userType);
   };
 
   return (
