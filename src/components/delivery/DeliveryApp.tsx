@@ -1,384 +1,295 @@
 
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import OrderManagement from '@/components/orders/OrderManagement';
-import { MapPin, Clock, DollarSign, Navigation, Phone, Package } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { 
+  Power, 
+  Navigation, 
+  Package, 
+  DollarSign, 
+  User, 
+  HelpCircle,
+  MapPin,
+  Clock,
+  Star,
+  Phone,
+  CheckCircle,
+  AlertTriangle
+} from 'lucide-react';
+import { toast } from 'sonner';
+import DeliveryDashboard from './DeliveryDashboard';
+import DeliveryOrders from './DeliveryOrders';
+import DeliveryEarnings from './DeliveryEarnings';
+import DeliveryProfile from './DeliveryProfile';
+import DeliverySupport from './DeliverySupport';
 
-interface DeliveryAppProps {
-  userId: string;
-  deliveryDetails: any;
-}
-
-const DeliveryApp = ({ userId, deliveryDetails }: DeliveryAppProps) => {
+const DeliveryApp = () => {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [deliveryDetails, setDeliveryDetails] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
-  const [selectedTab, setSelectedTab] = useState('available');
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [currentOrder, setCurrentOrder] = useState(null);
+  const [dailyEarnings, setDailyEarnings] = useState(0);
+  const [deliveryCount, setDeliveryCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const { data: availableOrders, isLoading: availableLoading } = useQuery({
-    queryKey: ['available-orders'],
-    queryFn: async () => {
+  useEffect(() => {
+    if (user) {
+      loadDeliveryDetails();
+      loadDailyStats();
+    }
+  }, [user]);
+
+  const loadDeliveryDetails = async () => {
+    try {
       const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          order_items (*),
-          profiles:cliente_id (nome, telefone),
-          restaurant_details:restaurante_id (nome_fantasia, endereco, telefone)
-        `)
-        .eq('status', 'pronto')
-        .is('entregador_id', null)
-        .order('created_at', { ascending: true });
+        .from('delivery_details')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
 
-      if (error) throw error;
-      return data;
-    },
-    enabled: isOnline
-  });
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
 
-  const { data: myDeliveries } = useQuery({
-    queryKey: ['my-deliveries', userId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          order_items (*),
-          profiles:cliente_id (nome, telefone),
-          restaurant_details:restaurante_id (nome_fantasia, endereco, telefone)
-        `)
-        .eq('entregador_id', userId)
-        .in('status', ['saiu_entrega'])
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data;
+      if (data) {
+        setDeliveryDetails(data);
+        setIsOnline(data.status_online || false);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar detalhes do entregador:', error);
+      toast.error('Erro ao carregar informações do perfil');
+    } finally {
+      setLoading(false);
     }
-  });
-
-  const acceptOrderMutation = useMutation({
-    mutationFn: async (orderId: string) => {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          entregador_id: userId,
-          status: 'saiu_entrega',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['available-orders'] });
-      queryClient.invalidateQueries({ queryKey: ['my-deliveries'] });
-      toast({
-        title: "Entrega aceita!",
-        description: "Você aceitou uma nova entrega. Dirija-se ao restaurante.",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Erro ao aceitar entrega",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  });
-
-  const completeDeliveryMutation = useMutation({
-    mutationFn: async (orderId: string) => {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'entregue',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-deliveries'] });
-      toast({
-        title: "Entrega concluída!",
-        description: "Entrega marcada como concluída com sucesso.",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Erro ao concluir entrega",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  });
-
-  const calculateDistance = (address1: any, address2: any) => {
-    // Simulação simples de cálculo de distância
-    return (Math.random() * 10 + 1).toFixed(1);
   };
 
-  const formatAddress = (endereco: any) => {
-    if (typeof endereco === 'string') return endereco;
-    if (endereco?.logradouro) {
-      return `${endereco.logradouro}, ${endereco.numero} - ${endereco.bairro}`;
+  const loadDailyStats = async () => {
+    try {
+      if (!deliveryDetails?.id) return;
+
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data, error } = await supabase
+        .rpc('calculate_delivery_earnings', {
+          delivery_detail_id: deliveryDetails.id,
+          start_date: today,
+          end_date: today
+        });
+
+      if (error) throw error;
+
+      if (data) {
+        setDailyEarnings(data.total_ganhos || 0);
+        setDeliveryCount(data.total_entregas || 0);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas diárias:', error);
     }
-    return 'Endereço não informado';
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">App do Entregador</h1>
-        <div className="flex items-center space-x-4">
-          <Button
-            onClick={() => setIsOnline(!isOnline)}
-            variant={isOnline ? "destructive" : "default"}
-            className={isOnline ? "bg-green-600 hover:bg-green-700" : ""}
-          >
-            <div className={`w-3 h-3 rounded-full mr-2 ${isOnline ? 'bg-green-300' : 'bg-red-300'}`}></div>
-            {isOnline ? 'Online' : 'Offline'}
-          </Button>
-        </div>
+  const toggleOnlineStatus = async () => {
+    try {
+      const newStatus = !isOnline;
+      
+      const { error } = await supabase
+        .from('delivery_details')
+        .update({ 
+          status_online: newStatus,
+          data_ultima_atividade: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      // Registrar histórico de status
+      await supabase
+        .from('delivery_status_history')
+        .insert({
+          delivery_detail_id: deliveryDetails.id,
+          status_anterior: isOnline,
+          status_novo: newStatus
+        });
+
+      setIsOnline(newStatus);
+      toast.success(newStatus ? 'Você está online!' : 'Você está offline');
+    } catch (error) {
+      console.error('Erro ao alterar status:', error);
+      toast.error('Erro ao alterar status');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
+    );
+  }
 
-      {/* Status do entregador */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 rounded-full">
-                <Package className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Status</p>
-                <p className="font-semibold">
-                  {deliveryDetails?.status_aprovacao || 'Pendente'}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-green-100 rounded-full">
-                <DollarSign className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Ganhos Hoje</p>
-                <p className="font-semibold">R$ 0,00</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-purple-100 rounded-full">
-                <Clock className="h-6 w-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Entregas Hoje</p>
-                <p className="font-semibold">0</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {!isOnline && (
-        <Card className="border-orange-200 bg-orange-50">
-          <CardContent className="p-6 text-center">
-            <h3 className="text-lg font-semibold text-orange-800 mb-2">
-              Você está offline
-            </h3>
-            <p className="text-orange-700 mb-4">
-              Ative o modo online para receber pedidos de entrega
+  if (!deliveryDetails) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center">Cadastro Necessário</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-gray-600">
+              Você precisa completar seu cadastro como entregador para acessar o painel.
             </p>
-            <Button onClick={() => setIsOnline(true)} className="bg-orange-600 hover:bg-orange-700">
-              Ficar Online
+            <Button onClick={() => setActiveTab('profile')} className="w-full">
+              Completar Cadastro
             </Button>
           </CardContent>
         </Card>
-      )}
+      </div>
+    );
+  }
 
-      {isOnline && (
-        <div className="space-y-6">
-          {/* Tabs */}
-          <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setSelectedTab('available')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                selectedTab === 'available' 
-                  ? 'bg-white text-gray-900 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Entregas Disponíveis
-            </button>
-            <button
-              onClick={() => setSelectedTab('active')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                selectedTab === 'active' 
-                  ? 'bg-white text-gray-900 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Minhas Entregas
-            </button>
-            <button
-              onClick={() => setSelectedTab('history')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                selectedTab === 'history' 
-                  ? 'bg-white text-gray-900 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Histórico
-            </button>
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header com Status Online */}
+      <div className="bg-white border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <Power className={`h-6 w-6 ${isOnline ? 'text-green-500' : 'text-gray-400'}`} />
+              {isOnline && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+              )}
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">
+                {deliveryDetails.nome || 'Entregador'}
+              </h1>
+              <p className="text-sm text-gray-500">
+                {isOnline ? 'Online - Disponível' : 'Offline'}
+              </p>
+            </div>
           </div>
-
-          {/* Entregas Disponíveis */}
-          {selectedTab === 'available' && (
-            <div className="space-y-4">
-              {availableLoading ? (
-                <div>Carregando entregas...</div>
-              ) : availableOrders?.length ? (
-                availableOrders.map((order: any) => (
-                  <Card key={order.id} className="border-green-200">
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg">Entrega #{order.id.slice(-8)}</CardTitle>
-                          <p className="text-sm text-gray-500">
-                            {order.restaurant_details?.nome_fantasia}
-                          </p>
-                        </div>
-                        <Badge className="bg-green-500 text-white">
-                          R$ {(order.total * 0.1).toFixed(2)} comissão
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm font-medium text-gray-600">Retirar em:</p>
-                          <p className="text-sm">{order.restaurant_details?.endereco}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-600">Entregar em:</p>
-                          <p className="text-sm">{formatAddress(order.endereco_entrega)}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4 text-sm text-gray-600">
-                          <span className="flex items-center">
-                            <MapPin className="h-4 w-4 mr-1" />
-                            {calculateDistance(order.restaurant_details?.endereco, order.endereco_entrega)} km
-                          </span>
-                          <span className="flex items-center">
-                            <Clock className="h-4 w-4 mr-1" />
-                            ~15 min
-                          </span>
-                        </div>
-                        
-                        <Button
-                          onClick={() => acceptOrderMutation.mutate(order.id)}
-                          disabled={acceptOrderMutation.isPending}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          {acceptOrderMutation.isPending ? 'Aceitando...' : 'Aceitar Entrega'}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <div className="text-center py-12">
-                  <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-600 mb-2">
-                    Nenhuma entrega disponível
-                  </h3>
-                  <p className="text-gray-500">
-                    Aguarde novos pedidos aparecerem na sua região.
-                  </p>
-                </div>
-              )}
+          
+          <div className="flex items-center space-x-4">
+            {/* Ganhos do Dia */}
+            <div className="text-right">
+              <p className="text-lg font-semibold text-green-600">
+                R$ {dailyEarnings.toFixed(2)}
+              </p>
+              <p className="text-xs text-gray-500">
+                {deliveryCount} entregas hoje
+              </p>
             </div>
-          )}
+            
+            {/* Toggle Online/Offline */}
+            <Switch
+              checked={isOnline}
+              onCheckedChange={toggleOnlineStatus}
+              className="data-[state=checked]:bg-green-500"
+            />
+          </div>
+        </div>
+      </div>
 
-          {/* Minhas Entregas */}
-          {selectedTab === 'active' && (
-            <div className="space-y-4">
-              {myDeliveries?.length ? (
-                myDeliveries.map((order: any) => (
-                  <Card key={order.id} className="border-blue-200">
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg">Entrega #{order.id.slice(-8)}</CardTitle>
-                          <p className="text-sm text-gray-500">
-                            Cliente: {order.profiles?.nome}
-                          </p>
-                        </div>
-                        <Badge className="bg-blue-500 text-white">Em andamento</Badge>
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Endereço de entrega:</span>
-                          <Button variant="outline" size="sm">
-                            <Navigation className="h-4 w-4 mr-1" />
-                            Navegar
-                          </Button>
-                        </div>
-                        <p className="text-sm text-gray-600">
-                          {formatAddress(order.endereco_entrega)}
-                        </p>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <Phone className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm">{order.profiles?.telefone || 'Sem telefone'}</span>
-                        </div>
-                        
-                        <Button
-                          onClick={() => completeDeliveryMutation.mutate(order.id)}
-                          disabled={completeDeliveryMutation.isPending}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          {completeDeliveryMutation.isPending ? 'Concluindo...' : 'Marcar como Entregue'}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <div className="text-center py-12">
-                  <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-600 mb-2">
-                    Nenhuma entrega ativa
-                  </h3>
-                  <p className="text-gray-500">
-                    Aceite uma entrega da lista de disponíveis para começar.
-                  </p>
-                </div>
-              )}
+      {/* Alerta de Pedido Ativo */}
+      {currentOrder && (
+        <div className="bg-orange-500 text-white px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Package className="h-5 w-5" />
+              <span className="font-medium">Entrega Ativa</span>
             </div>
-          )}
-
-          {/* Histórico */}
-          {selectedTab === 'history' && (
-            <OrderManagement userType="delivery" userId={userId} />
-          )}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setActiveTab('orders')}
+            >
+              Ver Detalhes
+            </Button>
+          </div>
         </div>
       )}
+
+      {/* Navigation Tabs */}
+      <div className="bg-white border-b border-gray-200">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-5 bg-transparent">
+            <TabsTrigger 
+              value="dashboard" 
+              className="flex flex-col items-center space-y-1 py-3"
+            >
+              <Power className="h-4 w-4" />
+              <span className="text-xs">Início</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="orders" 
+              className="flex flex-col items-center space-y-1 py-3"
+            >
+              <Package className="h-4 w-4" />
+              <span className="text-xs">Entregas</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="earnings" 
+              className="flex flex-col items-center space-y-1 py-3"
+            >
+              <DollarSign className="h-4 w-4" />
+              <span className="text-xs">Ganhos</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="profile" 
+              className="flex flex-col items-center space-y-1 py-3"
+            >
+              <User className="h-4 w-4" />
+              <span className="text-xs">Perfil</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="support" 
+              className="flex flex-col items-center space-y-1 py-3"
+            >
+              <HelpCircle className="h-4 w-4" />
+              <span className="text-xs">Ajuda</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="px-4 py-6">
+            <TabsContent value="dashboard" className="mt-0">
+              <DeliveryDashboard 
+                deliveryDetails={deliveryDetails}
+                isOnline={isOnline}
+                currentOrder={currentOrder}
+                setCurrentOrder={setCurrentOrder}
+              />
+            </TabsContent>
+
+            <TabsContent value="orders" className="mt-0">
+              <DeliveryOrders 
+                deliveryDetails={deliveryDetails}
+                currentOrder={currentOrder}
+                setCurrentOrder={setCurrentOrder}
+              />
+            </TabsContent>
+
+            <TabsContent value="earnings" className="mt-0">
+              <DeliveryEarnings deliveryDetails={deliveryDetails} />
+            </TabsContent>
+
+            <TabsContent value="profile" className="mt-0">
+              <DeliveryProfile 
+                deliveryDetails={deliveryDetails}
+                setDeliveryDetails={setDeliveryDetails}
+              />
+            </TabsContent>
+
+            <TabsContent value="support" className="mt-0">
+              <DeliverySupport deliveryDetails={deliveryDetails} />
+            </TabsContent>
+          </div>
+        </Tabs>
+      </div>
     </div>
   );
 };

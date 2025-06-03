@@ -703,6 +703,65 @@ export type Database = {
           },
         ]
       }
+      delivery_bank_details: {
+        Row: {
+          agencia: string
+          ativo: boolean | null
+          banco: string
+          chave_pix: string | null
+          conta: string
+          cpf_titular: string
+          created_at: string | null
+          delivery_detail_id: string
+          id: string
+          tipo_chave_pix: string | null
+          tipo_conta: string
+          titular_conta: string
+          updated_at: string | null
+          verificado: boolean | null
+        }
+        Insert: {
+          agencia: string
+          ativo?: boolean | null
+          banco: string
+          chave_pix?: string | null
+          conta: string
+          cpf_titular: string
+          created_at?: string | null
+          delivery_detail_id: string
+          id?: string
+          tipo_chave_pix?: string | null
+          tipo_conta: string
+          titular_conta: string
+          updated_at?: string | null
+          verificado?: boolean | null
+        }
+        Update: {
+          agencia?: string
+          ativo?: boolean | null
+          banco?: string
+          chave_pix?: string | null
+          conta?: string
+          cpf_titular?: string
+          created_at?: string | null
+          delivery_detail_id?: string
+          id?: string
+          tipo_chave_pix?: string | null
+          tipo_conta?: string
+          titular_conta?: string
+          updated_at?: string | null
+          verificado?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_bank_details_delivery_detail_id_fkey"
+            columns: ["delivery_detail_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_details: {
         Row: {
           aceita_termos: boolean | null
@@ -716,17 +775,25 @@ export type Database = {
           cpf: string | null
           created_at: string
           data_nascimento: string | null
+          data_ultima_atividade: string | null
           disponibilidade_horarios: Json | null
+          disponivel_para_entregas: boolean | null
           documento_veiculo: string | null
           documentos_verificados: boolean
           endereco: string | null
           estado: string | null
+          foto_perfil: string | null
           id: string
+          localizacao_atual: Json | null
           modelo_veiculo: string | null
           numero_cnh: string | null
           placa_veiculo: string | null
+          raio_atuacao: number | null
+          rating_medio: number | null
           status_aprovacao: Database["public"]["Enums"]["approval_status"]
+          status_online: boolean | null
           tem_experiencia: boolean | null
+          total_entregas: number | null
           updated_at: string
           user_id: string
           veiculos: string[] | null
@@ -743,17 +810,25 @@ export type Database = {
           cpf?: string | null
           created_at?: string
           data_nascimento?: string | null
+          data_ultima_atividade?: string | null
           disponibilidade_horarios?: Json | null
+          disponivel_para_entregas?: boolean | null
           documento_veiculo?: string | null
           documentos_verificados?: boolean
           endereco?: string | null
           estado?: string | null
+          foto_perfil?: string | null
           id?: string
+          localizacao_atual?: Json | null
           modelo_veiculo?: string | null
           numero_cnh?: string | null
           placa_veiculo?: string | null
+          raio_atuacao?: number | null
+          rating_medio?: number | null
           status_aprovacao?: Database["public"]["Enums"]["approval_status"]
+          status_online?: boolean | null
           tem_experiencia?: boolean | null
+          total_entregas?: number | null
           updated_at?: string
           user_id: string
           veiculos?: string[] | null
@@ -770,17 +845,25 @@ export type Database = {
           cpf?: string | null
           created_at?: string
           data_nascimento?: string | null
+          data_ultima_atividade?: string | null
           disponibilidade_horarios?: Json | null
+          disponivel_para_entregas?: boolean | null
           documento_veiculo?: string | null
           documentos_verificados?: boolean
           endereco?: string | null
           estado?: string | null
+          foto_perfil?: string | null
           id?: string
+          localizacao_atual?: Json | null
           modelo_veiculo?: string | null
           numero_cnh?: string | null
           placa_veiculo?: string | null
+          raio_atuacao?: number | null
+          rating_medio?: number | null
           status_aprovacao?: Database["public"]["Enums"]["approval_status"]
+          status_online?: boolean | null
           tem_experiencia?: boolean | null
+          total_entregas?: number | null
           updated_at?: string
           user_id?: string
           veiculos?: string[] | null
@@ -818,6 +901,360 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "delivery_documents_delivery_detail_id_fkey"
+            columns: ["delivery_detail_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_earnings: {
+        Row: {
+          bonus: number | null
+          created_at: string | null
+          data_pagamento: string | null
+          delivery_detail_id: string
+          desconto: number | null
+          distancia_km: number | null
+          gorjeta: number | null
+          id: string
+          order_id: string
+          status_pagamento: string | null
+          tempo_entrega_minutos: number | null
+          valor_base: number
+          valor_total: number
+        }
+        Insert: {
+          bonus?: number | null
+          created_at?: string | null
+          data_pagamento?: string | null
+          delivery_detail_id: string
+          desconto?: number | null
+          distancia_km?: number | null
+          gorjeta?: number | null
+          id?: string
+          order_id: string
+          status_pagamento?: string | null
+          tempo_entrega_minutos?: number | null
+          valor_base: number
+          valor_total: number
+        }
+        Update: {
+          bonus?: number | null
+          created_at?: string | null
+          data_pagamento?: string | null
+          delivery_detail_id?: string
+          desconto?: number | null
+          distancia_km?: number | null
+          gorjeta?: number | null
+          id?: string
+          order_id?: string
+          status_pagamento?: string | null
+          tempo_entrega_minutos?: number | null
+          valor_base?: number
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_earnings_delivery_detail_id_fkey"
+            columns: ["delivery_detail_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_earnings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_incident_reports: {
+        Row: {
+          created_at: string | null
+          delivery_detail_id: string
+          descricao: string
+          fotos: Json | null
+          id: string
+          localizacao: Json | null
+          order_id: string | null
+          resolucao: string | null
+          resolvido: boolean | null
+          tipo_problema: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          delivery_detail_id: string
+          descricao: string
+          fotos?: Json | null
+          id?: string
+          localizacao?: Json | null
+          order_id?: string | null
+          resolucao?: string | null
+          resolvido?: boolean | null
+          tipo_problema: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          delivery_detail_id?: string
+          descricao?: string
+          fotos?: Json | null
+          id?: string
+          localizacao?: Json | null
+          order_id?: string | null
+          resolucao?: string | null
+          resolvido?: boolean | null
+          tipo_problema?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_incident_reports_delivery_detail_id_fkey"
+            columns: ["delivery_detail_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_incident_reports_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_notifications: {
+        Row: {
+          created_at: string | null
+          dados_extras: Json | null
+          data_leitura: string | null
+          delivery_detail_id: string
+          id: string
+          lida: boolean | null
+          mensagem: string
+          order_id: string | null
+          tipo: string
+          titulo: string
+        }
+        Insert: {
+          created_at?: string | null
+          dados_extras?: Json | null
+          data_leitura?: string | null
+          delivery_detail_id: string
+          id?: string
+          lida?: boolean | null
+          mensagem: string
+          order_id?: string | null
+          tipo: string
+          titulo: string
+        }
+        Update: {
+          created_at?: string | null
+          dados_extras?: Json | null
+          data_leitura?: string | null
+          delivery_detail_id?: string
+          id?: string
+          lida?: boolean | null
+          mensagem?: string
+          order_id?: string | null
+          tipo?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_notifications_delivery_detail_id_fkey"
+            columns: ["delivery_detail_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_notifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_ratings: {
+        Row: {
+          cliente_id: string
+          comentario: string | null
+          created_at: string | null
+          delivery_detail_id: string
+          id: string
+          nota: number
+          order_id: string
+        }
+        Insert: {
+          cliente_id: string
+          comentario?: string | null
+          created_at?: string | null
+          delivery_detail_id: string
+          id?: string
+          nota: number
+          order_id: string
+        }
+        Update: {
+          cliente_id?: string
+          comentario?: string | null
+          created_at?: string | null
+          delivery_detail_id?: string
+          id?: string
+          nota?: number
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_ratings_delivery_detail_id_fkey"
+            columns: ["delivery_detail_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_ratings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_status_history: {
+        Row: {
+          created_at: string | null
+          delivery_detail_id: string
+          id: string
+          localizacao: Json | null
+          status_anterior: boolean | null
+          status_novo: boolean
+        }
+        Insert: {
+          created_at?: string | null
+          delivery_detail_id: string
+          id?: string
+          localizacao?: Json | null
+          status_anterior?: boolean | null
+          status_novo: boolean
+        }
+        Update: {
+          created_at?: string | null
+          delivery_detail_id?: string
+          id?: string
+          localizacao?: Json | null
+          status_anterior?: boolean | null
+          status_novo?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_status_history_delivery_detail_id_fkey"
+            columns: ["delivery_detail_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_vehicles: {
+        Row: {
+          ano: number | null
+          ativo: boolean | null
+          cor: string | null
+          created_at: string | null
+          delivery_detail_id: string
+          id: string
+          marca: string | null
+          modelo: string | null
+          placa: string | null
+          principal: boolean | null
+          renavam: string | null
+          status_verificacao:
+            | Database["public"]["Enums"]["document_status"]
+            | null
+          tipo_veiculo: Database["public"]["Enums"]["vehicle_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          ano?: number | null
+          ativo?: boolean | null
+          cor?: string | null
+          created_at?: string | null
+          delivery_detail_id: string
+          id?: string
+          marca?: string | null
+          modelo?: string | null
+          placa?: string | null
+          principal?: boolean | null
+          renavam?: string | null
+          status_verificacao?:
+            | Database["public"]["Enums"]["document_status"]
+            | null
+          tipo_veiculo: Database["public"]["Enums"]["vehicle_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          ano?: number | null
+          ativo?: boolean | null
+          cor?: string | null
+          created_at?: string | null
+          delivery_detail_id?: string
+          id?: string
+          marca?: string | null
+          modelo?: string | null
+          placa?: string | null
+          principal?: boolean | null
+          renavam?: string | null
+          status_verificacao?:
+            | Database["public"]["Enums"]["document_status"]
+            | null
+          tipo_veiculo?: Database["public"]["Enums"]["vehicle_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_vehicles_delivery_detail_id_fkey"
+            columns: ["delivery_detail_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_zones: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          delivery_detail_id: string
+          id: string
+          nome_zona: string
+          poligono: Json
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          delivery_detail_id: string
+          id?: string
+          nome_zona: string
+          poligono: Json
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          delivery_detail_id?: string
+          id?: string
+          nome_zona?: string
+          poligono?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_zones_delivery_detail_id_fkey"
             columns: ["delivery_detail_id"]
             isOneToOne: false
             referencedRelation: "delivery_details"
@@ -2446,6 +2883,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_delivery_earnings: {
+        Args: {
+          delivery_detail_id: string
+          start_date?: string
+          end_date?: string
+        }
+        Returns: Json
+      }
       cleanup_expired_invites: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -2473,6 +2918,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_delivery_owner: {
+        Args: { delivery_detail_id: string }
+        Returns: boolean
+      }
       is_restaurant_owner: {
         Args: { restaurant_id: string }
         Returns: boolean
@@ -2490,7 +2939,14 @@ export type Database = {
       address_type: "residencial" | "comercial" | "entrega" | "cobranca"
       admin_role: "admin" | "moderator" | "super_admin" | "operador"
       approval_status: "pendente" | "aprovado" | "rejeitado"
+      document_status:
+        | "pendente"
+        | "enviado"
+        | "aprovado"
+        | "rejeitado"
+        | "expirado"
       user_type: "cliente" | "restaurante" | "entregador"
+      vehicle_type: "moto" | "carro" | "bicicleta" | "patinete" | "a_pe"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2609,7 +3065,15 @@ export const Constants = {
       address_type: ["residencial", "comercial", "entrega", "cobranca"],
       admin_role: ["admin", "moderator", "super_admin", "operador"],
       approval_status: ["pendente", "aprovado", "rejeitado"],
+      document_status: [
+        "pendente",
+        "enviado",
+        "aprovado",
+        "rejeitado",
+        "expirado",
+      ],
       user_type: ["cliente", "restaurante", "entregador"],
+      vehicle_type: ["moto", "carro", "bicicleta", "patinete", "a_pe"],
     },
   },
 } as const
