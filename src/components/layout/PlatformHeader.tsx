@@ -13,18 +13,36 @@ import { Badge } from '@/components/ui/badge';
 import LoginModal from '@/components/auth/LoginModal';
 
 export const PlatformHeader = () => {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
-    window.location.href = '/';
   };
 
   const handleLoginClick = () => {
     setShowLogin(true);
   };
+
+  if (loading) {
+    return (
+      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-4">
+              <a href="/" className="bg-orange-500 text-white px-3 py-2 rounded-md font-bold text-lg">
+                🍕 PedeLogo
+              </a>
+            </div>
+            <div className="animate-pulse">
+              <div className="h-8 w-20 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <>
@@ -33,8 +51,8 @@ export const PlatformHeader = () => {
           <div className="flex items-center justify-between h-16">
             {/* Logo/Platform Name */}
             <div className="flex items-center space-x-4">
-              <a href="/" className="bg-orange-500 text-white px-3 py-2 rounded-md font-bold text-lg">
-                🍕 DeliveryApp
+              <a href="/" className="bg-orange-500 text-white px-3 py-2 rounded-md font-bold text-lg hover:bg-orange-600 transition-colors">
+                🍕 PedeLogo
               </a>
               {profile && (
                 <Badge variant="secondary" className="hidden md:block">
@@ -109,7 +127,7 @@ export const PlatformHeader = () => {
               ) : (
                 <Button 
                   onClick={handleLoginClick}
-                  className="bg-orange-500 hover:bg-orange-600"
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
                 >
                   Entrar
                 </Button>
@@ -152,7 +170,7 @@ export const PlatformHeader = () => {
                 {!user && (
                   <Button 
                     onClick={handleLoginClick}
-                    className="bg-orange-500 hover:bg-orange-600 w-full"
+                    className="bg-orange-500 hover:bg-orange-600 w-full text-white"
                   >
                     Entrar
                   </Button>

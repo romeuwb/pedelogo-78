@@ -51,7 +51,7 @@ const Index = () => {
           </h1>
           <p className="text-xl mb-8 max-w-2xl mx-auto">
             Descubra os melhores restaurantes da sua região e peça sua comida 
-            favorita com entrega rápida e segura.
+            favorita com entrega rápida e segura no PedeLogo.
           </p>
           
           {/* Search Bar */}
@@ -103,35 +103,7 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">Restaurantes em Destaque</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                id: 1,
-                name: "Pizza Express",
-                rating: 4.5,
-                deliveryTime: "25-35 min",
-                category: "Pizza",
-                image: "/placeholder.svg",
-                promo: "Frete Grátis"
-              },
-              {
-                id: 2,
-                name: "Burger House",
-                rating: 4.2,
-                deliveryTime: "30-40 min",
-                category: "Hambúrguer",
-                image: "/placeholder.svg",
-                promo: "20% OFF"
-              },
-              {
-                id: 3,
-                name: "Sushi Master",
-                rating: 4.8,
-                deliveryTime: "40-50 min",
-                category: "Japonês",
-                image: "/placeholder.svg",
-                promo: null
-              }
-            ].map((restaurant) => (
+            {restaurants.map((restaurant) => (
               <Card key={restaurant.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="aspect-video bg-gray-200 relative">
                   {restaurant.promo && (
@@ -166,19 +138,21 @@ const Index = () => {
           <h2 className="text-3xl font-bold mb-6">Pronto para começar?</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">
             Junte-se a milhares de pessoas que já descobriram a praticidade 
-            de pedir comida pelo nosso app.
+            de pedir comida pelo PedeLogo.
           </p>
-          <div className="space-x-4">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button 
               onClick={() => setShowLogin(true)}
-              className="bg-white text-orange-500 hover:bg-gray-100 px-8 py-3"
+              size="lg"
+              className="bg-white text-orange-500 hover:bg-gray-100 px-8 py-4 font-semibold text-lg w-full sm:w-auto"
             >
               Criar Conta
             </Button>
             <Button 
               onClick={() => setShowLogin(true)}
+              size="lg"
               variant="outline" 
-              className="border-white text-white hover:bg-white hover:text-orange-500 px-8 py-3"
+              className="border-2 border-white text-white hover:bg-white hover:text-orange-500 px-8 py-4 font-semibold text-lg w-full sm:w-auto bg-transparent"
             >
               Fazer Login
             </Button>

@@ -14,6 +14,26 @@ interface Profile {
   ativo: boolean;
 }
 
+// Função para limpeza completa do estado de autenticação
+const cleanupAuthState = () => {
+  console.log('Limpando estado de autenticação...');
+  // Remove todas as chaves relacionadas ao Supabase do localStorage
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      localStorage.removeItem(key);
+    }
+  });
+  
+  // Remove também do sessionStorage se estiver sendo usado
+  if (typeof sessionStorage !== 'undefined') {
+    Object.keys(sessionStorage).forEach((key) => {
+      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+        sessionStorage.removeItem(key);
+      }
+    });
+  }
+};
+
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -21,30 +41,65 @@ export const useAuth = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
+    let mounted = true;
+
+    // Configurar listener de mudanças de autenticação PRIMEIRO
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.id);
+        
+        if (!mounted) return;
+
+        if (event === 'SIGNED_OUT' || !session) {
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user);
+          // Buscar perfil após um pequeno delay para evitar conflitos
+          setTimeout(() => {
+            if (mounted) {
+              fetchProfile(session.user.id);
+            }
+          }, 100);
+        }
+      }
+    );
+
+    // Verificar sessão existente DEPOIS
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Erro ao buscar sessão:', error);
+          cleanupAuthState();
+          setLoading(false);
+          return;
+        }
+
+        if (session?.user && mounted) {
+          setUser(session.user);
+          await fetchProfile(session.user.id);
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Erro na inicialização da autenticação:', error);
+        cleanupAuthState();
         setLoading(false);
       }
-    });
+    };
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
-        setLoading(false);
-      }
-    });
+    initializeAuth();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchProfile = async (userId: string) => {
@@ -55,10 +110,19 @@ export const useAuth = () => {
         .eq('user_id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao buscar perfil:', error);
+        throw error;
+      }
+      
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
+      toast({
+        title: "Erro ao carregar perfil",
+        description: "Tente fazer login novamente.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -66,11 +130,15 @@ export const useAuth = () => {
 
   const signUp = async (email: string, password: string, userData: any) => {
     try {
+      // Limpar estado antes de cadastrar
+      cleanupAuthState();
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: userData
+          data: userData,
+          emailRedirectTo: `${window.location.origin}/`
         }
       });
 
@@ -83,6 +151,7 @@ export const useAuth = () => {
 
       return { data, error: null };
     } catch (error: any) {
+      console.error('Erro no cadastro:', error);
       toast({
         title: "Erro ao criar conta",
         description: error.message,
@@ -94,6 +163,19 @@ export const useAuth = () => {
 
   const signIn = async (email: string, password: string) => {
     try {
+      setLoading(true);
+      
+      // Limpar estado antes de fazer login
+      cleanupAuthState();
+      
+      // Fazer logout global primeiro para garantir estado limpo
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Ignorar erros de logout se não houver sessão
+        console.log('Logout preventivo concluído');
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -106,8 +188,15 @@ export const useAuth = () => {
         description: "Bem-vindo de volta!",
       });
 
+      // Aguardar um momento antes de redirecionar para garantir que o estado foi atualizado
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 500);
+
       return { data, error: null };
     } catch (error: any) {
+      console.error('Erro no login:', error);
+      setLoading(false);
       toast({
         title: "Erro ao fazer login",
         description: error.message,
@@ -119,19 +208,34 @@ export const useAuth = () => {
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      setLoading(true);
+      
+      // Limpar estado local primeiro
+      setUser(null);
+      setProfile(null);
+      
+      // Limpar localStorage
+      cleanupAuthState();
+      
+      // Fazer logout no Supabase
+      await supabase.auth.signOut({ scope: 'global' });
 
       toast({
         title: "Logout realizado com sucesso!",
         description: "Até logo!",
       });
+
+      // Redirecionar para home
+      window.location.href = '/';
     } catch (error: any) {
+      console.error('Erro no logout:', error);
       toast({
         title: "Erro ao fazer logout",
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
