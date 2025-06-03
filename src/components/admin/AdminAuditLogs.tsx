@@ -1,9 +1,10 @@
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { 
   Select,
   SelectContent,
@@ -19,8 +20,22 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { FileText, Search } from 'lucide-react';
-import { useState } from 'react';
+import { 
+  Shield, 
+  Search,
+  Calendar,
+  User,
+  FileText
+} from 'lucide-react';
+
+const actionTypes = [
+  { value: 'all', label: 'Todas as Ações' },
+  { value: 'CREATE', label: 'Criação' },
+  { value: 'UPDATE', label: 'Atualização' },
+  { value: 'DELETE', label: 'Exclusão' },
+  { value: 'LOGIN', label: 'Login' },
+  { value: 'LOGOUT', label: 'Logout' }
+];
 
 export const AdminAuditLogs = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,9 +47,18 @@ export const AdminAuditLogs = () => {
       let query = supabase
         .from('audit_logs')
         .select(`
-          *,
-          admin_users (
-            nome
+          id,
+          acao,
+          tabela_afetada,
+          registro_id,
+          dados_anteriores,
+          dados_novos,
+          ip_address,
+          user_agent,
+          created_at,
+          admin_user:admin_users!audit_logs_admin_id_fkey (
+            nome,
+            email
           )
         `);
 
@@ -53,18 +77,13 @@ export const AdminAuditLogs = () => {
   });
 
   const getActionColor = (action: string) => {
-    switch (action.toLowerCase()) {
-      case 'create':
-      case 'insert':
-        return 'bg-green-100 text-green-800';
-      case 'update':
-      case 'edit':
-        return 'bg-blue-100 text-blue-800';
-      case 'delete':
-      case 'remove':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+    switch (action) {
+      case 'CREATE': return 'bg-green-100 text-green-800';
+      case 'UPDATE': return 'bg-blue-100 text-blue-800';
+      case 'DELETE': return 'bg-red-100 text-red-800';
+      case 'LOGIN': return 'bg-purple-100 text-purple-800';
+      case 'LOGOUT': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-yellow-100 text-yellow-800';
     }
   };
 
@@ -76,7 +95,7 @@ export const AdminAuditLogs = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Logs de Auditoria</h1>
-        <p className="text-gray-600">Histórico de ações administrativas no sistema</p>
+        <p className="text-gray-600">Monitore todas as ações realizadas no sistema</p>
       </div>
 
       {/* Filtros */}
@@ -97,12 +116,11 @@ export const AdminAuditLogs = () => {
                 <SelectValue placeholder="Filtrar por ação" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas as ações</SelectItem>
-                <SelectItem value="create">Criação</SelectItem>
-                <SelectItem value="update">Atualização</SelectItem>
-                <SelectItem value="delete">Exclusão</SelectItem>
-                <SelectItem value="login">Login</SelectItem>
-                <SelectItem value="logout">Logout</SelectItem>
+                {actionTypes.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -113,7 +131,7 @@ export const AdminAuditLogs = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            <FileText className="h-5 w-5" />
+            <Shield className="h-5 w-5" />
             <span>Logs de Auditoria</span>
             {auditLogs && <Badge variant="secondary">{auditLogs.length}</Badge>}
           </CardTitle>
@@ -123,7 +141,7 @@ export const AdminAuditLogs = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Data/Hora</TableHead>
-                <TableHead>Administrador</TableHead>
+                <TableHead>Usuário</TableHead>
                 <TableHead>Ação</TableHead>
                 <TableHead>Tabela</TableHead>
                 <TableHead>Registro</TableHead>
@@ -134,16 +152,25 @@ export const AdminAuditLogs = () => {
               {auditLogs?.map((log) => (
                 <TableRow key={log.id}>
                   <TableCell>
-                    <div className="text-sm">
-                      <div>{new Date(log.created_at).toLocaleDateString('pt-BR')}</div>
-                      <div className="text-gray-500">
-                        {new Date(log.created_at).toLocaleTimeString('pt-BR')}
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <div className="text-sm font-medium">
+                          {new Date(log.created_at).toLocaleDateString('pt-BR')}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(log.created_at).toLocaleTimeString('pt-BR')}
+                        </div>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">
-                      {log.admin_users?.nome || 'Sistema'}
+                    <div className="flex items-center space-x-2">
+                      <User className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <div className="font-medium">{log.admin_user?.nome || 'N/A'}</div>
+                        <div className="text-sm text-gray-500">{log.admin_user?.email || 'N/A'}</div>
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -152,20 +179,21 @@ export const AdminAuditLogs = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {log.tabela_afetada && (
-                      <Badge variant="outline">{log.tabela_afetada}</Badge>
-                    )}
+                    <div className="flex items-center space-x-2">
+                      <FileText className="h-4 w-4 text-gray-500" />
+                      <span className="font-mono text-sm">
+                        {log.tabela_afetada || 'N/A'}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell>
-                    {log.registro_id && (
-                      <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                        {String(log.registro_id).slice(0, 8)}...
-                      </code>
-                    )}
+                    <span className="font-mono text-xs text-gray-600">
+                      {log.registro_id ? String(log.registro_id).slice(0, 8) + '...' : 'N/A'}
+                    </span>
                   </TableCell>
                   <TableCell>
-                    <span className="text-sm font-mono">
-                      {log.ip_address || 'N/A'}
+                    <span className="text-sm text-gray-600">
+                      {log.ip_address ? String(log.ip_address) : 'N/A'}
                     </span>
                   </TableCell>
                 </TableRow>
