@@ -77,6 +77,7 @@ export const AdminOrders = () => {
           observacoes,
           created_at,
           updated_at,
+          restaurante_id,
           cliente:profiles!orders_cliente_id_fkey (
             nome,
             telefone,

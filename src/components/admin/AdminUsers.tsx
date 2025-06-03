@@ -55,6 +55,7 @@ export const AdminUsers = () => {
         .from('profiles')
         .select(`
           id,
+          user_id,
           nome,
           email,
           telefone,
