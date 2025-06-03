@@ -26,6 +26,22 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+interface RestaurantDetail {
+  id: string;
+  user_id: string;
+  nome_fantasia: string;
+  status_aprovacao: 'pendente' | 'aprovado' | 'rejeitado';
+  categoria: string;
+}
+
+interface DeliveryDetail {
+  id: string;
+  user_id: string;
+  status_aprovacao: 'pendente' | 'aprovado' | 'rejeitado';
+  veiculos: string[];
+  documentos_verificados: boolean;
+}
+
 export const AdminUsers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('clientes');
@@ -69,7 +85,7 @@ export const AdminUsers = () => {
         .select('id, user_id, nome_fantasia, status_aprovacao, categoria');
       
       if (error) throw error;
-      return data;
+      return data as RestaurantDetail[];
     },
     enabled: activeTab === 'restaurantes'
   });
@@ -84,7 +100,7 @@ export const AdminUsers = () => {
         .select('id, user_id, status_aprovacao, veiculos, documentos_verificados');
       
       if (error) throw error;
-      return data;
+      return data as DeliveryDetail[];
     },
     enabled: activeTab === 'entregadores'
   });
@@ -150,20 +166,15 @@ export const AdminUsers = () => {
     }
   });
 
-  const getExtraInfo = (user: any) => {
-    if (activeTab === 'restaurantes') {
-      const restaurant = restaurantDetails?.find(r => r.user_id === user.id);
-      return restaurant;
-    } else if (activeTab === 'entregadores') {
-      const delivery = deliveryDetails?.find(d => d.user_id === user.id);
-      return delivery;
-    }
-    return null;
+  const getRestaurantInfo = (userId: string): RestaurantDetail | null => {
+    return restaurantDetails?.find(r => r.user_id === userId) || null;
+  };
+
+  const getDeliveryInfo = (userId: string): DeliveryDetail | null => {
+    return deliveryDetails?.find(d => d.user_id === userId) || null;
   };
 
   const getStatusBadge = (user: any) => {
-    const extraInfo = getExtraInfo(user);
-    
     if (!user.ativo) {
       return <Badge variant="destructive">Inativo</Badge>;
     }
@@ -172,12 +183,26 @@ export const AdminUsers = () => {
       return <Badge variant="default">Ativo</Badge>;
     }
     
-    if (extraInfo?.status_aprovacao === 'pendente') {
-      return <Badge variant="secondary">Pendente</Badge>;
-    } else if (extraInfo?.status_aprovacao === 'aprovado') {
-      return <Badge variant="default">Aprovado</Badge>;
-    } else if (extraInfo?.status_aprovacao === 'rejeitado') {
-      return <Badge variant="destructive">Rejeitado</Badge>;
+    if (activeTab === 'restaurantes') {
+      const restaurant = getRestaurantInfo(user.user_id);
+      if (restaurant?.status_aprovacao === 'pendente') {
+        return <Badge variant="secondary">Pendente</Badge>;
+      } else if (restaurant?.status_aprovacao === 'aprovado') {
+        return <Badge variant="default">Aprovado</Badge>;
+      } else if (restaurant?.status_aprovacao === 'rejeitado') {
+        return <Badge variant="destructive">Rejeitado</Badge>;
+      }
+    }
+    
+    if (activeTab === 'entregadores') {
+      const delivery = getDeliveryInfo(user.user_id);
+      if (delivery?.status_aprovacao === 'pendente') {
+        return <Badge variant="secondary">Pendente</Badge>;
+      } else if (delivery?.status_aprovacao === 'aprovado') {
+        return <Badge variant="default">Aprovado</Badge>;
+      } else if (delivery?.status_aprovacao === 'rejeitado') {
+        return <Badge variant="destructive">Rejeitado</Badge>;
+      }
     }
     
     return <Badge variant="secondary">N/A</Badge>;
@@ -291,7 +316,7 @@ export const AdminUsers = () => {
                   </TableHeader>
                   <TableBody>
                     {users?.map((user) => {
-                      const restaurant = getExtraInfo(user);
+                      const restaurant = getRestaurantInfo(user.user_id);
                       return (
                         <TableRow key={user.id}>
                           <TableCell className="font-medium">{user.nome}</TableCell>
@@ -307,7 +332,7 @@ export const AdminUsers = () => {
                                     size="sm"
                                     variant="default"
                                     onClick={() => approveRestaurant.mutate({ 
-                                      userId: user.id, 
+                                      userId: user.user_id, 
                                       approve: true 
                                     })}
                                   >
@@ -317,7 +342,7 @@ export const AdminUsers = () => {
                                     size="sm"
                                     variant="destructive"
                                     onClick={() => approveRestaurant.mutate({ 
-                                      userId: user.id, 
+                                      userId: user.user_id, 
                                       approve: false 
                                     })}
                                   >
@@ -358,7 +383,7 @@ export const AdminUsers = () => {
                   </TableHeader>
                   <TableBody>
                     {users?.map((user) => {
-                      const delivery = getExtraInfo(user);
+                      const delivery = getDeliveryInfo(user.user_id);
                       return (
                         <TableRow key={user.id}>
                           <TableCell className="font-medium">{user.nome}</TableCell>
@@ -376,7 +401,7 @@ export const AdminUsers = () => {
                                     size="sm"
                                     variant="default"
                                     onClick={() => approveDelivery.mutate({ 
-                                      userId: user.id, 
+                                      userId: user.user_id, 
                                       approve: true 
                                     })}
                                   >
@@ -386,7 +411,7 @@ export const AdminUsers = () => {
                                     size="sm"
                                     variant="destructive"
                                     onClick={() => approveDelivery.mutate({ 
-                                      userId: user.id, 
+                                      userId: user.user_id, 
                                       approve: false 
                                     })}
                                   >

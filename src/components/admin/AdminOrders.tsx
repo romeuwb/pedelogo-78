@@ -77,14 +77,10 @@ export const AdminOrders = () => {
           observacoes,
           created_at,
           updated_at,
-          profiles!orders_cliente_id_fkey (
+          cliente:profiles!orders_cliente_id_fkey (
             nome,
             telefone,
             email
-          ),
-          restaurant_details!orders_restaurante_id_fkey (
-            nome_fantasia,
-            telefone: id
           ),
           entregador:profiles!orders_entregador_id_fkey (
             nome,
@@ -101,6 +97,18 @@ export const AdminOrders = () => {
       }
 
       const { data, error } = await query.order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const { data: restaurants } = useQuery({
+    queryKey: ['restaurants'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('restaurant_details')
+        .select('id, user_id, nome_fantasia');
+      
       if (error) throw error;
       return data;
     }
@@ -130,6 +138,11 @@ export const AdminOrders = () => {
       });
     }
   });
+
+  const getRestaurantName = (restauranteId: string) => {
+    const restaurant = restaurants?.find(r => r.id === restauranteId);
+    return restaurant?.nome_fantasia || 'Restaurante não encontrado';
+  };
 
   if (isLoading) {
     return <div>Carregando...</div>;
@@ -201,13 +214,13 @@ export const AdminOrders = () => {
                   </TableCell>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{order.profiles?.nome}</div>
-                      <div className="text-sm text-gray-500">{order.profiles?.telefone}</div>
+                      <div className="font-medium">{order.cliente?.nome || 'N/A'}</div>
+                      <div className="text-sm text-gray-500">{order.cliente?.telefone || 'N/A'}</div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="font-medium">
-                      {order.restaurant_details?.nome_fantasia || 'N/A'}
+                      {getRestaurantName(order.restaurante_id)}
                     </div>
                   </TableCell>
                   <TableCell>

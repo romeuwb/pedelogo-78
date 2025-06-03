@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { 
@@ -71,15 +70,7 @@ export const AdminSupport = () => {
       let query = supabase
         .from('support_tickets')
         .select(`
-          *,
-          profiles!support_tickets_usuario_id_fkey (
-            nome,
-            email,
-            telefone
-          ),
-          admin_users!support_tickets_atribuido_para_fkey (
-            nome
-          )
+          *
         `);
 
       if (statusFilter !== 'all') {
@@ -92,6 +83,30 @@ export const AdminSupport = () => {
     }
   });
 
+  const { data: profiles } = useQuery({
+    queryKey: ['profiles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, nome, email, telefone, user_id');
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const { data: adminUsers } = useQuery({
+    queryKey: ['adminUsers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('admin_users')
+        .select('id, nome, user_id');
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
   const { data: ticketResponses } = useQuery({
     queryKey: ['ticketResponses', selectedTicket?.id],
     queryFn: async () => {
@@ -99,15 +114,7 @@ export const AdminSupport = () => {
       
       const { data, error } = await supabase
         .from('ticket_responses')
-        .select(`
-          *,
-          profiles!ticket_responses_autor_id_fkey (
-            nome
-          ),
-          admin_users!ticket_responses_autor_id_fkey (
-            nome
-          )
-        `)
+        .select('*')
         .eq('ticket_id', selectedTicket.id)
         .order('created_at', { ascending: true });
       
@@ -179,6 +186,26 @@ export const AdminSupport = () => {
     }
   });
 
+  const getUserName = (userId: string) => {
+    const profile = profiles?.find(p => p.user_id === userId);
+    return profile?.nome || 'Usuário não encontrado';
+  };
+
+  const getAdminName = (adminId: string) => {
+    const admin = adminUsers?.find(a => a.id === adminId);
+    return admin?.nome || 'Admin não encontrado';
+  };
+
+  const getResponseAuthorName = (autorId: string, tipoAutor: string) => {
+    if (tipoAutor === 'admin') {
+      const admin = adminUsers?.find(a => a.user_id === autorId);
+      return admin?.nome || 'Admin';
+    } else {
+      const profile = profiles?.find(p => p.user_id === autorId);
+      return profile?.nome || 'Usuário';
+    }
+  };
+
   if (isLoading) {
     return <div>Carregando...</div>;
   }
@@ -244,7 +271,7 @@ export const AdminSupport = () => {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{ticket.profiles?.nome}</div>
+                        <div className="font-medium">{getUserName(ticket.usuario_id)}</div>
                         <div className="text-sm text-gray-500">{ticket.tipo_usuario}</div>
                       </div>
                     </TableCell>
@@ -262,8 +289,8 @@ export const AdminSupport = () => {
                     <TableCell>
                       <Select
                         value={ticket.status}
-                        onValueChange={(newStatus) => 
-                          updateTicketStatus.mutate({ ticketId: ticket.id, newStatus })
+                        onValueChange={(status) => 
+                          updateTicketStatus.mutate({ ticketId: ticket.id, status })
                         }
                       >
                         <SelectTrigger className="w-32">
@@ -283,7 +310,7 @@ export const AdminSupport = () => {
                       </Select>
                     </TableCell>
                     <TableCell>
-                      {ticket.admin_users?.nome || 'Não atribuído'}
+                      {ticket.atribuido_para ? getAdminName(ticket.atribuido_para) : 'Não atribuído'}
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
@@ -311,16 +338,16 @@ export const AdminSupport = () => {
                               <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
-                                    <strong>Usuário:</strong> {selectedTicket.profiles?.nome}
-                                  </div>
-                                  <div>
-                                    <strong>Email:</strong> {selectedTicket.profiles?.email}
+                                    <strong>Usuário:</strong> {getUserName(selectedTicket.usuario_id)}
                                   </div>
                                   <div>
                                     <strong>Categoria:</strong> {selectedTicket.categoria}
                                   </div>
                                   <div>
                                     <strong>Prioridade:</strong> {selectedTicket.prioridade}
+                                  </div>
+                                  <div>
+                                    <strong>Status:</strong> {selectedTicket.status}
                                   </div>
                                 </div>
 
@@ -342,10 +369,7 @@ export const AdminSupport = () => {
                                         <div key={response.id} className="bg-gray-50 p-3 rounded">
                                           <div className="flex items-center justify-between mb-2">
                                             <span className="font-medium">
-                                              {response.tipo_autor === 'admin' 
-                                                ? response.admin_users?.nome || 'Admin'
-                                                : response.profiles?.nome || 'Usuário'
-                                              }
+                                              {getResponseAuthorName(response.autor_id, response.tipo_autor)}
                                             </span>
                                             <span className="text-sm text-gray-500">
                                               {new Date(response.created_at).toLocaleString('pt-BR')}
@@ -387,8 +411,8 @@ export const AdminSupport = () => {
                           <Button
                             size="sm"
                             onClick={() => {
-                              // Aqui você pegaria o ID do admin atual
-                              // Para simplificar, vou usar um ID fixo
+                              // Para simplicidade, vou usar um ID fixo de admin
+                              // Em produção, pegar o ID do admin atual
                               assignTicket.mutate({ 
                                 ticketId: ticket.id, 
                                 adminId: 'current-admin-id' 

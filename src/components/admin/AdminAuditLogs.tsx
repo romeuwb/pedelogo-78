@@ -159,7 +159,7 @@ export const AdminAuditLogs = () => {
                   <TableCell>
                     {log.registro_id && (
                       <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                        {log.registro_id.slice(0, 8)}...
+                        {String(log.registro_id).slice(0, 8)}...
                       </code>
                     )}
                   </TableCell>
