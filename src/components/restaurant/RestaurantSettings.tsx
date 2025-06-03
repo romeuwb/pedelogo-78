@@ -20,6 +20,22 @@ interface RestaurantSettingsProps {
   restaurantId: string;
 }
 
+interface HorarioFuncionamento {
+  abertura: string;
+  fechamento: string;
+  ativo: boolean;
+}
+
+interface HorariosData {
+  segunda: HorarioFuncionamento;
+  terca: HorarioFuncionamento;
+  quarta: HorarioFuncionamento;
+  quinta: HorarioFuncionamento;
+  sexta: HorarioFuncionamento;
+  sabado: HorarioFuncionamento;
+  domingo: HorarioFuncionamento;
+}
+
 export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -91,7 +107,7 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
   });
 
   const HorarioForm = () => {
-    const defaultHorarios = {
+    const defaultHorarios: HorariosData = {
       segunda: { abertura: '08:00', fechamento: '22:00', ativo: true },
       terca: { abertura: '08:00', fechamento: '22:00', ativo: true },
       quarta: { abertura: '08:00', fechamento: '22:00', ativo: true },
@@ -101,8 +117,8 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
       domingo: { abertura: '08:00', fechamento: '22:00', ativo: false }
     };
 
-    const [horarios, setHorarios] = useState(
-      settings?.horario_funcionamento || defaultHorarios
+    const [horarios, setHorarios] = useState<HorariosData>(
+      (settings?.horario_funcionamento as HorariosData) || defaultHorarios
     );
 
     const diasSemana = [
@@ -113,7 +129,7 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
       { key: 'sexta', label: 'Sexta-feira' },
       { key: 'sabado', label: 'Sábado' },
       { key: 'domingo', label: 'Domingo' }
-    ];
+    ] as const;
 
     const handleSaveHorarios = () => {
       updateSettingsMutation.mutate({ horario_funcionamento: horarios });
@@ -133,13 +149,14 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
                 checked={horarios[dia.key]?.ativo || false}
                 onChange={(e) => {
                   const currentHorario = horarios[dia.key] || { abertura: '08:00', fechamento: '22:00' };
-                  setHorarios({
+                  const newHorarios = {
                     ...horarios,
                     [dia.key]: { 
                       ...currentHorario, 
                       ativo: e.target.checked 
                     }
-                  });
+                  };
+                  setHorarios(newHorarios);
                 }}
               />
               <span>Aberto</span>
@@ -154,13 +171,14 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
                     value={horarios[dia.key]?.abertura || '08:00'}
                     onChange={(e) => {
                       const currentHorario = horarios[dia.key] || { fechamento: '22:00', ativo: true };
-                      setHorarios({
+                      const newHorarios = {
                         ...horarios,
                         [dia.key]: { 
                           ...currentHorario, 
                           abertura: e.target.value 
                         }
-                      });
+                      };
+                      setHorarios(newHorarios);
                     }}
                     className="w-24"
                   />
@@ -172,13 +190,14 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
                     value={horarios[dia.key]?.fechamento || '22:00'}
                     onChange={(e) => {
                       const currentHorario = horarios[dia.key] || { abertura: '08:00', ativo: true };
-                      setHorarios({
+                      const newHorarios = {
                         ...horarios,
                         [dia.key]: { 
                           ...currentHorario, 
                           fechamento: e.target.value 
                         }
-                      });
+                      };
+                      setHorarios(newHorarios);
                     }}
                     className="w-24"
                   />
