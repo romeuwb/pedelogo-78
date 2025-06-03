@@ -14,6 +14,33 @@ const Dashboard = () => {
   const { user, profile, loading } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
+  // Verificar se o usuário é admin
+  const { data: isAdmin, isLoading: adminLoading } = useQuery({
+    queryKey: ['isAdmin', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      
+      console.log('Verificando se usuario é admin:', user.id);
+      
+      const { data, error } = await supabase
+        .from('admin_users')
+        .select('id, role, ativo')
+        .eq('user_id', user.id)
+        .eq('ativo', true)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Erro ao verificar admin:', error);
+        return false;
+      }
+
+      console.log('Resultado da verificação admin:', data);
+      return !!data;
+    },
+    enabled: !!user?.id && profile?.tipo === 'admin',
+    retry: 1
+  });
+
   const { data: restaurantDetails, isLoading: restaurantLoading, error: restaurantError } = useQuery({
     queryKey: ['restaurant-details', user?.id],
     queryFn: async () => {
@@ -23,9 +50,13 @@ const Dashboard = () => {
         .from('restaurant_details')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error && error.code !== 'PGRST116') {
+        console.error('Erro ao buscar restaurant_details:', error);
+        throw error;
+      }
+      
       return data;
     },
     enabled: !!user?.id && profile?.tipo === 'restaurante',
@@ -41,9 +72,13 @@ const Dashboard = () => {
         .from('delivery_details')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error && error.code !== 'PGRST116') {
+        console.error('Erro ao buscar delivery_details:', error);
+        throw error;
+      }
+      
       return data;
     },
     enabled: !!user?.id && profile?.tipo === 'entregador',
@@ -61,7 +96,7 @@ const Dashboard = () => {
     }
   }, [restaurantError, deliveryError]);
 
-  if (loading || restaurantLoading || deliveryLoading) {
+  if (loading || restaurantLoading || deliveryLoading || adminLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -169,12 +204,33 @@ const Dashboard = () => {
           );
 
         case 'admin':
-          return (
-            <div className="space-y-6">
-              <h1 className="text-3xl font-bold">Painel Administrativo</h1>
-              <AdminOverview />
-            </div>
-          );
+          // Para admins, verificar se realmente tem permissão
+          if (isAdmin) {
+            return (
+              <div className="space-y-6">
+                <h1 className="text-3xl font-bold">Painel Administrativo</h1>
+                <AdminOverview />
+                <div className="mt-4">
+                  <Button onClick={() => window.location.href = '/admin'}>
+                    Ir para Painel Admin Completo
+                  </Button>
+                </div>
+              </div>
+            );
+          } else {
+            return (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-red-600">Acesso Negado</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600">
+                    Você não tem permissões de administrador ativas.
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          }
 
         default:
           return (
@@ -183,6 +239,9 @@ const Dashboard = () => {
                 <CardTitle>Tipo de usuário não reconhecido</CardTitle>
               </CardHeader>
               <CardContent>
+                <p className="text-gray-600">
+                  Tipo de usuário: {profile.tipo}
+                </p>
                 <p className="text-gray-600">
                   Entre em contato com o suporte para resolver este problema.
                 </p>
@@ -201,6 +260,9 @@ const Dashboard = () => {
             <p className="text-gray-600">
               Ocorreu um erro ao carregar o dashboard. Tente recarregar a página.
             </p>
+            <pre className="text-xs text-gray-500 mt-2">
+              {error instanceof Error ? error.message : 'Erro desconhecido'}
+            </pre>
           </CardContent>
         </Card>
       );

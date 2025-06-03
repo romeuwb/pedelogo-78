@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { AdminOverview } from '@/components/admin/AdminOverview';
@@ -16,31 +17,61 @@ import { AdminBanners } from '@/components/admin/AdminBanners';
 import { AdminAuditLogs } from '@/components/admin/AdminAuditLogs';
 
 const AdminDashboard = () => {
+  const { user, profile, loading: authLoading } = useAuth();
   const [activeSection, setActiveSection] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Verificar se o usuário é admin
   const { data: isAdmin, isLoading } = useQuery({
-    queryKey: ['isAdmin'],
+    queryKey: ['isAdmin', user?.id],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return false;
+      if (!user?.id) return false;
 
-      const { data } = await supabase
+      console.log('Verificando permissões de admin para:', user.id);
+
+      const { data, error } = await supabase
         .from('admin_users')
         .select('id, role, ativo')
         .eq('user_id', user.id)
         .eq('ativo', true)
-        .single();
+        .maybeSingle();
 
+      if (error) {
+        console.error('Erro ao verificar admin:', error);
+        return false;
+      }
+
+      console.log('Resultado verificação admin:', data);
       return !!data;
-    }
+    },
+    enabled: !!user?.id,
+    retry: 1
   });
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Verificando permissões...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !profile) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Acesso Negado</h1>
+          <p className="text-gray-600 mb-4">Você precisa estar logado para acessar o painel administrativo.</p>
+          <button 
+            onClick={() => window.location.href = '/'}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Ir para Home
+          </button>
+        </div>
       </div>
     );
   }
@@ -50,7 +81,18 @@ const AdminDashboard = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Acesso Negado</h1>
-          <p className="text-gray-600">Você não tem permissão para acessar o painel administrativo.</p>
+          <p className="text-gray-600 mb-4">
+            Você não tem permissões de administrador.
+          </p>
+          <p className="text-sm text-gray-500 mb-4">
+            Tipo de usuário atual: {profile.tipo}
+          </p>
+          <button 
+            onClick={() => window.location.href = '/dashboard'}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Voltar ao Dashboard
+          </button>
         </div>
       </div>
     );
