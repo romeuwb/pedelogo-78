@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -102,7 +103,35 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">Restaurantes em Destaque</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {restaurants.map((restaurant) => (
+            {[
+              {
+                id: 1,
+                name: "Pizza Express",
+                rating: 4.5,
+                deliveryTime: "25-35 min",
+                category: "Pizza",
+                image: "/placeholder.svg",
+                promo: "Frete Grátis"
+              },
+              {
+                id: 2,
+                name: "Burger House",
+                rating: 4.2,
+                deliveryTime: "30-40 min",
+                category: "Hambúrguer",
+                image: "/placeholder.svg",
+                promo: "20% OFF"
+              },
+              {
+                id: 3,
+                name: "Sushi Master",
+                rating: 4.8,
+                deliveryTime: "40-50 min",
+                category: "Japonês",
+                image: "/placeholder.svg",
+                promo: null
+              }
+            ].map((restaurant) => (
               <Card key={restaurant.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="aspect-video bg-gray-200 relative">
                   {restaurant.promo && (
