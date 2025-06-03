@@ -28,7 +28,7 @@ interface Order {
     preco_unitario: number;
     observacoes?: string;
   }>;
-  profiles: {
+  cliente_profile?: {
     nome: string;
     telefone?: string;
   };
@@ -52,7 +52,7 @@ const OrderManagement = ({ userType, userId }: OrderManagementProps) => {
         .select(`
           *,
           order_items (*),
-          profiles:cliente_id (nome, telefone)
+          cliente_profile:profiles!orders_cliente_id_fkey (nome, telefone)
         `)
         .order('created_at', { ascending: false });
 
@@ -70,7 +70,7 @@ const OrderManagement = ({ userType, userId }: OrderManagementProps) => {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as Order[];
+      return data || [];
     }
   });
 
@@ -199,12 +199,14 @@ const OrderManagement = ({ userType, userId }: OrderManagementProps) => {
             </CardHeader>
             
             <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <User className="h-4 w-4 text-gray-500" />
-                <span className="text-sm">
-                  {order.profiles?.nome} {order.profiles?.telefone && `- ${order.profiles.telefone}`}
-                </span>
-              </div>
+              {order.cliente_profile && (
+                <div className="flex items-center space-x-2">
+                  <User className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm">
+                    {order.cliente_profile.nome} {order.cliente_profile.telefone && `- ${order.cliente_profile.telefone}`}
+                  </span>
+                </div>
+              )}
 
               {order.endereco_entrega && (
                 <div className="flex items-start space-x-2">
@@ -222,7 +224,7 @@ const OrderManagement = ({ userType, userId }: OrderManagementProps) => {
                   Itens do Pedido
                 </h4>
                 <div className="space-y-2">
-                  {order.order_items.map((item) => (
+                  {order.order_items?.map((item) => (
                     <div key={item.id} className="flex justify-between text-sm">
                       <span>{item.quantidade}x {item.nome_item}</span>
                       <span>R$ {(item.quantidade * item.preco_unitario).toFixed(2)}</span>
