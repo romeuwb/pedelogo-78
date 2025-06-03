@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Clock, MapPin, User, Package } from 'lucide-react';
+
+interface EnderecoEntrega {
+  logradouro: string;
+  numero: string;
+  bairro: string;
+  cidade: string;
+  estado?: string;
+  cep?: string;
+  complemento?: string;
+}
 
 interface Order {
   id: string;
@@ -17,7 +26,7 @@ interface Order {
   total: number;
   taxa_entrega: number;
   tempo_estimado?: number;
-  endereco_entrega: any;
+  endereco_entrega: EnderecoEntrega;
   observacoes?: string;
   created_at: string;
   updated_at: string;
@@ -133,6 +142,15 @@ const OrderManagement = ({ userType, userId }: OrderManagementProps) => {
     return null;
   };
 
+  const isValidEndereco = (endereco: any): endereco is EnderecoEntrega => {
+    return endereco && 
+           typeof endereco === 'object' && 
+           endereco.logradouro && 
+           endereco.numero && 
+           endereco.bairro && 
+           endereco.cidade;
+  };
+
   const statusOptions = [
     { value: 'all', label: 'Todos' },
     { value: 'pendente', label: 'Pendente' },
@@ -208,7 +226,7 @@ const OrderManagement = ({ userType, userId }: OrderManagementProps) => {
                 </div>
               )}
 
-              {order.endereco_entrega && (
+              {isValidEndereco(order.endereco_entrega) && (
                 <div className="flex items-start space-x-2">
                   <MapPin className="h-4 w-4 text-gray-500 mt-0.5" />
                   <div className="text-sm">
