@@ -117,9 +117,28 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
       domingo: { abertura: '08:00', fechamento: '22:00', ativo: false }
     };
 
-    const [horarios, setHorarios] = useState<HorariosData>(
-      (settings?.horario_funcionamento as HorariosData) || defaultHorarios
-    );
+    // Safe type conversion for horario_funcionamento
+    const getHorariosFromSettings = (): HorariosData => {
+      if (!settings?.horario_funcionamento) return defaultHorarios;
+      
+      try {
+        // Safely convert Json to HorariosData
+        const horarioData = settings.horario_funcionamento as unknown as HorariosData;
+        
+        // Validate that it has the expected structure
+        if (horarioData && typeof horarioData === 'object' && 
+            horarioData.segunda && horarioData.terca && horarioData.quarta && 
+            horarioData.quinta && horarioData.sexta && horarioData.sabado && horarioData.domingo) {
+          return horarioData;
+        }
+        
+        return defaultHorarios;
+      } catch {
+        return defaultHorarios;
+      }
+    };
+
+    const [horarios, setHorarios] = useState<HorariosData>(getHorariosFromSettings());
 
     const diasSemana = [
       { key: 'segunda', label: 'Segunda-feira' },
