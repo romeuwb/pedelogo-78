@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, DollarSign, Truck, Mail, Map } from 'lucide-react';
+import { Settings, DollarSign, Truck, Mail, Map, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export const AdminSettings = () => {
@@ -142,6 +141,10 @@ export const AdminSettings = () => {
           <TabsTrigger value="financial" className="flex items-center space-x-2">
             <DollarSign className="h-4 w-4" />
             <span>Financeiro</span>
+          </TabsTrigger>
+          <TabsTrigger value="payments" className="flex items-center space-x-2">
+            <CreditCard className="h-4 w-4" />
+            <span>Pagamentos</span>
           </TabsTrigger>
           <TabsTrigger value="delivery" className="flex items-center space-x-2">
             <Truck className="h-4 w-4" />
@@ -284,6 +287,105 @@ export const AdminSettings = () => {
                     </Button>
                   </div>
                 </div>
+
+                <div className="border-t pt-4">
+                  <h3 className="text-md font-semibold mb-3">Configurações para Usuários</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="enable_restaurant_maps">Habilitar Mapas para Restaurantes</Label>
+                      <div className="flex space-x-2">
+                        <select
+                          id="enable_restaurant_maps"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                          value={settings.enable_restaurant_maps ? 'true' : 'false'}
+                          onChange={(e) => handleUpdateSetting('enable_restaurant_maps', e.target.value === 'true')}
+                        >
+                          <option value="false">Desabilitado</option>
+                          <option value="true">Habilitado</option>
+                        </select>
+                        <Button 
+                          onClick={() => saveSetting('enable_restaurant_maps')}
+                          disabled={updateSetting.isPending}
+                        >
+                          Salvar
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Permite que restaurantes configurem suas zonas de entrega
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="enable_delivery_maps">Habilitar Mapas para Entregadores</Label>
+                      <div className="flex space-x-2">
+                        <select
+                          id="enable_delivery_maps"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                          value={settings.enable_delivery_maps ? 'true' : 'false'}
+                          onChange={(e) => handleUpdateSetting('enable_delivery_maps', e.target.value === 'true')}
+                        >
+                          <option value="false">Desabilitado</option>
+                          <option value="true">Habilitado</option>
+                        </select>
+                        <Button 
+                          onClick={() => saveSetting('enable_delivery_maps')}
+                          disabled={updateSetting.isPending}
+                        >
+                          Salvar
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Permite que entregadores vejam suas rotas e configurem zonas de atuação
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="default_delivery_radius">Raio Padrão de Entrega (km)</Label>
+                      <div className="flex space-x-2">
+                        <Input
+                          id="default_delivery_radius"
+                          type="number"
+                          min="1"
+                          max="50"
+                          placeholder="10"
+                          value={settings.default_delivery_radius || ''}
+                          onChange={(e) => handleUpdateSetting('default_delivery_radius', parseInt(e.target.value))}
+                        />
+                        <Button 
+                          onClick={() => saveSetting('default_delivery_radius')}
+                          disabled={updateSetting.isPending}
+                        >
+                          Salvar
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="auto_assign_delivery">Atribuição Automática de Entregadores</Label>
+                      <div className="flex space-x-2">
+                        <select
+                          id="auto_assign_delivery"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                          value={settings.auto_assign_delivery ? 'true' : 'false'}
+                          onChange={(e) => handleUpdateSetting('auto_assign_delivery', e.target.value === 'true')}
+                        >
+                          <option value="false">Desabilitado</option>
+                          <option value="true">Habilitado</option>
+                        </select>
+                        <Button 
+                          onClick={() => saveSetting('auto_assign_delivery')}
+                          disabled={updateSetting.isPending}
+                        >
+                          Salvar
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Atribui automaticamente entregadores baseado na proximidade
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -401,6 +503,186 @@ export const AdminSettings = () => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="payments" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Configurações de Pagamento</CardTitle>
+              <p className="text-sm text-gray-600">Configure os provedores de pagamento</p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 gap-6">
+                <div className="border rounded-lg p-4">
+                  <h3 className="text-lg font-semibold mb-4">Mercado Pago</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="mercadopago_public_key">Public Key</Label>
+                      <div className="flex space-x-2">
+                        <Input
+                          id="mercadopago_public_key"
+                          placeholder="APP_USR-..."
+                          value={settings.mercadopago_public_key || ''}
+                          onChange={(e) => handleUpdateSetting('mercadopago_public_key', e.target.value)}
+                        />
+                        <Button 
+                          onClick={() => saveSetting('mercadopago_public_key')}
+                          disabled={updateSetting.isPending}
+                        >
+                          Salvar
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="mercadopago_access_token">Access Token</Label>
+                      <div className="flex space-x-2">
+                        <Input
+                          id="mercadopago_access_token"
+                          type="password"
+                          placeholder="APP_USR-..."
+                          value={settings.mercadopago_access_token || ''}
+                          onChange={(e) => handleUpdateSetting('mercadopago_access_token', e.target.value)}
+                        />
+                        <Button 
+                          onClick={() => saveSetting('mercadopago_access_token')}
+                          disabled={updateSetting.isPending}
+                        >
+                          Salvar
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="mercadopago_webhook_secret">Webhook Secret</Label>
+                      <div className="flex space-x-2">
+                        <Input
+                          id="mercadopago_webhook_secret"
+                          type="password"
+                          placeholder="Webhook secret key"
+                          value={settings.mercadopago_webhook_secret || ''}
+                          onChange={(e) => handleUpdateSetting('mercadopago_webhook_secret', e.target.value)}
+                        />
+                        <Button 
+                          onClick={() => saveSetting('mercadopago_webhook_secret')}
+                          disabled={updateSetting.isPending}
+                        >
+                          Salvar
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="mercadopago_environment">Ambiente</Label>
+                      <div className="flex space-x-2">
+                        <select
+                          id="mercadopago_environment"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                          value={settings.mercadopago_environment || 'sandbox'}
+                          onChange={(e) => handleUpdateSetting('mercadopago_environment', e.target.value)}
+                        >
+                          <option value="sandbox">Sandbox (Teste)</option>
+                          <option value="production">Produção</option>
+                        </select>
+                        <Button 
+                          onClick={() => saveSetting('mercadopago_environment')}
+                          disabled={updateSetting.isPending}
+                        >
+                          Salvar
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4">
+                  <h3 className="text-lg font-semibold mb-4">Stripe</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="stripe_publishable_key">Stripe Publishable Key</Label>
+                      <div className="flex space-x-2">
+                        <Input
+                          id="stripe_publishable_key"
+                          placeholder="pk_test_..."
+                          value={settings.stripe_publishable_key || ''}
+                          onChange={(e) => handleUpdateSetting('stripe_publishable_key', e.target.value)}
+                        />
+                        <Button 
+                          onClick={() => saveSetting('stripe_publishable_key')}
+                          disabled={updateSetting.isPending}
+                        >
+                          Salvar
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="stripe_secret_key">Stripe Secret Key</Label>
+                      <div className="flex space-x-2">
+                        <Input
+                          id="stripe_secret_key"
+                          type="password"
+                          placeholder="sk_test_..."
+                          value={settings.stripe_secret_key || ''}
+                          onChange={(e) => handleUpdateSetting('stripe_secret_key', e.target.value)}
+                        />
+                        <Button 
+                          onClick={() => saveSetting('stripe_secret_key')}
+                          disabled={updateSetting.isPending}
+                        >
+                          Salvar
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4">
+                  <h3 className="text-lg font-semibold mb-4">PIX</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="pix_enabled">Habilitar PIX</Label>
+                      <div className="flex space-x-2">
+                        <select
+                          id="pix_enabled"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                          value={settings.pix_enabled ? 'true' : 'false'}
+                          onChange={(e) => handleUpdateSetting('pix_enabled', e.target.value === 'true')}
+                        >
+                          <option value="false">Desabilitado</option>
+                          <option value="true">Habilitado</option>
+                        </select>
+                        <Button 
+                          onClick={() => saveSetting('pix_enabled')}
+                          disabled={updateSetting.isPending}
+                        >
+                          Salvar
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="pix_recipient_key">Chave PIX Recebedor</Label>
+                      <div className="flex space-x-2">
+                        <Input
+                          id="pix_recipient_key"
+                          placeholder="Chave PIX da empresa"
+                          value={settings.pix_recipient_key || ''}
+                          onChange={(e) => handleUpdateSetting('pix_recipient_key', e.target.value)}
+                        />
+                        <Button 
+                          onClick={() => saveSetting('pix_recipient_key')}
+                          disabled={updateSetting.isPending}
+                        >
+                          Salvar
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="delivery" className="mt-6">
           <Card>
             <CardHeader>
@@ -503,6 +785,30 @@ export const AdminSettings = () => {
                       Salvar
                     </Button>
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="aprovacao_automatica_entregadores">Aprovação Automática de Entregadores</Label>
+                  <div className="flex space-x-2">
+                    <select
+                      id="aprovacao_automatica_entregadores"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      value={settings.aprovacao_automatica_entregadores ? 'true' : 'false'}
+                      onChange={(e) => handleUpdateSetting('aprovacao_automatica_entregadores', e.target.value === 'true')}
+                    >
+                      <option value="false">Desabilitado</option>
+                      <option value="true">Habilitado</option>
+                    </select>
+                    <Button 
+                      onClick={() => saveSetting('aprovacao_automatica_entregadores')}
+                      disabled={updateSetting.isPending}
+                    >
+                      Salvar
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Aprova automaticamente entregadores que completarem o cadastro
+                  </p>
                 </div>
               </div>
             </CardContent>

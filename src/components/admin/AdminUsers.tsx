@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,7 +21,9 @@ import {
   Search,
   UserCheck,
   UserX,
-  Eye
+  Eye,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -106,14 +107,22 @@ export const AdminUsers = () => {
     enabled: activeTab === 'entregadores'
   });
 
+  // Corrigir a mutação para alternar status do usuário
   const toggleUserStatus = useMutation({
     mutationFn: async ({ userId, newStatus }: { userId: string; newStatus: boolean }) => {
+      console.log('Alterando status do usuário:', userId, 'para:', newStatus);
+      
       const { error } = await supabase
         .from('profiles')
         .update({ ativo: newStatus })
-        .eq('id', userId);
+        .eq('user_id', userId);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao atualizar status:', error);
+        throw error;
+      }
+      
+      console.log('Status do usuário atualizado com sucesso');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
@@ -122,47 +131,92 @@ export const AdminUsers = () => {
         description: 'Status do usuário atualizado com sucesso'
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Erro na mutação:', error);
       toast({
         title: 'Erro',
-        description: 'Erro ao atualizar status do usuário',
+        description: 'Erro ao atualizar status do usuário: ' + error.message,
         variant: 'destructive'
       });
     }
   });
 
+  // Corrigir a mutação para aprovar restaurante
   const approveRestaurant = useMutation({
     mutationFn: async ({ userId, approve }: { userId: string; approve: boolean }) => {
+      console.log('Alterando aprovação do restaurante:', userId, 'para:', approve);
+      
+      const status = approve ? 'aprovado' : 'rejeitado';
+      
       const { error } = await supabase
         .from('restaurant_details')
-        .update({ status_aprovacao: approve ? 'aprovado' : 'rejeitado' })
+        .update({ 
+          status_aprovacao: status,
+          updated_at: new Date().toISOString()
+        })
         .eq('user_id', userId);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao atualizar restaurante:', error);
+        throw error;
+      }
+      
+      console.log('Status do restaurante atualizado para:', status);
     },
-    onSuccess: () => {
+    onSuccess: (_, { approve }) => {
       queryClient.invalidateQueries({ queryKey: ['restaurantDetails'] });
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
       toast({
         title: 'Sucesso',
-        description: 'Status do restaurante atualizado com sucesso'
+        description: `Restaurante ${approve ? 'aprovado' : 'rejeitado'} com sucesso`
+      });
+    },
+    onError: (error: any) => {
+      console.error('Erro na mutação de restaurante:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao atualizar status do restaurante: ' + error.message,
+        variant: 'destructive'
       });
     }
   });
 
+  // Corrigir a mutação para aprovar entregador
   const approveDelivery = useMutation({
     mutationFn: async ({ userId, approve }: { userId: string; approve: boolean }) => {
+      console.log('Alterando aprovação do entregador:', userId, 'para:', approve);
+      
+      const status = approve ? 'aprovado' : 'rejeitado';
+      
       const { error } = await supabase
         .from('delivery_details')
-        .update({ status_aprovacao: approve ? 'aprovado' : 'rejeitado' })
+        .update({ 
+          status_aprovacao: status,
+          updated_at: new Date().toISOString()
+        })
         .eq('user_id', userId);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao atualizar entregador:', error);
+        throw error;
+      }
+      
+      console.log('Status do entregador atualizado para:', status);
     },
-    onSuccess: () => {
+    onSuccess: (_, { approve }) => {
       queryClient.invalidateQueries({ queryKey: ['deliveryDetails'] });
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
       toast({
         title: 'Sucesso',
-        description: 'Status do entregador atualizado com sucesso'
+        description: `Entregador ${approve ? 'aprovado' : 'rejeitado'} com sucesso`
+      });
+    },
+    onError: (error: any) => {
+      console.error('Erro na mutação de entregador:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao atualizar status do entregador: ' + error.message,
+        variant: 'destructive'
       });
     }
   });
@@ -210,7 +264,14 @@ export const AdminUsers = () => {
   };
 
   if (isLoading) {
-    return <div>Carregando...</div>;
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Carregando usuários...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -285,6 +346,7 @@ export const AdminUsers = () => {
                                 userId: user.id, 
                                 newStatus: !user.ativo 
                               })}
+                              disabled={toggleUserStatus.isPending}
                             >
                               {user.ativo ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                             </Button>
@@ -332,11 +394,14 @@ export const AdminUsers = () => {
                                   <Button
                                     size="sm"
                                     variant="default"
+                                    className="bg-green-600 hover:bg-green-700 text-white"
                                     onClick={() => approveRestaurant.mutate({ 
                                       userId: user.user_id, 
                                       approve: true 
                                     })}
+                                    disabled={approveRestaurant.isPending}
                                   >
+                                    <CheckCircle className="h-4 w-4 mr-1" />
                                     Aprovar
                                   </Button>
                                   <Button
@@ -346,13 +411,26 @@ export const AdminUsers = () => {
                                       userId: user.user_id, 
                                       approve: false 
                                     })}
+                                    disabled={approveRestaurant.isPending}
                                   >
+                                    <XCircle className="h-4 w-4 mr-1" />
                                     Rejeitar
                                   </Button>
                                 </>
                               )}
                               <Button size="sm" variant="outline">
                                 <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant={user.ativo ? "destructive" : "default"}
+                                onClick={() => toggleUserStatus.mutate({ 
+                                  userId: user.user_id, 
+                                  newStatus: !user.ativo 
+                                })}
+                                disabled={toggleUserStatus.isPending}
+                              >
+                                {user.ativo ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                               </Button>
                             </div>
                           </TableCell>
@@ -401,11 +479,14 @@ export const AdminUsers = () => {
                                   <Button
                                     size="sm"
                                     variant="default"
+                                    className="bg-green-600 hover:bg-green-700 text-white"
                                     onClick={() => approveDelivery.mutate({ 
                                       userId: user.user_id, 
                                       approve: true 
                                     })}
+                                    disabled={approveDelivery.isPending}
                                   >
+                                    <CheckCircle className="h-4 w-4 mr-1" />
                                     Aprovar
                                   </Button>
                                   <Button
@@ -415,13 +496,26 @@ export const AdminUsers = () => {
                                       userId: user.user_id, 
                                       approve: false 
                                     })}
+                                    disabled={approveDelivery.isPending}
                                   >
+                                    <XCircle className="h-4 w-4 mr-1" />
                                     Rejeitar
                                   </Button>
                                 </>
                               )}
                               <Button size="sm" variant="outline">
                                 <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant={user.ativo ? "destructive" : "default"}
+                                onClick={() => toggleUserStatus.mutate({ 
+                                  userId: user.user_id, 
+                                  newStatus: !user.ativo 
+                                })}
+                                disabled={toggleUserStatus.isPending}
+                              >
+                                {user.ativo ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                               </Button>
                             </div>
                           </TableCell>
