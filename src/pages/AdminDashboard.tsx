@@ -14,6 +14,7 @@ import { AdminReports } from '@/components/admin/AdminReports';
 import { AdminSettings } from '@/components/admin/AdminSettings';
 import { AdminBanners } from '@/components/admin/AdminBanners';
 import { AdminAuditLogs } from '@/components/admin/AdminAuditLogs';
+import { AdminProducts } from '@/components/admin/AdminProducts';
 
 const AdminDashboard = () => {
   const { user, profile, loading: authLoading } = useAuth();
