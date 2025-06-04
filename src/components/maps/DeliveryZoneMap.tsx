@@ -34,6 +34,7 @@ export const DeliveryZoneMap: React.FC<DeliveryZoneMapProps> = ({
   const [currentZones, setCurrentZones] = useState<DeliveryZone[]>(zones);
   const [newZoneName, setNewZoneName] = useState('');
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
+  const [polygons, setPolygons] = useState<any[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -94,6 +95,9 @@ export const DeliveryZoneMap: React.FC<DeliveryZoneMapProps> = ({
             onZonesChange?.(updatedZones);
             setNewZoneName('');
 
+            // Store the polygon reference
+            setPolygons(prev => [...prev, { zoneId: newZone.id, polygon }]);
+
             toast({
               title: 'Zona criada',
               description: `Zona "${newZoneName}" criada com sucesso`,
@@ -112,6 +116,7 @@ export const DeliveryZoneMap: React.FC<DeliveryZoneMapProps> = ({
       }
 
       // Renderizar zonas existentes
+      const newPolygons: any[] = [];
       currentZones.forEach((zone) => {
         const polygon = new window.google.maps.Polygon({
           paths: zone.coordinates,
@@ -124,13 +129,16 @@ export const DeliveryZoneMap: React.FC<DeliveryZoneMapProps> = ({
         });
 
         polygon.setMap(mapInstance);
+        newPolygons.push({ zoneId: zone.id, polygon });
 
         if (editable) {
-          polygon.addListener('click', () => {
+          window.google.maps.event.addListener(polygon, 'click', () => {
             setSelectedZone(zone.id);
           });
         }
       });
+
+      setPolygons(newPolygons);
     };
 
     if (window.google && window.google.maps) {
@@ -143,9 +151,16 @@ export const DeliveryZoneMap: React.FC<DeliveryZoneMapProps> = ({
       script.onload = initMap;
       document.head.appendChild(script);
     }
-  }, [center, editable, newZoneName]);
+  }, [center, editable, newZoneName, currentZones]);
 
   const removeZone = (zoneId: string) => {
+    // Remove polygon from map
+    const polygonToRemove = polygons.find(p => p.zoneId === zoneId);
+    if (polygonToRemove) {
+      polygonToRemove.polygon.setMap(null);
+      setPolygons(prev => prev.filter(p => p.zoneId !== zoneId));
+    }
+
     const updatedZones = currentZones.filter(zone => zone.id !== zoneId);
     setCurrentZones(updatedZones);
     onZonesChange?.(updatedZones);
@@ -163,6 +178,32 @@ export const DeliveryZoneMap: React.FC<DeliveryZoneMapProps> = ({
     );
     setCurrentZones(updatedZones);
     onZonesChange?.(updatedZones);
+
+    // Update polygon opacity
+    const polygonToUpdate = polygons.find(p => p.zoneId === zoneId);
+    if (polygonToUpdate) {
+      const zone = updatedZones.find(z => z.id === zoneId);
+      polygonToUpdate.polygon.setOptions({
+        fillOpacity: zone?.active ? 0.35 : 0.15
+      });
+    }
+  };
+
+  const startDrawing = () => {
+    if (!newZoneName.trim()) {
+      toast({
+        title: 'Nome obrigatório',
+        description: 'Por favor, digite um nome para a zona antes de desenhar',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (drawingManager) {
+      drawingManager.setDrawingMode(
+        window.google.maps.drawing.OverlayType.POLYGON
+      );
+    }
   };
 
   return (
@@ -188,13 +229,7 @@ export const DeliveryZoneMap: React.FC<DeliveryZoneMapProps> = ({
                   />
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      if (drawingManager) {
-                        drawingManager.setDrawingMode(
-                          window.google.maps.drawing.OverlayType.POLYGON
-                        );
-                      }
-                    }}
+                    onClick={startDrawing}
                     disabled={!newZoneName.trim()}
                   >
                     <MapPin className="h-4 w-4 mr-2" />
