@@ -51,6 +51,63 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_products: {
+        Row: {
+          ativo: boolean | null
+          calorias: number | null
+          categoria: string
+          codigo_barras: string | null
+          created_at: string
+          descricao: string | null
+          id: string
+          imagem_url: string | null
+          ingredientes: string[] | null
+          livre_gluten: boolean | null
+          livre_lactose: boolean | null
+          nome: string
+          tempo_preparo: number | null
+          updated_at: string
+          vegano: boolean | null
+          vegetariano: boolean | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          calorias?: number | null
+          categoria: string
+          codigo_barras?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          imagem_url?: string | null
+          ingredientes?: string[] | null
+          livre_gluten?: boolean | null
+          livre_lactose?: boolean | null
+          nome: string
+          tempo_preparo?: number | null
+          updated_at?: string
+          vegano?: boolean | null
+          vegetariano?: boolean | null
+        }
+        Update: {
+          ativo?: boolean | null
+          calorias?: number | null
+          categoria?: string
+          codigo_barras?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          imagem_url?: string | null
+          ingredientes?: string[] | null
+          livre_gluten?: boolean | null
+          livre_lactose?: boolean | null
+          nome?: string
+          tempo_preparo?: number | null
+          updated_at?: string
+          vegano?: boolean | null
+          vegetariano?: boolean | null
+        }
+        Relationships: []
+      }
       admin_users: {
         Row: {
           ativo: boolean
@@ -1718,6 +1775,61 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      restaurant_admin_products: {
+        Row: {
+          admin_product_id: string
+          created_at: string
+          disponivel: boolean | null
+          id: string
+          preco: number
+          restaurant_id: string
+          restaurant_product_id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_product_id: string
+          created_at?: string
+          disponivel?: boolean | null
+          id?: string
+          preco: number
+          restaurant_id: string
+          restaurant_product_id: string
+          updated_at?: string
+        }
+        Update: {
+          admin_product_id?: string
+          created_at?: string
+          disponivel?: boolean | null
+          id?: string
+          preco?: number
+          restaurant_id?: string
+          restaurant_product_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_admin_products_admin_product_id_fkey"
+            columns: ["admin_product_id"]
+            isOneToOne: false
+            referencedRelation: "admin_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_admin_products_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_admin_products_restaurant_product_id_fkey"
+            columns: ["restaurant_product_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       restaurant_details: {
         Row: {

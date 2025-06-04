@@ -32,6 +32,7 @@ export const useRegistrationCompletion = () => {
         .update({
           ...data.profileData,
           cadastro_completo: true,
+          ativo: true, // Ativar o usuário por padrão ao completar cadastro
           updated_at: new Date().toISOString()
         })
         .eq('user_id', user.id);

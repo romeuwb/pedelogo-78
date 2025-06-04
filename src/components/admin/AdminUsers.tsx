@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,6 +27,7 @@ import {
   XCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { UserDetailsModal } from '@/components/admin/UserDetailsModal';
 
 interface RestaurantDetail {
   id: string;
@@ -33,6 +35,9 @@ interface RestaurantDetail {
   nome_fantasia: string;
   status_aprovacao: 'pendente' | 'aprovado' | 'rejeitado';
   categoria: string;
+  endereco: string;
+  cnpj: string;
+  razao_social: string;
 }
 
 interface DeliveryDetail {
@@ -41,11 +46,16 @@ interface DeliveryDetail {
   status_aprovacao: 'pendente' | 'aprovado' | 'rejeitado';
   veiculos: string[];
   documentos_verificados: boolean;
+  endereco: string;
+  cpf: string;
+  numero_cnh: string;
 }
 
 export const AdminUsers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('clientes');
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -84,7 +94,7 @@ export const AdminUsers = () => {
       
       const { data, error } = await supabase
         .from('restaurant_details')
-        .select('id, user_id, nome_fantasia, status_aprovacao, categoria');
+        .select('id, user_id, nome_fantasia, status_aprovacao, categoria, endereco, cnpj, razao_social');
       
       if (error) throw error;
       return data as RestaurantDetail[];
@@ -99,7 +109,7 @@ export const AdminUsers = () => {
       
       const { data, error } = await supabase
         .from('delivery_details')
-        .select('id, user_id, status_aprovacao, veiculos, documentos_verificados');
+        .select('id, user_id, status_aprovacao, veiculos, documentos_verificados, endereco, cpf, numero_cnh');
       
       if (error) throw error;
       return data as DeliveryDetail[];
@@ -107,7 +117,6 @@ export const AdminUsers = () => {
     enabled: activeTab === 'entregadores'
   });
 
-  // Corrigir a mutação para alternar status do usuário
   const toggleUserStatus = useMutation({
     mutationFn: async ({ userId, newStatus }: { userId: string; newStatus: boolean }) => {
       console.log('Alterando status do usuário:', userId, 'para:', newStatus);
@@ -121,8 +130,6 @@ export const AdminUsers = () => {
         console.error('Erro ao atualizar status:', error);
         throw error;
       }
-      
-      console.log('Status do usuário atualizado com sucesso');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
@@ -141,7 +148,6 @@ export const AdminUsers = () => {
     }
   });
 
-  // Corrigir a mutação para aprovar restaurante
   const approveRestaurant = useMutation({
     mutationFn: async ({ userId, approve }: { userId: string; approve: boolean }) => {
       console.log('Alterando aprovação do restaurante:', userId, 'para:', approve);
@@ -160,8 +166,14 @@ export const AdminUsers = () => {
         console.error('Erro ao atualizar restaurante:', error);
         throw error;
       }
-      
-      console.log('Status do restaurante atualizado para:', status);
+
+      // Se aprovado, também ativar o perfil do usuário
+      if (approve) {
+        await supabase
+          .from('profiles')
+          .update({ ativo: true })
+          .eq('user_id', userId);
+      }
     },
     onSuccess: (_, { approve }) => {
       queryClient.invalidateQueries({ queryKey: ['restaurantDetails'] });
@@ -181,7 +193,6 @@ export const AdminUsers = () => {
     }
   });
 
-  // Corrigir a mutação para aprovar entregador
   const approveDelivery = useMutation({
     mutationFn: async ({ userId, approve }: { userId: string; approve: boolean }) => {
       console.log('Alterando aprovação do entregador:', userId, 'para:', approve);
@@ -200,8 +211,14 @@ export const AdminUsers = () => {
         console.error('Erro ao atualizar entregador:', error);
         throw error;
       }
-      
-      console.log('Status do entregador atualizado para:', status);
+
+      // Se aprovado, também ativar o perfil do usuário
+      if (approve) {
+        await supabase
+          .from('profiles')
+          .update({ ativo: true })
+          .eq('user_id', userId);
+      }
     },
     onSuccess: (_, { approve }) => {
       queryClient.invalidateQueries({ queryKey: ['deliveryDetails'] });
@@ -241,7 +258,7 @@ export const AdminUsers = () => {
     if (activeTab === 'restaurantes') {
       const restaurant = getRestaurantInfo(user.user_id);
       if (restaurant?.status_aprovacao === 'pendente') {
-        return <Badge variant="secondary">Pendente</Badge>;
+        return <Badge variant="secondary">Pendente Aprovação</Badge>;
       } else if (restaurant?.status_aprovacao === 'aprovado') {
         return <Badge variant="default">Aprovado</Badge>;
       } else if (restaurant?.status_aprovacao === 'rejeitado') {
@@ -252,7 +269,7 @@ export const AdminUsers = () => {
     if (activeTab === 'entregadores') {
       const delivery = getDeliveryInfo(user.user_id);
       if (delivery?.status_aprovacao === 'pendente') {
-        return <Badge variant="secondary">Pendente</Badge>;
+        return <Badge variant="secondary">Pendente Aprovação</Badge>;
       } else if (delivery?.status_aprovacao === 'aprovado') {
         return <Badge variant="default">Aprovado</Badge>;
       } else if (delivery?.status_aprovacao === 'rejeitado') {
@@ -261,6 +278,21 @@ export const AdminUsers = () => {
     }
     
     return <Badge variant="secondary">N/A</Badge>;
+  };
+
+  const handleViewUser = (user: any) => {
+    let detailedUser = { ...user };
+    
+    if (activeTab === 'restaurantes') {
+      const restaurant = getRestaurantInfo(user.user_id);
+      detailedUser = { ...user, restaurant };
+    } else if (activeTab === 'entregadores') {
+      const delivery = getDeliveryInfo(user.user_id);
+      detailedUser = { ...user, delivery };
+    }
+    
+    setSelectedUser(detailedUser);
+    setShowDetailsModal(true);
   };
 
   if (isLoading) {
@@ -341,9 +373,16 @@ export const AdminUsers = () => {
                           <div className="flex items-center space-x-2">
                             <Button
                               size="sm"
+                              variant="outline"
+                              onClick={() => handleViewUser(user)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
                               variant={user.ativo ? "destructive" : "default"}
                               onClick={() => toggleUserStatus.mutate({ 
-                                userId: user.id, 
+                                userId: user.user_id, 
                                 newStatus: !user.ativo 
                               })}
                               disabled={toggleUserStatus.isPending}
@@ -418,7 +457,11 @@ export const AdminUsers = () => {
                                   </Button>
                                 </>
                               )}
-                              <Button size="sm" variant="outline">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleViewUser(user)}
+                              >
                                 <Eye className="h-4 w-4" />
                               </Button>
                               <Button
@@ -503,7 +546,11 @@ export const AdminUsers = () => {
                                   </Button>
                                 </>
                               )}
-                              <Button size="sm" variant="outline">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleViewUser(user)}
+                              >
                                 <Eye className="h-4 w-4" />
                               </Button>
                               <Button
@@ -529,6 +576,18 @@ export const AdminUsers = () => {
           </TabsContent>
         </div>
       </Tabs>
+
+      {showDetailsModal && selectedUser && (
+        <UserDetailsModal
+          user={selectedUser}
+          userType={activeTab}
+          isOpen={showDetailsModal}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedUser(null);
+          }}
+        />
+      )}
     </div>
   );
 };
