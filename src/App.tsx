@@ -1,42 +1,60 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from '@/components/ui/toaster';
+import { useAuth } from '@/hooks/useAuth';
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { PlatformHeader } from "@/components/layout/PlatformHeader";
-import Index from "./pages/Index";
-import Dashboard from "./pages/Dashboard";
-import AdminDashboard from "./pages/AdminDashboard";
-import NotFound from "./pages/NotFound";
+import Index from '@/pages/Index';
+import Dashboard from '@/pages/Dashboard';
+import ClientDashboard from '@/pages/ClientDashboard';
+import AdminDashboard from '@/pages/AdminDashboard';
+import DeliveryDashboard from '@/pages/DeliveryDashboard';
+import RestaurantsPage from '@/pages/RestaurantsPage';
+import PromotionsPage from '@/pages/PromotionsPage';
+import NotFound from '@/pages/NotFound';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    },
-  },
-});
+const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <div className="min-h-screen bg-gray-50">
-          <PlatformHeader />
+// Component to handle admin routing
+const AdminRoute = () => {
+  const { user, profile, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  // Check if user is admin by querying admin_users table
+  return <AdminDashboard />;
+};
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <div className="min-h-screen bg-gray-100">
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/restaurantes" element={<RestaurantsPage />} />
+            <Route path="/promocoes" element={<PromotionsPage />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/client-dashboard" element={<ClientDashboard />} />
+            <Route path="/admin" element={<AdminRoute />} />
+            <Route path="/delivery-dashboard" element={<DeliveryDashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+        <Toaster />
+      </Router>
+    </QueryClientProvider>
+  );
+}
 
 export default App;

@@ -83,7 +83,7 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center text-2xl font-bold gradient-delivery bg-clip-text text-transparent">
+          <DialogTitle className="text-center text-2xl font-bold text-orange-600">
             🍕 PedeLogo
           </DialogTitle>
         </DialogHeader>
@@ -144,7 +144,7 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
                   
                   <Button 
                     type="submit" 
-                    className="w-full gradient-delivery text-white"
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white"
                     disabled={isLoading}
                   >
                     {isLoading ? "Entrando..." : "Entrar"}
@@ -270,7 +270,7 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
 
                   <Button 
                     type="submit" 
-                    className="w-full gradient-delivery text-white"
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white"
                     disabled={isLoading || signupData.password !== signupData.confirmPassword}
                   >
                     {isLoading ? "Criando conta..." : "Criar conta"}

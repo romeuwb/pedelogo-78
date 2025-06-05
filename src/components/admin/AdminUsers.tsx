@@ -247,37 +247,60 @@ export const AdminUsers = () => {
   };
 
   const getStatusBadge = (user: any) => {
-    if (!user.ativo) {
-      return <Badge variant="destructive">Inativo</Badge>;
-    }
-    
+    // Para clientes, mostrar apenas ativo/inativo
     if (activeTab === 'clientes') {
-      return <Badge variant="default">Ativo</Badge>;
+      return (
+        <Badge variant={user.ativo ? "default" : "destructive"}>
+          {user.ativo ? 'Ativo' : 'Inativo'}
+        </Badge>
+      );
     }
     
+    // Para restaurantes
     if (activeTab === 'restaurantes') {
       const restaurant = getRestaurantInfo(user.user_id);
-      if (restaurant?.status_aprovacao === 'pendente') {
+      if (!restaurant) {
+        return <Badge variant="secondary">Aguardando Cadastro</Badge>;
+      }
+      
+      if (restaurant.status_aprovacao === 'pendente') {
         return <Badge variant="secondary">Pendente Aprovação</Badge>;
-      } else if (restaurant?.status_aprovacao === 'aprovado') {
-        return <Badge variant="default">Aprovado</Badge>;
-      } else if (restaurant?.status_aprovacao === 'rejeitado') {
+      } else if (restaurant.status_aprovacao === 'aprovado') {
+        return (
+          <Badge variant={user.ativo ? "default" : "destructive"}>
+            {user.ativo ? 'Ativo' : 'Inativo'}
+          </Badge>
+        );
+      } else if (restaurant.status_aprovacao === 'rejeitado') {
         return <Badge variant="destructive">Rejeitado</Badge>;
       }
     }
     
+    // Para entregadores
     if (activeTab === 'entregadores') {
       const delivery = getDeliveryInfo(user.user_id);
-      if (delivery?.status_aprovacao === 'pendente') {
+      if (!delivery) {
+        return <Badge variant="secondary">Aguardando Cadastro</Badge>;
+      }
+      
+      if (delivery.status_aprovacao === 'pendente') {
         return <Badge variant="secondary">Pendente Aprovação</Badge>;
-      } else if (delivery?.status_aprovacao === 'aprovado') {
-        return <Badge variant="default">Aprovado</Badge>;
-      } else if (delivery?.status_aprovacao === 'rejeitado') {
+      } else if (delivery.status_aprovacao === 'aprovado') {
+        return (
+          <Badge variant={user.ativo ? "default" : "destructive"}>
+            {user.ativo ? 'Ativo' : 'Inativo'}
+          </Badge>
+        );
+      } else if (delivery.status_aprovacao === 'rejeitado') {
         return <Badge variant="destructive">Rejeitado</Badge>;
       }
     }
     
-    return <Badge variant="secondary">N/A</Badge>;
+    return (
+      <Badge variant={user.ativo ? "default" : "destructive"}>
+        {user.ativo ? 'Ativo' : 'Inativo'}
+      </Badge>
+    );
   };
 
   const handleViewUser = (user: any) => {
