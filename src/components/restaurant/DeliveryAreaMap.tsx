@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { MapPin, Save, Trash2 } from 'lucide-react';
+import { MapPin, Save, Trash2, Loader2 } from 'lucide-react';
+import { useGoogleMaps } from '@/hooks/useGoogleMaps';
 
 interface DeliveryAreaMapProps {
   restaurantId: string;
@@ -23,6 +24,7 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
   const [polygons, setPolygons] = useState<google.maps.Polygon[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isLoaded, loadError } = useGoogleMaps();
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -47,71 +49,87 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
   });
 
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!isLoaded || !mapRef.current || !window.google) return;
 
-    // Inicializar o mapa
-    const newMap = new google.maps.Map(mapRef.current, {
-      zoom: 13,
-      center: { lat: -23.550520, lng: -46.633308 }, // São Paulo como padrão
-      mapTypeId: google.maps.MapTypeId.ROADMAP,
-    });
-
-    setMap(newMap);
-
-    // Configurar Drawing Manager
-    const manager = new google.maps.drawing.DrawingManager({
-      drawingMode: google.maps.drawing.OverlayType.POLYGON,
-      drawingControl: true,
-      drawingControlOptions: {
-        position: google.maps.ControlPosition.TOP_CENTER,
-        drawingModes: [google.maps.drawing.OverlayType.POLYGON],
-      },
-      polygonOptions: {
-        fillColor: '#FF0000',
-        fillOpacity: 0.2,
-        strokeWeight: 2,
-        strokeColor: '#FF0000',
-        editable: true,
-        draggable: true,
-      },
-    });
-
-    manager.setMap(newMap);
-    setDrawingManager(manager);
-
-    // Event listener para quando um polígono for criado
-    manager.addListener('polygoncomplete', (polygon: google.maps.Polygon) => {
-      const path = polygon.getPath();
-      const coordinates: any[] = [];
-      
-      path.forEach((latLng: google.maps.LatLng) => {
-        coordinates.push({
-          lat: latLng.lat(),
-          lng: latLng.lng()
-        });
+    try {
+      // Inicializar o mapa
+      const newMap = new window.google.maps.Map(mapRef.current, {
+        zoom: 13,
+        center: { lat: -23.550520, lng: -46.633308 }, // São Paulo como padrão
+        mapTypeId: window.google.maps.MapTypeId.ROADMAP,
+        mapTypeControl: true,
+        streetViewControl: false,
+        fullscreenControl: true,
       });
 
-      const newZone = {
-        id: Date.now().toString(),
-        name: `Área ${deliveryZones.length + 1}`,
-        coordinates: coordinates
+      setMap(newMap);
+
+      // Configurar Drawing Manager
+      const manager = new window.google.maps.drawing.DrawingManager({
+        drawingMode: null,
+        drawingControl: true,
+        drawingControlOptions: {
+          position: window.google.maps.ControlPosition.TOP_CENTER,
+          drawingModes: [window.google.maps.drawing.OverlayType.POLYGON],
+        },
+        polygonOptions: {
+          fillColor: '#FF0000',
+          fillOpacity: 0.2,
+          strokeWeight: 2,
+          strokeColor: '#FF0000',
+          editable: true,
+          draggable: true,
+          clickable: true,
+        },
+      });
+
+      manager.setMap(newMap);
+      setDrawingManager(manager);
+
+      // Event listener para quando um polígono for criado
+      window.google.maps.event.addListener(manager, 'polygoncomplete', (polygon: google.maps.Polygon) => {
+        const path = polygon.getPath();
+        const coordinates: any[] = [];
+        
+        path.forEach((latLng: google.maps.LatLng) => {
+          coordinates.push({
+            lat: latLng.lat(),
+            lng: latLng.lng()
+          });
+        });
+
+        const newZone = {
+          id: Date.now().toString(),
+          name: `Área ${deliveryZones.length + 1}`,
+          coordinates: coordinates
+        };
+
+        setDeliveryZones(prev => [...prev, newZone]);
+        setPolygons(prev => [...prev, polygon]);
+
+        // Adicionar listener para edição
+        polygon.getPath().addListener('set_at', () => updatePolygonCoordinates(polygon, newZone.id));
+        polygon.getPath().addListener('insert_at', () => updatePolygonCoordinates(polygon, newZone.id));
+
+        // Parar o modo de desenho
+        manager.setDrawingMode(null);
+      });
+
+      // Carregar zonas existentes
+      loadExistingZones(newMap);
+
+      return () => {
+        manager.setMap(null);
       };
-
-      setDeliveryZones(prev => [...prev, newZone]);
-      setPolygons(prev => [...prev, polygon]);
-
-      // Adicionar listener para edição
-      polygon.getPath().addListener('set_at', () => updatePolygonCoordinates(polygon, newZone.id));
-      polygon.getPath().addListener('insert_at', () => updatePolygonCoordinates(polygon, newZone.id));
-    });
-
-    // Carregar zonas existentes
-    loadExistingZones(newMap);
-
-    return () => {
-      manager.setMap(null);
-    };
-  }, []);
+    } catch (error) {
+      console.error('Erro ao inicializar o mapa:', error);
+      toast({
+        title: "Erro no mapa",
+        description: "Não foi possível carregar o mapa. Verifique sua conexão.",
+        variant: "destructive"
+      });
+    }
+  }, [isLoaded]);
 
   const updatePolygonCoordinates = (polygon: google.maps.Polygon, zoneId: string) => {
     const path = polygon.getPath();
@@ -135,7 +153,7 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
 
   const loadExistingZones = (mapInstance: google.maps.Map) => {
     deliveryZones.forEach(zone => {
-      const polygon = new google.maps.Polygon({
+      const polygon = new window.google.maps.Polygon({
         paths: zone.coordinates,
         fillColor: '#FF0000',
         fillOpacity: 0.2,
@@ -143,6 +161,7 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
         strokeColor: '#FF0000',
         editable: true,
         draggable: true,
+        clickable: true,
       });
 
       polygon.setMap(mapInstance);
@@ -170,6 +189,48 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
       delivery_fee_per_km: feePerKm
     });
   };
+
+  const startDrawing = () => {
+    if (drawingManager && window.google) {
+      drawingManager.setDrawingMode(window.google.maps.drawing.OverlayType.POLYGON);
+    }
+  };
+
+  if (loadError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center text-red-600">
+            <MapPin className="h-5 w-5 mr-2" />
+            Erro no Carregamento do Mapa
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-600">
+            Não foi possível carregar o Google Maps. Verifique sua conexão com a internet e tente novamente.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            Carregando Mapa...
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-600">
+            Aguarde enquanto carregamos o mapa do Google Maps.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -214,6 +275,13 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
           <CardTitle>Áreas de Entrega</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <Button onClick={startDrawing} className="mb-4">
+              <MapPin className="h-4 w-4 mr-2" />
+              Desenhar Nova Área
+            </Button>
+          </div>
+
           <div className="h-96 w-full border rounded-lg mb-4">
             <div ref={mapRef} className="w-full h-full rounded-lg" />
           </div>
@@ -234,7 +302,7 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
             ))}
             {deliveryZones.length === 0 && (
               <p className="text-gray-500 text-sm">
-                Use a ferramenta de desenho no mapa para criar áreas de entrega
+                Clique em "Desenhar Nova Área" para criar áreas de entrega no mapa
               </p>
             )}
           </div>

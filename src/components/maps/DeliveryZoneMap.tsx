@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Map, Save, MapPin, Trash2 } from 'lucide-react';
+import { Map, Save, MapPin, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useGoogleMaps } from '@/hooks/useGoogleMaps';
 
 interface DeliveryZone {
   id: string;
@@ -29,18 +30,19 @@ export const DeliveryZoneMap: React.FC<DeliveryZoneMapProps> = ({
   center = { lat: -23.5505, lng: -46.6333 }
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<any>(null);
-  const [drawingManager, setDrawingManager] = useState<any>(null);
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [drawingManager, setDrawingManager] = useState<google.maps.drawing.DrawingManager | null>(null);
   const [currentZones, setCurrentZones] = useState<DeliveryZone[]>(zones);
   const [newZoneName, setNewZoneName] = useState('');
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
   const [polygons, setPolygons] = useState<any[]>([]);
   const { toast } = useToast();
+  const { isLoaded, loadError } = useGoogleMaps();
 
   useEffect(() => {
-    const initMap = () => {
-      if (!mapRef.current || !window.google) return;
+    if (!isLoaded || !mapRef.current || !window.google) return;
 
+    try {
       const mapInstance = new window.google.maps.Map(mapRef.current, {
         center,
         zoom: 13,
@@ -68,15 +70,14 @@ export const DeliveryZoneMap: React.FC<DeliveryZoneMapProps> = ({
             strokeColor: '#FF0000',
             clickable: true,
             editable: true,
-            zIndex: 1,
           },
         });
 
         drawingManagerInstance.setMap(mapInstance);
         setDrawingManager(drawingManagerInstance);
 
-        window.google.maps.event.addListener(drawingManagerInstance, 'polygoncomplete', (polygon: any) => {
-          const coordinates = polygon.getPath().getArray().map((coord: any) => ({
+        window.google.maps.event.addListener(drawingManagerInstance, 'polygoncomplete', (polygon: google.maps.Polygon) => {
+          const coordinates = polygon.getPath().getArray().map((coord: google.maps.LatLng) => ({
             lat: coord.lat(),
             lng: coord.lng(),
           }));
@@ -139,19 +140,15 @@ export const DeliveryZoneMap: React.FC<DeliveryZoneMapProps> = ({
       });
 
       setPolygons(newPolygons);
-    };
-
-    if (window.google && window.google.maps) {
-      initMap();
-    } else {
-      // Carregar Google Maps API se não estiver carregada
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=drawing`;
-      script.async = true;
-      script.onload = initMap;
-      document.head.appendChild(script);
+    } catch (error) {
+      console.error('Erro ao inicializar o mapa:', error);
+      toast({
+        title: "Erro no mapa",
+        description: "Não foi possível carregar o mapa.",
+        variant: "destructive"
+      });
     }
-  }, [center, editable, newZoneName, currentZones]);
+  }, [isLoaded, center, editable, newZoneName, currentZones]);
 
   const removeZone = (zoneId: string) => {
     // Remove polygon from map
@@ -199,12 +196,48 @@ export const DeliveryZoneMap: React.FC<DeliveryZoneMapProps> = ({
       return;
     }
 
-    if (drawingManager) {
+    if (drawingManager && window.google) {
       drawingManager.setDrawingMode(
         window.google.maps.drawing.OverlayType.POLYGON
       );
     }
   };
+
+  if (loadError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center text-red-600">
+            <Map className="h-5 w-5 mr-2" />
+            Erro no Carregamento do Mapa
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-600">
+            Não foi possível carregar o Google Maps. Verifique sua conexão com a internet.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            Carregando Mapa...
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-600">
+            Aguarde enquanto carregamos o mapa do Google Maps.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">

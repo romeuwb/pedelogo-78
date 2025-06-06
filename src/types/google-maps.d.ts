@@ -2,6 +2,7 @@
 declare global {
   interface Window {
     google: typeof google;
+    initGoogleMaps?: () => void;
   }
 }
 
@@ -19,6 +20,9 @@ declare namespace google {
       center?: LatLng | LatLngLiteral;
       zoom?: number;
       mapTypeId?: MapTypeId;
+      mapTypeControl?: boolean;
+      streetViewControl?: boolean;
+      fullscreenControl?: boolean;
     }
 
     class LatLng {
@@ -49,11 +53,12 @@ declare namespace google {
       class DrawingManager {
         constructor(options?: DrawingManagerOptions);
         setMap(map: Map | null): void;
+        setDrawingMode(mode: OverlayType | null): void;
         addListener(eventName: string, handler: Function): void;
       }
 
       interface DrawingManagerOptions {
-        drawingMode?: OverlayType;
+        drawingMode?: OverlayType | null;
         drawingControl?: boolean;
         drawingControlOptions?: DrawingControlOptions;
         polygonOptions?: PolygonOptions;
@@ -73,6 +78,7 @@ declare namespace google {
       constructor(opts?: PolygonOptions);
       setMap(map: Map | null): void;
       getPath(): MVCArray<LatLng>;
+      setOptions(options: PolygonOptions): void;
     }
 
     interface PolygonOptions {
@@ -82,12 +88,17 @@ declare namespace google {
       strokeColor?: string;
       editable?: boolean;
       draggable?: boolean;
+      clickable?: boolean;
       paths?: LatLng[] | LatLngLiteral[];
     }
 
     class MVCArray<T> {
       forEach(callback: (elem: T, index: number) => void): void;
       addListener(eventName: string, handler: Function): void;
+    }
+
+    namespace event {
+      function addListener(instance: any, eventName: string, handler: Function): void;
     }
   }
 }
