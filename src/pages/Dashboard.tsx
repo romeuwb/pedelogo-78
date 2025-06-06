@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import RestaurantDashboard from '@/components/restaurant/RestaurantDashboard';
 import { AdminOverview } from '@/components/admin/AdminOverview';
 import OrderManagement from '@/components/orders/OrderManagement';
+import RegistrationCompletionModal from '@/components/registration/RegistrationCompletionModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertCircle } from 'lucide-react';
@@ -13,6 +14,7 @@ import { Loader2, AlertCircle } from 'lucide-react';
 const Dashboard = () => {
   const { user, profile, loading } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
 
   // Verificar se o usuário é admin
   const { data: isAdmin, isLoading: adminLoading } = useQuery({
@@ -162,7 +164,12 @@ const Dashboard = () => {
                   <p className="text-gray-600 mb-4">
                     Você precisa completar o cadastro do seu restaurante para acessar o dashboard.
                   </p>
-                  <Button>Completar Cadastro</Button>
+                  <Button 
+                    onClick={() => setShowRegistrationModal(true)}
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                  >
+                    Completar Cadastro
+                  </Button>
                 </CardContent>
               </Card>
             );
@@ -175,6 +182,26 @@ const Dashboard = () => {
           );
 
         case 'entregador':
+          if (!deliveryDetails) {
+            return (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Configuração Necessária</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600 mb-4">
+                    Você precisa completar o cadastro de entregador para acessar o dashboard.
+                  </p>
+                  <Button 
+                    onClick={() => setShowRegistrationModal(true)}
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                  >
+                    Completar Cadastro
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          }
           return (
             <div className="space-y-6">
               <h1 className="text-3xl font-bold">Dashboard do Entregador</h1>
@@ -274,6 +301,13 @@ const Dashboard = () => {
       <div className="container mx-auto px-4 py-8">
         {renderDashboard()}
       </div>
+      
+      {/* Modal de completar cadastro */}
+      <RegistrationCompletionModal
+        isOpen={showRegistrationModal}
+        onClose={() => setShowRegistrationModal(false)}
+        userType={profile.tipo as 'restaurante' | 'entregador'}
+      />
     </div>
   );
 };

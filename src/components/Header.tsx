@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -210,7 +211,7 @@ const Header = () => {
       <UserTypeModal
         isOpen={showUserTypeModal}
         onClose={() => setShowUserTypeModal(false)}
-        onSelectType={handleUserTypeSelect}
+        onSelectUserType={handleUserTypeSelect}
       />
 
       <LoginModal
