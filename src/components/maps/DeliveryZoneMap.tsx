@@ -30,8 +30,8 @@ export const DeliveryZoneMap: React.FC<DeliveryZoneMapProps> = ({
   center = { lat: -23.5505, lng: -46.6333 }
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [drawingManager, setDrawingManager] = useState<google.maps.drawing.DrawingManager | null>(null);
+  const [map, setMap] = useState<any>(null);
+  const [drawingManager, setDrawingManager] = useState<any>(null);
   const [currentZones, setCurrentZones] = useState<DeliveryZone[]>(zones);
   const [newZoneName, setNewZoneName] = useState('');
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
@@ -76,8 +76,8 @@ export const DeliveryZoneMap: React.FC<DeliveryZoneMapProps> = ({
         drawingManagerInstance.setMap(mapInstance);
         setDrawingManager(drawingManagerInstance);
 
-        window.google.maps.event.addListener(drawingManagerInstance, 'polygoncomplete', (polygon: google.maps.Polygon) => {
-          const coordinates = polygon.getPath().getArray().map((coord: google.maps.LatLng) => ({
+        window.google.maps.event.addListener(drawingManagerInstance, 'polygoncomplete', (polygon: any) => {
+          const coordinates = polygon.getPath().getArray().map((coord: any) => ({
             lat: coord.lat(),
             lng: coord.lng(),
           }));

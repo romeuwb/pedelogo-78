@@ -16,12 +16,12 @@ interface DeliveryAreaMapProps {
 
 export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [drawingManager, setDrawingManager] = useState<google.maps.drawing.DrawingManager | null>(null);
+  const [map, setMap] = useState<any>(null);
+  const [drawingManager, setDrawingManager] = useState<any>(null);
   const [deliveryZones, setDeliveryZones] = useState<any[]>(settings?.delivery_zones || []);
   const [maxDistance, setMaxDistance] = useState(settings?.max_delivery_distance || 10);
   const [feePerKm, setFeePerKm] = useState(settings?.delivery_fee_per_km || 2.00);
-  const [polygons, setPolygons] = useState<google.maps.Polygon[]>([]);
+  const [polygons, setPolygons] = useState<any[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isLoaded, loadError } = useGoogleMaps();
@@ -87,11 +87,11 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
       setDrawingManager(manager);
 
       // Event listener para quando um polígono for criado
-      window.google.maps.event.addListener(manager, 'polygoncomplete', (polygon: google.maps.Polygon) => {
+      window.google.maps.event.addListener(manager, 'polygoncomplete', (polygon: any) => {
         const path = polygon.getPath();
         const coordinates: any[] = [];
         
-        path.forEach((latLng: google.maps.LatLng) => {
+        path.forEach((latLng: any) => {
           coordinates.push({
             lat: latLng.lat(),
             lng: latLng.lng()
@@ -131,11 +131,11 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
     }
   }, [isLoaded]);
 
-  const updatePolygonCoordinates = (polygon: google.maps.Polygon, zoneId: string) => {
+  const updatePolygonCoordinates = (polygon: any, zoneId: string) => {
     const path = polygon.getPath();
     const coordinates: any[] = [];
     
-    path.forEach((latLng: google.maps.LatLng) => {
+    path.forEach((latLng: any) => {
       coordinates.push({
         lat: latLng.lat(),
         lng: latLng.lng()
@@ -151,7 +151,7 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
     );
   };
 
-  const loadExistingZones = (mapInstance: google.maps.Map) => {
+  const loadExistingZones = (mapInstance: any) => {
     deliveryZones.forEach(zone => {
       const polygon = new window.google.maps.Polygon({
         paths: zone.coordinates,
