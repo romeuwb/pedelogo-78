@@ -2012,6 +2012,53 @@ export type Database = {
           },
         ]
       }
+      restaurant_operating_hours: {
+        Row: {
+          break_end_time: string | null
+          break_start_time: string | null
+          closing_time: string
+          created_at: string | null
+          day_of_week: number
+          id: string
+          is_closed: boolean | null
+          opening_time: string
+          restaurant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          break_end_time?: string | null
+          break_start_time?: string | null
+          closing_time: string
+          created_at?: string | null
+          day_of_week: number
+          id?: string
+          is_closed?: boolean | null
+          opening_time: string
+          restaurant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          break_end_time?: string | null
+          break_start_time?: string | null
+          closing_time?: string
+          created_at?: string | null
+          day_of_week?: number
+          id?: string
+          is_closed?: boolean | null
+          opening_time?: string
+          restaurant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_operating_hours_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurant_payouts: {
         Row: {
           comprovante_url: string | null
@@ -2131,6 +2178,7 @@ export type Database = {
       }
       restaurant_products: {
         Row: {
+          admin_product_id: string | null
           ativo: boolean | null
           calorias: number | null
           category_id: string | null
@@ -2142,6 +2190,7 @@ export type Database = {
           id: string
           imagem_url: string | null
           ingredientes: string[] | null
+          is_imported_from_admin: boolean | null
           livre_gluten: boolean | null
           livre_lactose: boolean | null
           nome: string
@@ -2155,6 +2204,7 @@ export type Database = {
           vegetariano: boolean | null
         }
         Insert: {
+          admin_product_id?: string | null
           ativo?: boolean | null
           calorias?: number | null
           category_id?: string | null
@@ -2166,6 +2216,7 @@ export type Database = {
           id?: string
           imagem_url?: string | null
           ingredientes?: string[] | null
+          is_imported_from_admin?: boolean | null
           livre_gluten?: boolean | null
           livre_lactose?: boolean | null
           nome: string
@@ -2179,6 +2230,7 @@ export type Database = {
           vegetariano?: boolean | null
         }
         Update: {
+          admin_product_id?: string | null
           ativo?: boolean | null
           calorias?: number | null
           category_id?: string | null
@@ -2190,6 +2242,7 @@ export type Database = {
           id?: string
           imagem_url?: string | null
           ingredientes?: string[] | null
+          is_imported_from_admin?: boolean | null
           livre_gluten?: boolean | null
           livre_lactose?: boolean | null
           nome?: string
@@ -2203,6 +2256,13 @@ export type Database = {
           vegetariano?: boolean | null
         }
         Relationships: [
+          {
+            foreignKeyName: "restaurant_products_admin_product_id_fkey"
+            columns: ["admin_product_id"]
+            isOneToOne: false
+            referencedRelation: "admin_products"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "restaurant_products_category_id_fkey"
             columns: ["category_id"]
@@ -2297,8 +2357,11 @@ export type Database = {
           configuracoes_notificacao: Json | null
           created_at: string
           dados_bancarios: Json | null
+          delivery_fee_per_km: number | null
+          delivery_zones: Json | null
           horario_funcionamento: Json | null
           id: string
+          max_delivery_distance: number | null
           restaurant_id: string
           status_online: boolean | null
           updated_at: string
@@ -2309,8 +2372,11 @@ export type Database = {
           configuracoes_notificacao?: Json | null
           created_at?: string
           dados_bancarios?: Json | null
+          delivery_fee_per_km?: number | null
+          delivery_zones?: Json | null
           horario_funcionamento?: Json | null
           id?: string
+          max_delivery_distance?: number | null
           restaurant_id: string
           status_online?: boolean | null
           updated_at?: string
@@ -2321,8 +2387,11 @@ export type Database = {
           configuracoes_notificacao?: Json | null
           created_at?: string
           dados_bancarios?: Json | null
+          delivery_fee_per_km?: number | null
+          delivery_zones?: Json | null
           horario_funcionamento?: Json | null
           id?: string
+          max_delivery_distance?: number | null
           restaurant_id?: string
           status_online?: boolean | null
           updated_at?: string

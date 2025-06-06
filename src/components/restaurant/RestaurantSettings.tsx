@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +14,8 @@ import {
   Bell, 
   Settings as SettingsIcon 
 } from 'lucide-react';
+import { OperatingHoursManager } from './OperatingHoursManager';
+import { DeliveryAreaMap } from './DeliveryAreaMap';
 
 interface RestaurantSettingsProps {
   restaurantId: string;
@@ -105,133 +106,6 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
       });
     }
   });
-
-  const HorarioForm = () => {
-    const defaultHorarios: HorariosData = {
-      segunda: { abertura: '08:00', fechamento: '22:00', ativo: true },
-      terca: { abertura: '08:00', fechamento: '22:00', ativo: true },
-      quarta: { abertura: '08:00', fechamento: '22:00', ativo: true },
-      quinta: { abertura: '08:00', fechamento: '22:00', ativo: true },
-      sexta: { abertura: '08:00', fechamento: '22:00', ativo: true },
-      sabado: { abertura: '08:00', fechamento: '22:00', ativo: true },
-      domingo: { abertura: '08:00', fechamento: '22:00', ativo: false }
-    };
-
-    // Safe type conversion for horario_funcionamento
-    const getHorariosFromSettings = (): HorariosData => {
-      if (!settings?.horario_funcionamento) return defaultHorarios;
-      
-      try {
-        // Safely convert Json to HorariosData
-        const horarioData = settings.horario_funcionamento as unknown as HorariosData;
-        
-        // Validate that it has the expected structure
-        if (horarioData && typeof horarioData === 'object' && 
-            horarioData.segunda && horarioData.terca && horarioData.quarta && 
-            horarioData.quinta && horarioData.sexta && horarioData.sabado && horarioData.domingo) {
-          return horarioData;
-        }
-        
-        return defaultHorarios;
-      } catch {
-        return defaultHorarios;
-      }
-    };
-
-    const [horarios, setHorarios] = useState<HorariosData>(getHorariosFromSettings());
-
-    const diasSemana = [
-      { key: 'segunda', label: 'Segunda-feira' },
-      { key: 'terca', label: 'Terça-feira' },
-      { key: 'quarta', label: 'Quarta-feira' },
-      { key: 'quinta', label: 'Quinta-feira' },
-      { key: 'sexta', label: 'Sexta-feira' },
-      { key: 'sabado', label: 'Sábado' },
-      { key: 'domingo', label: 'Domingo' }
-    ] as const;
-
-    const handleSaveHorarios = () => {
-      updateSettingsMutation.mutate({ horario_funcionamento: horarios });
-    };
-
-    return (
-      <div className="space-y-6">
-        {diasSemana.map(dia => (
-          <div key={dia.key} className="flex items-center space-x-4 p-4 border rounded-lg">
-            <div className="w-32">
-              <span className="font-medium">{dia.label}</span>
-            </div>
-            
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={horarios[dia.key]?.ativo || false}
-                onChange={(e) => {
-                  const currentHorario = horarios[dia.key] || { abertura: '08:00', fechamento: '22:00' };
-                  const newHorarios = {
-                    ...horarios,
-                    [dia.key]: { 
-                      ...currentHorario, 
-                      ativo: e.target.checked 
-                    }
-                  };
-                  setHorarios(newHorarios);
-                }}
-              />
-              <span>Aberto</span>
-            </label>
-
-            {horarios[dia.key]?.ativo && (
-              <>
-                <div>
-                  <label className="block text-xs text-gray-600">Abertura</label>
-                  <Input
-                    type="time"
-                    value={horarios[dia.key]?.abertura || '08:00'}
-                    onChange={(e) => {
-                      const currentHorario = horarios[dia.key] || { fechamento: '22:00', ativo: true };
-                      const newHorarios = {
-                        ...horarios,
-                        [dia.key]: { 
-                          ...currentHorario, 
-                          abertura: e.target.value 
-                        }
-                      };
-                      setHorarios(newHorarios);
-                    }}
-                    className="w-24"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-600">Fechamento</label>
-                  <Input
-                    type="time"
-                    value={horarios[dia.key]?.fechamento || '22:00'}
-                    onChange={(e) => {
-                      const currentHorario = horarios[dia.key] || { abertura: '08:00', ativo: true };
-                      const newHorarios = {
-                        ...horarios,
-                        [dia.key]: { 
-                          ...currentHorario, 
-                          fechamento: e.target.value 
-                        }
-                      };
-                      setHorarios(newHorarios);
-                    }}
-                    className="w-24"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        ))}
-
-        <Button onClick={handleSaveHorarios} disabled={updateSettingsMutation.isPending}>
-          {updateSettingsMutation.isPending ? 'Salvando...' : 'Salvar Horários'}
-        </Button>
-      </div>
-    );
-  };
 
   const PerfilForm = () => {
     const [perfil, setPerfil] = useState({
@@ -332,7 +206,7 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
           </TabsTrigger>
           <TabsTrigger value="financeiro">
             <CreditCard className="h-4 w-4 mr-2" />
-            Dados Bancários
+            Financeiro
           </TabsTrigger>
           <TabsTrigger value="notificacoes">
             <Bell className="h-4 w-4 mr-2" />
@@ -352,33 +226,11 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
         </TabsContent>
 
         <TabsContent value="horarios">
-          <Card>
-            <CardHeader>
-              <CardTitle>Horários de Funcionamento</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <HorarioForm />
-            </CardContent>
-          </Card>
+          <OperatingHoursManager restaurantId={restaurantId} />
         </TabsContent>
 
         <TabsContent value="area">
-          <Card>
-            <CardHeader>
-              <CardTitle>Área de Entrega</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600 mb-4">
-                Configure a área de entrega do seu restaurante
-              </p>
-              <div className="text-center py-8">
-                <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">
-                  Funcionalidade de configuração de área será implementada em breve.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <DeliveryAreaMap restaurantId={restaurantId} settings={settings} />
         </TabsContent>
 
         <TabsContent value="financeiro">

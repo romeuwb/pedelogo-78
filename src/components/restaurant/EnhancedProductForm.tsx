@@ -7,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ProductImageManager } from './ProductImageManager';
 import { ProductOptionsManager } from './ProductOptionsManager';
+import { GlobalProductSearch } from './GlobalProductSearch';
+import { Search } from 'lucide-react';
 
 interface EnhancedProductFormProps {
   product?: any;
@@ -23,6 +25,7 @@ export const EnhancedProductForm = ({
   onCancel,
   isLoading = false
 }: EnhancedProductFormProps) => {
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [formData, setFormData] = useState({
     nome: product?.nome || '',
     descricao: product?.descricao || '',
@@ -48,11 +51,21 @@ export const EnhancedProductForm = ({
     alergenos: product?.alergenos || [],
     estoque_quantidade: product?.estoque_quantidade || '',
     estoque_minimo: product?.estoque_minimo || '',
-    controlar_estoque: product?.controlar_estoque || false
+    controlar_estoque: product?.controlar_estoque || false,
+    admin_product_id: product?.admin_product_id || null,
+    is_imported_from_admin: product?.is_imported_from_admin || false
   });
 
   const [newIngredient, setNewIngredient] = useState('');
   const [newAllergen, setNewAllergen] = useState('');
+
+  const handleGlobalProductSelect = (globalProduct: any) => {
+    setFormData({
+      ...formData,
+      ...globalProduct
+    });
+    setShowGlobalSearch(false);
+  };
 
   const addIngredient = () => {
     if (newIngredient.trim()) {
@@ -101,8 +114,51 @@ export const EnhancedProductForm = ({
     onSave(dataToSave);
   };
 
+  if (showGlobalSearch) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Search className="h-5 w-5 mr-2" />
+            Importar Produto Global
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <GlobalProductSearch
+            onSelectProduct={handleGlobalProductSelect}
+            onClose={() => setShowGlobalSearch(false)}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
+      <div className="mb-4 flex justify-between items-center">
+        <h2 className="text-xl font-bold">
+          {product ? 'Editar Produto' : 'Adicionar Produto'}
+        </h2>
+        {!product && (
+          <Button
+            variant="outline"
+            onClick={() => setShowGlobalSearch(true)}
+            className="flex items-center"
+          >
+            <Search className="h-4 w-4 mr-2" />
+            Importar Produto Global
+          </Button>
+        )}
+      </div>
+
+      {formData.is_imported_from_admin && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            <strong>Produto importado do catálogo global.</strong> Você pode ajustar preços e detalhes específicos do seu restaurante.
+          </p>
+        </div>
+      )}
+
       <Tabs defaultValue="basic" className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="basic">Básico</TabsTrigger>
