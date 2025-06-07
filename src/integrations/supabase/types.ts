@@ -233,6 +233,54 @@ export type Database = {
         }
         Relationships: []
       }
+      client_campaign_history: {
+        Row: {
+          campaign_id: string
+          client_id: string
+          coupon_used: boolean | null
+          coupon_used_at: string | null
+          id: string
+          message_sent: string
+          response_rate: number | null
+          sent_at: string
+        }
+        Insert: {
+          campaign_id: string
+          client_id: string
+          coupon_used?: boolean | null
+          coupon_used_at?: string | null
+          id?: string
+          message_sent: string
+          response_rate?: number | null
+          sent_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          client_id?: string
+          coupon_used?: boolean | null
+          coupon_used_at?: string | null
+          id?: string
+          message_sent?: string
+          response_rate?: number | null
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_campaign_history_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "client_marketing_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_campaign_history_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       client_cart: {
         Row: {
           created_at: string
@@ -264,6 +312,61 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "client_cart_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_consumption_history: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          order_date: string
+          product_id: string
+          quantity: number
+          restaurant_id: string
+          total_spent: number
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          order_date: string
+          product_id: string
+          quantity?: number
+          restaurant_id: string
+          total_spent: number
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          order_date?: string
+          product_id?: string
+          quantity?: number
+          restaurant_id?: string
+          total_spent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_consumption_history_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "client_consumption_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_consumption_history_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurant_details"
@@ -335,6 +438,66 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "client_favorites_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_marketing_campaigns: {
+        Row: {
+          active: boolean
+          auto_send: boolean
+          campaign_name: string
+          campaign_type: string
+          coupon_id: string | null
+          created_at: string
+          id: string
+          message_template: string
+          restaurant_id: string
+          send_date: string | null
+          target_criteria: Json
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          auto_send?: boolean
+          campaign_name: string
+          campaign_type: string
+          coupon_id?: string | null
+          created_at?: string
+          id?: string
+          message_template: string
+          restaurant_id: string
+          send_date?: string | null
+          target_criteria: Json
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          auto_send?: boolean
+          campaign_name?: string
+          campaign_type?: string
+          coupon_id?: string | null
+          created_at?: string
+          id?: string
+          message_template?: string
+          restaurant_id?: string
+          send_date?: string | null
+          target_criteria?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_marketing_campaigns_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_marketing_campaigns_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurant_details"
@@ -490,6 +653,64 @@ export type Database = {
             columns: ["metodo_pagamento_padrao_id"]
             isOneToOne: false
             referencedRelation: "client_payment_methods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_product_preferences: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          last_ordered: string | null
+          order_frequency: number | null
+          preference_score: number
+          product_id: string
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          last_ordered?: string | null
+          order_frequency?: number | null
+          preference_score?: number
+          product_id: string
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          last_ordered?: string | null
+          order_frequency?: number | null
+          preference_score?: number
+          product_id?: string
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_product_preferences_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "client_product_preferences_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_product_preferences_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
             referencedColumns: ["id"]
           },
         ]
@@ -1390,6 +1611,59 @@ export type Database = {
           valor?: number
         }
         Relationships: []
+      }
+      optimized_routes: {
+        Row: {
+          created_at: string
+          estimated_cost: number | null
+          id: string
+          optimization_type: string
+          orders_included: Json
+          restaurant_id: string
+          route_data: Json
+          route_name: string
+          status: string
+          total_distance: number | null
+          total_time: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          estimated_cost?: number | null
+          id?: string
+          optimization_type?: string
+          orders_included?: Json
+          restaurant_id: string
+          route_data: Json
+          route_name: string
+          status?: string
+          total_distance?: number | null
+          total_time?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          estimated_cost?: number | null
+          id?: string
+          optimization_type?: string
+          orders_included?: Json
+          restaurant_id?: string
+          route_data?: Json
+          route_name?: string
+          status?: string
+          total_distance?: number | null
+          total_time?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "optimized_routes_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_items: {
         Row: {

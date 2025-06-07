@@ -54,7 +54,6 @@ declare namespace google {
         constructor(options?: DrawingManagerOptions);
         setMap(map: Map | null): void;
         setDrawingMode(mode: OverlayType | null): void;
-        addListener(eventName: string, handler: Function): void;
       }
 
       interface DrawingManagerOptions {
@@ -89,11 +88,12 @@ declare namespace google {
       editable?: boolean;
       draggable?: boolean;
       clickable?: boolean;
-      paths?: LatLng[] | LatLngLiteral[];
+      paths?: LatLng[] | LatLngLiteral[] | LatLng[][] | LatLngLiteral[][];
     }
 
     class MVCArray<T> {
       forEach(callback: (elem: T, index: number) => void): void;
+      getArray(): T[];
       addListener(eventName: string, handler: Function): void;
     }
 
