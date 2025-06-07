@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -143,8 +144,8 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
         disponivel: existingProduct.disponivel !== false,
         ativo: existingProduct.ativo !== false,
         favorito: existingProduct.favorito || false,
-        peso_volume: existingProduct.peso_volume || '',
-        informacoes_nutricionais: existingProduct.informacoes_nutricionais || {}
+        peso_volume: (existingProduct as any).peso_volume || '',
+        informacoes_nutricionais: (existingProduct as any).informacoes_nutricionais || {}
       });
       
       if (existingProduct.imagem_url) {
