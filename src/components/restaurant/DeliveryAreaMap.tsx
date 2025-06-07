@@ -22,6 +22,7 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
   const [maxDistance, setMaxDistance] = useState(settings?.max_delivery_distance || 10);
   const [feePerKm, setFeePerKm] = useState(settings?.delivery_fee_per_km || 2.00);
   const [polygons, setPolygons] = useState<any[]>([]);
+  const [mapInitialized, setMapInitialized] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isLoaded, loadError } = useGoogleMaps();
@@ -48,10 +49,12 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
     }
   });
 
-  useEffect(() => {
-    if (!isLoaded || !mapRef.current || !window.google) return;
+  const initializeMap = () => {
+    if (!mapRef.current || !window.google || mapInitialized) return;
 
     try {
+      console.log('Inicializando mapa...');
+      
       // Inicializar o mapa
       const newMap = new window.google.maps.Map(mapRef.current, {
         zoom: 13,
@@ -113,14 +116,18 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
 
         // Parar o modo de desenho
         manager.setDrawingMode(null);
+
+        toast({
+          title: "Área criada",
+          description: "Nova área de entrega foi criada.",
+        });
       });
 
       // Carregar zonas existentes
       loadExistingZones(newMap);
+      setMapInitialized(true);
 
-      return () => {
-        manager.setMap(null);
-      };
+      console.log('Mapa inicializado com sucesso');
     } catch (error) {
       console.error('Erro ao inicializar o mapa:', error);
       toast({
@@ -129,7 +136,14 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
         variant: "destructive"
       });
     }
-  }, [isLoaded]);
+  };
+
+  useEffect(() => {
+    if (isLoaded && !mapInitialized) {
+      // Aguardar um pouco para garantir que o DOM está pronto
+      setTimeout(initializeMap, 100);
+    }
+  }, [isLoaded, mapInitialized]);
 
   const updatePolygonCoordinates = (polygon: any, zoneId: string) => {
     const path = polygon.getPath();
@@ -152,7 +166,13 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
   };
 
   const loadExistingZones = (mapInstance: any) => {
+    if (!deliveryZones.length) return;
+
+    const newPolygons: any[] = [];
+    
     deliveryZones.forEach(zone => {
+      if (!zone.coordinates || !Array.isArray(zone.coordinates)) return;
+      
       const polygon = new window.google.maps.Polygon({
         paths: zone.coordinates,
         fillColor: '#FF0000',
@@ -165,12 +185,14 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
       });
 
       polygon.setMap(mapInstance);
-      setPolygons(prev => [...prev, polygon]);
+      newPolygons.push(polygon);
 
       // Adicionar listeners para edição
       polygon.getPath().addListener('set_at', () => updatePolygonCoordinates(polygon, zone.id));
       polygon.getPath().addListener('insert_at', () => updatePolygonCoordinates(polygon, zone.id));
     });
+    
+    setPolygons(newPolygons);
   };
 
   const removeZone = (zoneId: string, index: number) => {
@@ -180,6 +202,11 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
       polygons[index].setMap(null);
       setPolygons(prev => prev.filter((_, i) => i !== index));
     }
+
+    toast({
+      title: "Área removida",
+      description: "Área de entrega foi removida.",
+    });
   };
 
   const saveSettings = () => {
@@ -193,6 +220,16 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
   const startDrawing = () => {
     if (drawingManager && window.google) {
       drawingManager.setDrawingMode(window.google.maps.drawing.OverlayType.POLYGON);
+      toast({
+        title: "Modo de desenho ativado",
+        description: "Clique no mapa para começar a desenhar uma área de entrega.",
+      });
+    } else {
+      toast({
+        title: "Erro",
+        description: "O mapa ainda não está carregado. Aguarde um momento.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -276,7 +313,7 @@ export const DeliveryAreaMap = ({ restaurantId, settings }: DeliveryAreaMapProps
         </CardHeader>
         <CardContent>
           <div className="mb-4">
-            <Button onClick={startDrawing} className="mb-4">
+            <Button onClick={startDrawing} className="mb-4" disabled={!mapInitialized}>
               <MapPin className="h-4 w-4 mr-2" />
               Desenhar Nova Área
             </Button>

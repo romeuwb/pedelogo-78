@@ -47,19 +47,22 @@ export const useGoogleMaps = (apiKey?: string): UseGoogleMapsReturn => {
 
     // Carregar o script do Google Maps
     const script = document.createElement('script');
-    const key = apiKey || 'AIzaSyBCXkPLxm6DGcNJvAG6_oVXKKY9-YGZ5kA'; // Substitua pela sua chave
+    const key = apiKey || 'AIzaSyBCXkPLxm6DGcNJvAG6_oVXKKY9-YGZ5kA';
     script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=drawing&callback=initGoogleMaps`;
     script.async = true;
     script.defer = true;
 
     // Callback global para o Google Maps
     window.initGoogleMaps = () => {
-      if (window.google && window.google.maps && window.google.maps.drawing) {
-        setIsLoaded(true);
-        script.setAttribute('data-loaded', 'true');
-      } else {
-        setLoadError(new Error('Google Maps drawing library not loaded properly'));
-      }
+      // Aguardar um pouco para garantir que tudo está carregado
+      setTimeout(() => {
+        if (window.google && window.google.maps && window.google.maps.drawing) {
+          setIsLoaded(true);
+          script.setAttribute('data-loaded', 'true');
+        } else {
+          setLoadError(new Error('Google Maps drawing library not loaded properly'));
+        }
+      }, 100);
     };
 
     script.onerror = () => {

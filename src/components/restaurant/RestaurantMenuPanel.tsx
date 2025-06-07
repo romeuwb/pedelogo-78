@@ -22,7 +22,9 @@ import {
   Search,
   Package,
   DollarSign,
-  Settings
+  Settings,
+  Clock,
+  Zap
 } from 'lucide-react';
 import { ProductCategoryManager } from './ProductCategoryManager';
 import { EnhancedProductForm } from './EnhancedProductForm';
@@ -161,12 +163,55 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
                 R$ {product.preco?.toFixed(2)}
               </span>
               {product.tempo_preparo && (
-                <span>{product.tempo_preparo} min</span>
+                <span className="flex items-center">
+                  <Clock className="h-4 w-4 mr-1" />
+                  {product.tempo_preparo} min
+                </span>
               )}
               {product.peso_volume && (
                 <span>{product.peso_volume}</span>
               )}
+              {product.calorias && (
+                <span className="flex items-center">
+                  <Zap className="h-4 w-4 mr-1" />
+                  {product.calorias} kcal
+                </span>
+              )}
             </div>
+
+            {/* Informações Nutricionais */}
+            {product.informacoes_nutricionais && Object.keys(product.informacoes_nutricionais).length > 0 && (
+              <div className="mb-2">
+                <div className="text-xs text-gray-500 mb-1">Informações Nutricionais:</div>
+                <div className="flex flex-wrap gap-1 text-xs">
+                  {product.informacoes_nutricionais.proteinas && (
+                    <Badge variant="outline" className="text-xs">
+                      Proteínas: {product.informacoes_nutricionais.proteinas}g
+                    </Badge>
+                  )}
+                  {product.informacoes_nutricionais.carboidratos && (
+                    <Badge variant="outline" className="text-xs">
+                      Carb: {product.informacoes_nutricionais.carboidratos}g
+                    </Badge>
+                  )}
+                  {product.informacoes_nutricionais.gorduras && (
+                    <Badge variant="outline" className="text-xs">
+                      Gorduras: {product.informacoes_nutricionais.gorduras}g
+                    </Badge>
+                  )}
+                  {product.informacoes_nutricionais.fibras && (
+                    <Badge variant="outline" className="text-xs">
+                      Fibras: {product.informacoes_nutricionais.fibras}g
+                    </Badge>
+                  )}
+                  {product.informacoes_nutricionais.sodio && (
+                    <Badge variant="outline" className="text-xs">
+                      Sódio: {product.informacoes_nutricionais.sodio}mg
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center space-x-2 text-sm">
               {product.vegetariano && <Badge variant="outline">🌱 Vegetariano</Badge>}

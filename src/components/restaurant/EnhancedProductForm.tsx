@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,15 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, X, Save, Upload, Package } from 'lucide-react';
+import { Plus, X, Save, Upload, Package, Sparkles, Search } from 'lucide-react';
+import { GlobalProductSearch } from './GlobalProductSearch';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 interface EnhancedProductFormProps {
   restaurantId: string;
@@ -39,6 +46,14 @@ interface ProductFormData {
   disponivel: boolean;
   ativo: boolean;
   favorito: boolean;
+  peso_volume: string;
+  informacoes_nutricionais: {
+    proteinas?: number;
+    carboidratos?: number;
+    gorduras?: number;
+    fibras?: number;
+    sodio?: number;
+  };
 }
 
 export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel, isLoading }: EnhancedProductFormProps) => {
@@ -60,12 +75,16 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
     livre_lactose: false,
     disponivel: true,
     ativo: true,
-    favorito: false
+    favorito: false,
+    peso_volume: '',
+    informacoes_nutricionais: {}
   });
 
   const [newIngredient, setNewIngredient] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const { toast } = useToast();
 
   // Buscar categorias
@@ -123,7 +142,9 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
         livre_lactose: existingProduct.livre_lactose || false,
         disponivel: existingProduct.disponivel !== false,
         ativo: existingProduct.ativo !== false,
-        favorito: existingProduct.favorito || false
+        favorito: existingProduct.favorito || false,
+        peso_volume: existingProduct.peso_volume || '',
+        informacoes_nutricionais: existingProduct.informacoes_nutricionais || {}
       });
       
       if (existingProduct.imagem_url) {
@@ -131,6 +152,76 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
       }
     }
   }, [existingProduct]);
+
+  const generateDescription = async () => {
+    if (!formData.nome.trim()) {
+      toast({
+        title: "Nome necessário",
+        description: "Digite o nome do produto para gerar uma descrição.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGeneratingDescription(true);
+    
+    try {
+      const selectedCategory = categories?.find(cat => cat.id === formData.category_id);
+      
+      const { data, error } = await supabase.functions.invoke('generate-product-description', {
+        body: {
+          productName: formData.nome,
+          category: selectedCategory?.nome,
+          ingredients: formData.ingredientes
+        }
+      });
+
+      if (error) throw error;
+
+      setFormData({
+        ...formData,
+        descricao: data.description
+      });
+
+      toast({
+        title: "Descrição gerada",
+        description: "A descrição foi gerada com sucesso pela IA.",
+      });
+    } catch (error) {
+      console.error('Erro ao gerar descrição:', error);
+      toast({
+        title: "Erro na geração",
+        description: "Não foi possível gerar a descrição. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
+  const handleGlobalProductSelect = (product: any) => {
+    setFormData({
+      ...formData,
+      nome: product.nome,
+      descricao: product.descricao || '',
+      ingredientes: product.ingredientes || [],
+      codigo_barras: product.codigo_barras || '',
+      vegetariano: product.vegetariano || false,
+      vegano: product.vegano || false,
+      livre_gluten: product.livre_gluten || false,
+      livre_lactose: product.livre_lactose || false,
+      tempo_preparo: product.tempo_preparo || 0,
+      calorias: product.calorias || 0,
+      imagem_url: product.imagem_url || '',
+      informacoes_nutricionais: product.informacoes_nutricionais || {}
+    });
+    
+    if (product.imagem_url) {
+      setImagePreview(product.imagem_url);
+    }
+    
+    setShowGlobalSearch(false);
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -236,9 +327,28 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center">
-          <Package className="h-5 w-5 mr-2" />
-          {productId ? 'Editar Produto' : 'Novo Produto'}
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Package className="h-5 w-5 mr-2" />
+            {productId ? 'Editar Produto' : 'Novo Produto'}
+          </div>
+          <Dialog open={showGlobalSearch} onOpenChange={setShowGlobalSearch}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Search className="h-4 w-4 mr-2" />
+                Buscar Produtos Globais
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Produtos Globais</DialogTitle>
+              </DialogHeader>
+              <GlobalProductSearch
+                onSelectProduct={handleGlobalProductSelect}
+                onClose={() => setShowGlobalSearch(false)}
+              />
+            </DialogContent>
+          </Dialog>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -287,16 +397,38 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
             <label className="block text-sm font-medium mb-1">
               Descrição
             </label>
-            <Textarea
-              value={formData.descricao}
-              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-              placeholder="Descreva o produto..."
-              rows={3}
-            />
+            <div className="flex gap-2">
+              <Textarea
+                value={formData.descricao}
+                onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                placeholder="Descreva o produto..."
+                rows={3}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={generateDescription}
+                disabled={isGeneratingDescription || !formData.nome.trim()}
+                className="whitespace-nowrap"
+              >
+                {isGeneratingDescription ? (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2 animate-spin" />
+                    Gerando...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Gerar com IA
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* Preços */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">
                 Preço de Venda (R$) *
@@ -342,44 +474,139 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
                 </SelectContent>
               </Select>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Peso/Volume
+              </label>
+              <Input
+                value={formData.peso_volume}
+                onChange={(e) => setFormData({ ...formData, peso_volume: e.target.value })}
+                placeholder="Ex: 300g, 500ml"
+              />
+            </div>
           </div>
 
-          {/* Informações Adicionais */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Tempo de Preparo (min)
-              </label>
-              <Input
-                type="number"
-                min="0"
-                value={formData.tempo_preparo}
-                onChange={(e) => setFormData({ ...formData, tempo_preparo: parseInt(e.target.value) || 0 })}
-              />
+          {/* Informações Nutricionais */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Informações Nutricionais
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Calorias</label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={formData.calorias}
+                  onChange={(e) => setFormData({ ...formData, calorias: parseInt(e.target.value) || 0 })}
+                  placeholder="kcal"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Proteínas (g)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={formData.informacoes_nutricionais.proteinas || ''}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    informacoes_nutricionais: { 
+                      ...formData.informacoes_nutricionais, 
+                      proteinas: parseFloat(e.target.value) || 0 
+                    } 
+                  })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Carboidratos (g)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={formData.informacoes_nutricionais.carboidratos || ''}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    informacoes_nutricionais: { 
+                      ...formData.informacoes_nutricionais, 
+                      carboidratos: parseFloat(e.target.value) || 0 
+                    } 
+                  })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Gorduras (g)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={formData.informacoes_nutricionais.gorduras || ''}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    informacoes_nutricionais: { 
+                      ...formData.informacoes_nutricionais, 
+                      gorduras: parseFloat(e.target.value) || 0 
+                    } 
+                  })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Fibras (g)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={formData.informacoes_nutricionais.fibras || ''}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    informacoes_nutricionais: { 
+                      ...formData.informacoes_nutricionais, 
+                      fibras: parseFloat(e.target.value) || 0 
+                    } 
+                  })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Sódio (mg)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={formData.informacoes_nutricionais.sodio || ''}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    informacoes_nutricionais: { 
+                      ...formData.informacoes_nutricionais, 
+                      sodio: parseFloat(e.target.value) || 0 
+                    } 
+                  })}
+                />
+              </div>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Calorias
-              </label>
-              <Input
-                type="number"
-                min="0"
-                value={formData.calorias}
-                onChange={(e) => setFormData({ ...formData, calorias: parseInt(e.target.value) || 0 })}
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Tempo de Preparo (min)
+            </label>
+            <Input
+              type="number"
+              min="0"
+              value={formData.tempo_preparo}
+              onChange={(e) => setFormData({ ...formData, tempo_preparo: parseInt(e.target.value) || 0 })}
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Código de Barras
-              </label>
-              <Input
-                value={formData.codigo_barras}
-                onChange={(e) => setFormData({ ...formData, codigo_barras: e.target.value })}
-                placeholder="EAN13, UPC..."
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Código de Barras
+            </label>
+            <Input
+              value={formData.codigo_barras}
+              onChange={(e) => setFormData({ ...formData, codigo_barras: e.target.value })}
+              placeholder="EAN13, UPC..."
+            />
           </div>
 
           {/* Ingredientes */}
