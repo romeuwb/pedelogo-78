@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -11,6 +12,7 @@ import AdminDashboard from '@/pages/AdminDashboard';
 import DeliveryDashboard from '@/pages/DeliveryDashboard';
 import RestaurantsPage from '@/pages/RestaurantsPage';
 import PromotionsPage from '@/pages/PromotionsPage';
+import ResetPassword from '@/pages/ResetPassword';
 import NotFound from '@/pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -48,6 +50,7 @@ function App() {
             <Route path="/client-dashboard" element={<ClientDashboard />} />
             <Route path="/admin" element={<AdminRoute />} />
             <Route path="/delivery-dashboard" element={<DeliveryDashboard />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
