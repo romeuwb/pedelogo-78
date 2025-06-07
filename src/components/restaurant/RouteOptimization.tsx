@@ -155,7 +155,7 @@ export const RouteOptimization = ({ restaurantId }: RouteOptimizationProps) => {
     const variants = {
       pending: 'secondary',
       active: 'default',
-      completed: 'success'
+      completed: 'outline'
     } as const;
 
     const labels = {
@@ -234,31 +234,35 @@ export const RouteOptimization = ({ restaurantId }: RouteOptimizationProps) => {
                   Pedidos Pendentes ({pendingOrders?.length || 0})
                 </label>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {pendingOrders?.map((order) => (
-                    <div key={order.id} className="flex items-center space-x-2 p-2 border rounded">
-                      <input
-                        type="checkbox"
-                        checked={selectedOrders.includes(order.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedOrders([...selectedOrders, order.id]);
-                          } else {
-                            setSelectedOrders(selectedOrders.filter(id => id !== order.id));
-                          }
-                        }}
-                        className="rounded"
-                      />
-                      <div className="flex-1">
-                        <p className="font-medium">Pedido #{order.id.slice(-8)}</p>
-                        <p className="text-sm text-gray-600">
-                          {order.endereco_entrega?.rua || 'Endereço não informado'}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          Total: R$ {order.total?.toFixed(2)}
-                        </p>
+                  {pendingOrders?.map((order) => {
+                    // Type assertion para endereço
+                    const endereco = order.endereco_entrega as any;
+                    const rua = endereco?.rua || 'Endereço não informado';
+                    
+                    return (
+                      <div key={order.id} className="flex items-center space-x-2 p-2 border rounded">
+                        <input
+                          type="checkbox"
+                          checked={selectedOrders.includes(order.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedOrders([...selectedOrders, order.id]);
+                            } else {
+                              setSelectedOrders(selectedOrders.filter(id => id !== order.id));
+                            }
+                          }}
+                          className="rounded"
+                        />
+                        <div className="flex-1">
+                          <p className="font-medium">Pedido #{order.id.slice(-8)}</p>
+                          <p className="text-sm text-gray-600">{rua}</p>
+                          <p className="text-sm text-gray-500">
+                            Total: R$ {order.total?.toFixed(2)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

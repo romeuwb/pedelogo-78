@@ -217,8 +217,7 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
                   <DialogTitle>Editar Produto</DialogTitle>
                 </DialogHeader>
                 <EnhancedProductForm
-                  product={editingProduct}
-                  categories={categories || []}
+                  productId={editingProduct?.id}
                   onSave={(data) => saveProduct.mutate(data)}
                   onCancel={() => setEditingProduct(null)}
                   isLoading={saveProduct.isPending}
@@ -251,7 +250,6 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
               <DialogTitle>Adicionar Novo Produto</DialogTitle>
             </DialogHeader>
             <EnhancedProductForm
-              categories={categories || []}
               onSave={(data) => saveProduct.mutate(data)}
               onCancel={() => setIsAddingProduct(false)}
               isLoading={saveProduct.isPending}
