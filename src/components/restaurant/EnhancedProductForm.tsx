@@ -15,7 +15,9 @@ import { Plus, X, Save, Upload, Package } from 'lucide-react';
 interface EnhancedProductFormProps {
   restaurantId: string;
   productId?: string;
-  onClose?: () => void;
+  onSave: (data: any) => void;
+  onCancel: () => void;
+  isLoading: boolean;
 }
 
 interface ProductFormData {
@@ -39,7 +41,7 @@ interface ProductFormData {
   favorito: boolean;
 }
 
-export const EnhancedProductForm = ({ restaurantId, productId, onClose }: EnhancedProductFormProps) => {
+export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel, isLoading }: EnhancedProductFormProps) => {
   const [formData, setFormData] = useState<ProductFormData>({
     nome: '',
     descricao: '',
@@ -65,7 +67,6 @@ export const EnhancedProductForm = ({ restaurantId, productId, onClose }: Enhanc
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // Buscar categorias
   const { data: categories } = useQuery({
@@ -131,80 +132,6 @@ export const EnhancedProductForm = ({ restaurantId, productId, onClose }: Enhanc
     }
   }, [existingProduct]);
 
-  // Salvar produto
-  const saveProductMutation = useMutation({
-    mutationFn: async (data: ProductFormData) => {
-      let imageUrl = data.imagem_url;
-      
-      // Upload de imagem se houver
-      if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${restaurantId}-${Date.now()}.${fileExt}`;
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('product-images')
-          .upload(fileName, imageFile);
-
-        if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase.storage
-          .from('product-images')
-          .getPublicUrl(fileName);
-        
-        imageUrl = urlData.publicUrl;
-      }
-
-      const productData = {
-        ...data,
-        imagem_url: imageUrl,
-        restaurant_id: restaurantId,
-        preco: Number(data.preco),
-        preco_custo: Number(data.preco_custo),
-        tempo_preparo: Number(data.tempo_preparo),
-        calorias: Number(data.calorias)
-      };
-
-      if (productId) {
-        // Atualizar produto existente
-        const { data: updatedProduct, error } = await supabase
-          .from('restaurant_products')
-          .update(productData)
-          .eq('id', productId)
-          .select()
-          .single();
-
-        if (error) throw error;
-        return updatedProduct;
-      } else {
-        // Criar novo produto
-        const { data: newProduct, error } = await supabase
-          .from('restaurant_products')
-          .insert(productData)
-          .select()
-          .single();
-
-        if (error) throw error;
-        return newProduct;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['restaurant-products'] });
-      toast({
-        title: productId ? "Produto atualizado" : "Produto criado",
-        description: `Produto ${formData.nome} ${productId ? 'atualizado' : 'criado'} com sucesso!`
-      });
-      onClose?.();
-    },
-    onError: (error) => {
-      console.error('Erro ao salvar produto:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível salvar o produto. Tente novamente.",
-        variant: "destructive"
-      });
-    }
-  });
-
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -234,9 +161,19 @@ export const EnhancedProductForm = ({ restaurantId, productId, onClose }: Enhanc
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validação obrigatória da categoria
+    if (!formData.category_id) {
+      toast({
+        title: "Erro",
+        description: "Categoria é obrigatória.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!formData.nome.trim()) {
       toast({
         title: "Erro",
@@ -255,16 +192,45 @@ export const EnhancedProductForm = ({ restaurantId, productId, onClose }: Enhanc
       return;
     }
 
-    if (!formData.category_id) {
-      toast({
-        title: "Erro",
-        description: "Categoria é obrigatória.",
-        variant: "destructive"
-      });
-      return;
+    let imageUrl = formData.imagem_url;
+    
+    // Upload de imagem se houver
+    if (imageFile) {
+      try {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${restaurantId}-${Date.now()}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(fileName, imageFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(fileName);
+        
+        imageUrl = urlData.publicUrl;
+      } catch (error) {
+        console.error('Erro no upload da imagem:', error);
+        toast({
+          title: "Aviso",
+          description: "Erro no upload da imagem, produto será salvo sem imagem.",
+          variant: "destructive"
+        });
+      }
     }
 
-    saveProductMutation.mutate(formData);
+    const productData = {
+      ...formData,
+      imagem_url: imageUrl,
+      preco: Number(formData.preco),
+      preco_custo: Number(formData.preco_custo),
+      tempo_preparo: Number(formData.tempo_preparo),
+      calorias: Number(formData.calorias)
+    };
+
+    onSave(productData);
   };
 
   return (
@@ -295,9 +261,13 @@ export const EnhancedProductForm = ({ restaurantId, productId, onClose }: Enhanc
               <label className="block text-sm font-medium mb-1">
                 Categoria *
               </label>
-              <Select value={formData.category_id} onValueChange={(value) => setFormData({ ...formData, category_id: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma categoria" />
+              <Select 
+                value={formData.category_id} 
+                onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+                required
+              >
+                <SelectTrigger className={!formData.category_id ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Selecione uma categoria *" />
                 </SelectTrigger>
                 <SelectContent>
                   {categories?.map((category) => (
@@ -307,6 +277,9 @@ export const EnhancedProductForm = ({ restaurantId, productId, onClose }: Enhanc
                   ))}
                 </SelectContent>
               </Select>
+              {!formData.category_id && (
+                <p className="text-sm text-red-500 mt-1">Categoria é obrigatória</p>
+              )}
             </div>
           </div>
 
@@ -526,21 +499,19 @@ export const EnhancedProductForm = ({ restaurantId, productId, onClose }: Enhanc
           <div className="flex gap-2">
             <Button
               type="submit"
-              disabled={saveProductMutation.isPending}
+              disabled={isLoading}
               className="flex-1"
             >
               <Save className="h-4 w-4 mr-2" />
-              {saveProductMutation.isPending 
+              {isLoading 
                 ? 'Salvando...' 
                 : (productId ? 'Atualizar Produto' : 'Criar Produto')
               }
             </Button>
             
-            {onClose && (
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancelar
-              </Button>
-            )}
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancelar
+            </Button>
           </div>
         </form>
       </CardContent>

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -217,6 +216,7 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
                   <DialogTitle>Editar Produto</DialogTitle>
                 </DialogHeader>
                 <EnhancedProductForm
+                  restaurantId={restaurantId}
                   productId={editingProduct?.id}
                   onSave={(data) => saveProduct.mutate(data)}
                   onCancel={() => setEditingProduct(null)}
@@ -250,6 +250,7 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
               <DialogTitle>Adicionar Novo Produto</DialogTitle>
             </DialogHeader>
             <EnhancedProductForm
+              restaurantId={restaurantId}
               onSave={(data) => saveProduct.mutate(data)}
               onCancel={() => setIsAddingProduct(false)}
               isLoading={saveProduct.isPending}
