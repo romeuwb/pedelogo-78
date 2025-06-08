@@ -1,9 +1,8 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import DeliveryApp from '@/components/delivery/DeliveryApp';
+import DeliveryPanelComplete from '@/components/delivery/DeliveryPanelComplete';
 import RegistrationCompletionModal from '@/components/registration/RegistrationCompletionModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -88,7 +87,7 @@ const DeliveryDashboard = () => {
     );
   }
 
-  return <DeliveryApp />;
+  return <DeliveryPanelComplete />;
 };
 
 export default DeliveryDashboard;
