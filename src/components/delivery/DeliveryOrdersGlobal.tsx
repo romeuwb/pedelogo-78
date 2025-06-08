@@ -33,8 +33,7 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
         .select(`
           *,
           restaurant_details:restaurante_id (nome_fantasia, endereco, telefone),
-          order_items (*),
-          client_profile:profiles!cliente_id (nome, telefone)
+          order_items (*)
         `)
         .is('entregador_id', null)
         .eq('status', 'confirmado')
@@ -56,8 +55,7 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
         .select(`
           *,
           restaurant_details:restaurante_id (nome_fantasia, endereco, telefone),
-          order_items (*),
-          client_profile:profiles!cliente_id (nome, telefone)
+          order_items (*)
         `)
         .eq('entregador_id', deliveryDetails?.user_id)
         .in('status', ['aceito_entregador', 'caminho_restaurante', 'chegou_restaurante', 'pedido_retirado', 'caminho_cliente', 'chegou_cliente'])
@@ -103,7 +101,7 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
           updated_at: new Date().toISOString()
         })
         .eq('id', orderId)
-        .is('entregador_id', null); // Garantir que ainda não foi aceito
+        .is('entregador_id', null);
 
       if (error) throw error;
     },
@@ -171,12 +169,10 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
   };
 
   const calculateDistance = (order: any) => {
-    // Simular cálculo de distância - em produção usar API de mapas
     return (Math.random() * 10 + 1).toFixed(1);
   };
 
   const calculateDeliveryFee = (distance: number) => {
-    // Cálculo simples da taxa - R$ 2,00 base + R$ 0,50 por km
     return (2 + (distance * 0.5)).toFixed(2);
   };
 

@@ -2,11 +2,13 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Route, Users, MapPin, Clock } from 'lucide-react';
+import { Settings, Route, Users, MapPin, Clock, Utensils, UserCheck } from 'lucide-react';
 import { DeliveryAreaMap } from './DeliveryAreaMap';
 import { RouteOptimization } from './RouteOptimization';
 import { ClientOptimization } from './ClientOptimization';
 import { OperatingHoursManager } from './OperatingHoursManager';
+import { TableManager } from './TableManager';
+import { StaffManager } from './StaffManager';
 
 interface RestaurantSettingsProps {
   restaurantId: string;
@@ -24,7 +26,7 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="delivery" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="delivery" className="flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
                 Área de Entrega
@@ -40,6 +42,14 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
               <TabsTrigger value="hours" className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
                 Horário de Funcionamento
+              </TabsTrigger>
+              <TabsTrigger value="tables" className="flex items-center gap-2">
+                <Utensils className="h-4 w-4" />
+                Mesas
+              </TabsTrigger>
+              <TabsTrigger value="staff" className="flex items-center gap-2">
+                <UserCheck className="h-4 w-4" />
+                Funcionários
               </TabsTrigger>
               <TabsTrigger value="general" className="flex items-center gap-2">
                 <Settings className="h-4 w-4" />
@@ -61,6 +71,14 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
 
             <TabsContent value="hours" className="mt-6">
               <OperatingHoursManager restaurantId={restaurantId} />
+            </TabsContent>
+
+            <TabsContent value="tables" className="mt-6">
+              <TableManager restaurantId={restaurantId} />
+            </TabsContent>
+
+            <TabsContent value="staff" className="mt-6">
+              <StaffManager restaurantId={restaurantId} />
             </TabsContent>
 
             <TabsContent value="general" className="mt-6">

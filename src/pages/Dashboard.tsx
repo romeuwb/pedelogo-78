@@ -5,7 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import RestaurantDashboard from '@/components/restaurant/RestaurantDashboard';
 import { AdminOverview } from '@/components/admin/AdminOverview';
-import OrderManagement from '@/components/orders/OrderManagement';
+import ClientApp from '@/components/client/ClientApp';
+import DeliveryApp from '@/components/delivery/DeliveryApp';
 import RegistrationCompletionModal from '@/components/registration/RegistrationCompletionModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -86,37 +87,6 @@ const Dashboard = () => {
     enabled: !!user?.id && profile?.tipo === 'entregador',
     retry: 1
   });
-
-  // Redirecionamento automático baseado no tipo de usuário
-  useEffect(() => {
-    if (!loading && user && profile) {
-      const currentPath = window.location.pathname;
-      
-      // Se já está na rota correta, não redirecionar
-      if (currentPath !== '/dashboard') return;
-      
-      switch (profile.tipo) {
-        case 'entregador':
-          if (deliveryDetails && currentPath === '/dashboard') {
-            window.location.href = '/delivery-dashboard';
-            return;
-          }
-          break;
-        case 'cliente':
-          if (currentPath === '/dashboard') {
-            window.location.href = '/client-dashboard';
-            return;
-          }
-          break;
-        case 'admin':
-          if (isAdmin && currentPath === '/dashboard') {
-            window.location.href = '/admin';
-            return;
-          }
-          break;
-      }
-    }
-  }, [user, profile, loading, deliveryDetails, isAdmin]);
 
   useEffect(() => {
     if (restaurantError) {
@@ -213,41 +183,34 @@ const Dashboard = () => {
           );
 
         case 'entregador':
-          // Redirecionar para o painel específico do entregador
-          if (deliveryDetails) {
-            window.location.href = '/delivery-dashboard';
-            return <div>Redirecionando...</div>;
+          if (!deliveryDetails) {
+            return (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Configuração Necessária</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600 mb-4">
+                    Você precisa completar o cadastro de entregador para acessar o dashboard.
+                  </p>
+                  <Button 
+                    onClick={() => setShowRegistrationModal(true)}
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                  >
+                    Completar Cadastro
+                  </Button>
+                </CardContent>
+              </Card>
+            );
           }
-          
-          return (
-            <Card>
-              <CardHeader>
-                <CardTitle>Configuração Necessária</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 mb-4">
-                  Você precisa completar o cadastro de entregador para acessar o dashboard.
-                </p>
-                <Button 
-                  onClick={() => setShowRegistrationModal(true)}
-                  className="bg-orange-500 hover:bg-orange-600 text-white"
-                >
-                  Completar Cadastro
-                </Button>
-              </CardContent>
-            </Card>
-          );
+          return <DeliveryApp />;
 
         case 'cliente':
-          // Redirecionar para o painel do cliente
-          window.location.href = '/client-dashboard';
-          return <div>Redirecionando...</div>;
+          return <ClientApp />;
 
         case 'admin':
-          // Para admins, verificar se realmente tem permissão
           if (isAdmin) {
-            window.location.href = '/admin';
-            return <div>Redirecionando...</div>;
+            return <AdminOverview />;
           } else {
             return (
               <Card>

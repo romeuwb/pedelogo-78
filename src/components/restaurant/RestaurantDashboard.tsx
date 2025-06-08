@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +9,7 @@ import { RestaurantOrdersPanel } from './RestaurantOrdersPanel';
 import { RestaurantMenuPanel } from './RestaurantMenuPanel';
 import { RestaurantFinancialPanel } from './RestaurantFinancialPanel';
 import { RestaurantSettings } from './RestaurantSettings';
+import { POSSystem } from './POSSystem';
 import { 
   Package, 
   DollarSign, 
@@ -19,7 +19,8 @@ import {
   Star,
   Bell,
   Eye,
-  EyeOff
+  EyeOff,
+  Monitor
 } from 'lucide-react';
 
 interface RestaurantDashboardProps {
@@ -318,6 +319,7 @@ const RestaurantDashboard = ({ restaurantId, userId }: RestaurantDashboardProps)
       <Tabs defaultValue="orders" className="space-y-4">
         <TabsList>
           <TabsTrigger value="orders">Pedidos</TabsTrigger>
+          <TabsTrigger value="pos">POS</TabsTrigger>
           <TabsTrigger value="menu">Cardápio</TabsTrigger>
           <TabsTrigger value="financial">Financeiro</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
@@ -325,6 +327,10 @@ const RestaurantDashboard = ({ restaurantId, userId }: RestaurantDashboardProps)
 
         <TabsContent value="orders">
           <RestaurantOrdersPanel restaurantId={restaurantId} />
+        </TabsContent>
+
+        <TabsContent value="pos">
+          <POSSystem restaurantId={restaurantId} />
         </TabsContent>
 
         <TabsContent value="menu">
