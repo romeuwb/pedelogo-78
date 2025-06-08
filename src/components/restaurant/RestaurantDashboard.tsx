@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart3, Users, Package, Settings, MapPin, MessageSquare, Calculator, ClipboardList } from 'lucide-react';
@@ -10,20 +10,105 @@ import { CustomerCommunication } from './CustomerCommunication';
 import TableManagementPage from './TableManagementPage';
 import { POSSystemPage } from './POSSystemPage';
 import { UserProfile } from '@/components/shared/UserProfile';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface RestaurantDashboardProps {
-  restaurantId: string;
+  restaurantId?: string;
 }
 
-const RestaurantDashboard = ({ restaurantId }: RestaurantDashboardProps) => {
+const RestaurantDashboard = ({ restaurantId: propRestaurantId }: RestaurantDashboardProps) => {
+  const { user } = useAuth();
+
+  // Buscar o restaurant_id do usuário logado se não foi fornecido via props
+  const { data: restaurantDetails } = useQuery({
+    queryKey: ['restaurant-details', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      
+      console.log('Buscando detalhes do restaurante para user_id:', user.id);
+      
+      const { data, error } = await supabase
+        .from('restaurant_details')
+        .select('id, nome_fantasia, user_id')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (error) {
+        console.error('Erro ao buscar detalhes do restaurante:', error);
+        throw error;
+      }
+      
+      console.log('Detalhes do restaurante encontrados:', data);
+      return data;
+    },
+    enabled: !!user?.id && !propRestaurantId
+  });
+
+  // Usar o restaurantId das props ou dos detalhes do restaurante
+  const finalRestaurantId = propRestaurantId || restaurantDetails?.id;
+
+  // Debug: Log the restaurant ID being used
+  useEffect(() => {
+    console.log('RestaurantDashboard - finalRestaurantId:', finalRestaurantId);
+    console.log('RestaurantDashboard - propRestaurantId:', propRestaurantId);
+    console.log('RestaurantDashboard - restaurantDetails?.id:', restaurantDetails?.id);
+    console.log('RestaurantDashboard - user?.id:', user?.id);
+  }, [finalRestaurantId, propRestaurantId, restaurantDetails?.id, user?.id]);
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p>Carregando dados do usuário...</p>
+      </div>
+    );
+  }
+
+  if (!finalRestaurantId) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Painel do Restaurante</h1>
+            <p className="text-gray-600">Configurando seu restaurante...</p>
+          </div>
+          <UserProfile />
+        </div>
+        
+        <div className="text-center py-12">
+          <h3 className="text-lg font-semibold text-gray-600 mb-2">
+            Nenhum restaurante encontrado
+          </h3>
+          <p className="text-gray-500 mb-4">
+            Você precisa ter um restaurante cadastrado para acessar este painel.
+          </p>
+          <p className="text-sm text-gray-400">
+            User ID: {user.id}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Painel do Restaurante</h1>
           <p className="text-gray-600">Gerencie seu restaurante de forma completa</p>
+          {restaurantDetails?.nome_fantasia && (
+            <p className="text-sm text-gray-500">{restaurantDetails.nome_fantasia}</p>
+          )}
         </div>
         <UserProfile />
+      </div>
+
+      {/* Debug Info */}
+      <div className="p-4 bg-blue-50 rounded text-sm border">
+        <p><strong>Restaurant ID em uso:</strong> {finalRestaurantId}</p>
+        <p><strong>User ID:</strong> {user.id}</p>
+        <p><strong>Fonte do Restaurant ID:</strong> {propRestaurantId ? 'Props' : 'Banco de dados'}</p>
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
@@ -120,27 +205,27 @@ const RestaurantDashboard = ({ restaurantId }: RestaurantDashboardProps) => {
         </TabsContent>
 
         <TabsContent value="menu" className="mt-6">
-          <RestaurantMenuPanel restaurantId={restaurantId} />
+          <RestaurantMenuPanel restaurantId={finalRestaurantId} />
         </TabsContent>
 
         <TabsContent value="tables" className="mt-6">
-          <TableManagementPage restaurantId={restaurantId} />
+          <TableManagementPage restaurantId={finalRestaurantId} />
         </TabsContent>
 
         <TabsContent value="pos" className="mt-6">
-          <POSSystemPage restaurantId={restaurantId} />
+          <POSSystemPage restaurantId={finalRestaurantId} />
         </TabsContent>
 
         <TabsContent value="routes" className="mt-6">
-          <DeliveryRouteOptimizer restaurantId={restaurantId} />
+          <DeliveryRouteOptimizer restaurantId={finalRestaurantId} />
         </TabsContent>
 
         <TabsContent value="communication" className="mt-6">
-          <CustomerCommunication restaurantId={restaurantId} />
+          <CustomerCommunication restaurantId={finalRestaurantId} />
         </TabsContent>
 
         <TabsContent value="settings" className="mt-6">
-          <RestaurantSettings restaurantId={restaurantId} />
+          <RestaurantSettings restaurantId={finalRestaurantId} />
         </TabsContent>
       </Tabs>
     </div>

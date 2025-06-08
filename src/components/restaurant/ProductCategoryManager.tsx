@@ -5,80 +5,106 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { 
+import { Plus, Edit, Trash2, Package } from 'lucide-react';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, GripVertical } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface ProductCategoryManagerProps {
   restaurantId: string;
 }
 
+interface Category {
+  id: string;
+  nome: string;
+  descricao?: string;
+  icone?: string;
+  cor?: string;
+  posicao?: number;
+  ativo: boolean;
+}
+
 export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerProps) => {
-  const [isAdding, setIsAdding] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [formData, setFormData] = useState({
+    nome: '',
+    descricao: '',
+    icone: '',
+    cor: '#6b7280'
+  });
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: categories, isLoading } = useQuery({
+  console.log('ProductCategoryManager - restaurantId:', restaurantId);
+
+  const { data: categories, isLoading, error } = useQuery({
     queryKey: ['product-categories', restaurantId],
     queryFn: async () => {
+      console.log('Buscando categorias para restaurant_id:', restaurantId);
+      
       if (!restaurantId) {
-        console.log('Restaurant ID não fornecido');
+        console.warn('RestaurantId não fornecido');
         return [];
       }
 
-      console.log('Carregando categorias para restaurant_id:', restaurantId);
-      
       const { data, error } = await supabase
         .from('product_categories')
         .select('*')
         .eq('restaurant_id', restaurantId)
-        .order('posicao');
-
+        .order('posicao', { ascending: true });
+      
       if (error) {
-        console.error('Erro ao carregar categorias:', error);
+        console.error('Erro ao buscar categorias:', error);
         throw error;
       }
       
-      console.log('Categorias carregadas:', data);
-      return data || [];
+      console.log('Categorias encontradas:', data);
+      return data as Category[];
     },
     enabled: !!restaurantId
   });
 
-  const saveCategory = useMutation({
+  const saveCategoryMutation = useMutation({
     mutationFn: async (categoryData: any) => {
-      if (!restaurantId) {
-        throw new Error('Restaurant ID é obrigatório');
-      }
-
-      const data = {
-        ...categoryData,
-        restaurant_id: restaurantId
-      };
-
-      console.log('Salvando categoria com dados:', data);
-
+      console.log('Salvando categoria:', categoryData);
+      
       if (editingCategory) {
         const { error } = await supabase
           .from('product_categories')
-          .update(data)
+          .update(categoryData)
           .eq('id', editingCategory.id);
+        
         if (error) {
           console.error('Erro ao atualizar categoria:', error);
           throw error;
         }
       } else {
-        const { data: newCategory, error } = await supabase
+        const { data, error } = await supabase
           .from('product_categories')
-          .insert(data)
+          .insert([{
+            ...categoryData,
+            restaurant_id: restaurantId,
+            posicao: categories?.length || 0
+          }])
           .select()
           .single();
         
@@ -86,7 +112,8 @@ export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerP
           console.error('Erro ao criar categoria:', error);
           throw error;
         }
-        console.log('Nova categoria criada:', newCategory);
+        
+        console.log('Categoria criada:', data);
       }
     },
     onSuccess: () => {
@@ -95,20 +122,19 @@ export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerP
         title: editingCategory ? "Categoria atualizada" : "Categoria criada",
         description: "Categoria salva com sucesso.",
       });
-      setIsAdding(false);
-      setEditingCategory(null);
+      resetForm();
     },
     onError: (error: any) => {
-      console.error('Erro na mutation de categoria:', error);
+      console.error('Erro ao salvar categoria:', error);
       toast({
         title: "Erro ao salvar categoria",
-        description: error.message || "Ocorreu um erro inesperado.",
-        variant: "destructive",
+        description: error.message,
+        variant: "destructive"
       });
     }
   });
 
-  const deleteCategory = useMutation({
+  const deleteCategoryMutation = useMutation({
     mutationFn: async (categoryId: string) => {
       const { error } = await supabase
         .from('product_categories')
@@ -121,209 +147,264 @@ export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerP
       queryClient.invalidateQueries({ queryKey: ['product-categories'] });
       toast({
         title: "Categoria excluída",
-        description: "Categoria removida com sucesso.",
+        description: "A categoria foi removida com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao excluir categoria",
+        description: error.message,
+        variant: "destructive"
       });
     }
   });
 
-  const CategoryForm = ({ category, onClose }: { category?: any; onClose: () => void }) => {
-    const [formData, setFormData] = useState({
-      nome: category?.nome || '',
-      descricao: category?.descricao || '',
-      icone: category?.icone || '',
-      cor: category?.cor || '#6b7280',
-      posicao: category?.posicao || 0,
-      ativo: category?.ativo !== false
+  const resetForm = () => {
+    setFormData({
+      nome: '',
+      descricao: '',
+      icone: '',
+      cor: '#6b7280'
     });
+    setEditingCategory(null);
+    setShowForm(false);
+  };
 
-    const handleSubmit = () => {
-      if (!formData.nome.trim()) {
-        toast({
-          title: "Nome obrigatório",
-          description: "O nome da categoria é obrigatório.",
-          variant: "destructive",
-        });
-        return;
-      }
+  const handleEdit = (category: Category) => {
+    setEditingCategory(category);
+    setFormData({
+      nome: category.nome,
+      descricao: category.descricao || '',
+      icone: category.icone || '',
+      cor: category.cor || '#6b7280'
+    });
+    setShowForm(true);
+  };
 
-      saveCategory.mutate(formData);
-    };
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.nome.trim()) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Por favor, informe o nome da categoria.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    return (
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Nome da Categoria *</label>
-          <Input
-            value={formData.nome}
-            onChange={(e) => setFormData({...formData, nome: e.target.value})}
-            placeholder="Ex: Entradas, Pratos Principais"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Descrição</label>
-          <Textarea
-            value={formData.descricao}
-            onChange={(e) => setFormData({...formData, descricao: e.target.value})}
-            placeholder="Descrição da categoria (opcional)"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Ícone (Emoji)</label>
-            <Input
-              value={formData.icone}
-              onChange={(e) => setFormData({...formData, icone: e.target.value})}
-              placeholder="🍕"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Cor</label>
-            <Input
-              type="color"
-              value={formData.cor}
-              onChange={(e) => setFormData({...formData, cor: e.target.value})}
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Posição</label>
-          <Input
-            type="number"
-            value={formData.posicao}
-            onChange={(e) => setFormData({...formData, posicao: parseInt(e.target.value)})}
-            placeholder="0"
-          />
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={formData.ativo}
-            onChange={(e) => setFormData({...formData, ativo: e.target.checked})}
-          />
-          <span>Categoria ativa</span>
-        </div>
-
-        <div className="flex justify-end space-x-2">
-          <Button variant="outline" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleSubmit}
-            disabled={saveCategory.isPending}
-          >
-            {saveCategory.isPending ? 'Salvando...' : (category ? 'Atualizar' : 'Criar')}
-          </Button>
-        </div>
-      </div>
-    );
+    saveCategoryMutation.mutate(formData);
   };
 
   if (isLoading) {
-    return <div className="p-4">Carregando categorias...</div>;
+    return <div>Carregando categorias...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="text-red-600">
+        Erro ao carregar categorias: {error.message}
+        <Button 
+          onClick={() => queryClient.invalidateQueries({ queryKey: ['product-categories'] })}
+          className="ml-2"
+        >
+          Tentar novamente
+        </Button>
+      </div>
+    );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle>Gerenciar Categorias</CardTitle>
-          <Dialog open={isAdding} onOpenChange={setIsAdding}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Categoria
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Adicionar Categoria</DialogTitle>
-              </DialogHeader>
-              <CategoryForm onClose={() => setIsAdding(false)} />
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {categories?.map((category) => (
-            <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <GripVertical className="h-4 w-4 text-gray-400" />
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h3 className="text-xl font-semibold">Categorias de Produtos</h3>
+        <Dialog open={showForm} onOpenChange={setShowForm}>
+          <DialogTrigger asChild>
+            <Button 
+              onClick={() => {
+                resetForm();
+                setShowForm(true);
+              }}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Categoria
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {editingCategory ? 'Editar Categoria' : 'Nova Categoria'}
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="nome">Nome da Categoria *</Label>
+                <Input
+                  id="nome"
+                  value={formData.nome}
+                  onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
+                  placeholder="Ex: Pratos Principais"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="descricao">Descrição</Label>
+                <Input
+                  id="descricao"
+                  value={formData.descricao}
+                  onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
+                  placeholder="Descrição da categoria"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="icone">Ícone (Emoji)</Label>
+                <Input
+                  id="icone"
+                  value={formData.icone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, icone: e.target.value }))}
+                  placeholder="🍕"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="cor">Cor</Label>
                 <div className="flex items-center space-x-2">
-                  {category.icone && <span className="text-lg">{category.icone}</span>}
-                  <div
-                    className="w-4 h-4 rounded"
-                    style={{ backgroundColor: category.cor }}
+                  <Input
+                    id="cor"
+                    type="color"
+                    value={formData.cor}
+                    onChange={(e) => setFormData(prev => ({ ...prev, cor: e.target.value }))}
+                    className="w-16 h-10"
                   />
-                </div>
-                <div>
-                  <h4 className="font-medium">{category.nome}</h4>
-                  {category.descricao && (
-                    <p className="text-sm text-gray-600">{category.descricao}</p>
-                  )}
+                  <Input
+                    value={formData.cor}
+                    onChange={(e) => setFormData(prev => ({ ...prev, cor: e.target.value }))}
+                    placeholder="#6b7280"
+                    className="flex-1"
+                  />
                 </div>
               </div>
               
-              <div className="flex items-center space-x-2">
-                <span className={`px-2 py-1 text-xs rounded ${
-                  category.ativo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {category.ativo ? 'Ativa' : 'Inativa'}
-                </span>
-                
-                <Dialog 
-                  open={editingCategory?.id === category.id} 
-                  onOpenChange={(open) => !open && setEditingCategory(null)}
+              <div className="flex justify-end space-x-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={resetForm}
+                  disabled={saveCategoryMutation.isPending}
                 >
-                  <DialogTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setEditingCategory(category)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Editar Categoria</DialogTitle>
-                    </DialogHeader>
-                    <CategoryForm 
-                      category={editingCategory} 
-                      onClose={() => setEditingCategory(null)} 
-                    />
-                  </DialogContent>
-                </Dialog>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => deleteCategory.mutate(category.id)}
-                  disabled={deleteCategory.isPending}
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={saveCategoryMutation.isPending}
+                  className="bg-orange-500 hover:bg-orange-600"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  {saveCategoryMutation.isPending ? 'Salvando...' : 'Salvar'}
                 </Button>
               </div>
-            </div>
-          ))}
-          
-          {categories?.length === 0 && (
-            <div className="text-center py-8">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma categoria cadastrada</h3>
-              <p className="text-gray-600 mb-6">Comece criando categorias para organizar seus produtos</p>
-              <Button onClick={() => setIsAdding(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Criar primeira categoria
-              </Button>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Debug Info */}
+      <div className="p-4 bg-gray-100 rounded text-sm">
+        <p><strong>Restaurant ID:</strong> {restaurantId}</p>
+        <p><strong>Categorias encontradas:</strong> {categories?.length || 0}</p>
+        <p><strong>Estado do carregamento:</strong> {isLoading ? 'Carregando...' : 'Concluído'}</p>
+        {error && <p className="text-red-600"><strong>Erro:</strong> {error.message}</p>}
+      </div>
+
+      <div className="grid gap-4">
+        {categories?.map((category) => (
+          <Card key={category.id}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  {category.icone && (
+                    <span className="text-2xl">{category.icone}</span>
+                  )}
+                  <div>
+                    <h4 className="font-semibold">{category.nome}</h4>
+                    {category.descricao && (
+                      <p className="text-sm text-gray-600">{category.descricao}</p>
+                    )}
+                  </div>
+                  {category.cor && (
+                    <div 
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: category.cor }}
+                    />
+                  )}
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleEdit(category)}
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    Editar
+                  </Button>
+                  
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="destructive">
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Excluir
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja excluir a categoria "{category.nome}"? 
+                          Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => deleteCategoryMutation.mutate(category.id)}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+        
+        {categories?.length === 0 && (
+          <div className="text-center py-12">
+            <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-600 mb-2">
+              Nenhuma categoria encontrada
+            </h3>
+            <p className="text-gray-500 mb-4">
+              Comece criando categorias para organizar seus produtos.
+            </p>
+            <Button 
+              onClick={() => {
+                resetForm();
+                setShowForm(true);
+              }}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Criar Primeira Categoria
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
