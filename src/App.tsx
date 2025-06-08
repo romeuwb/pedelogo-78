@@ -70,6 +70,7 @@ function App() {
         <div className="min-h-screen bg-gray-100">
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Navigate to="/" replace />} />
             <Route path="/restaurantes" element={<RestaurantsPage />} />
             <Route path="/promocoes" element={<PromotionsPage />} />
             <Route path="/dashboard" element={

@@ -15,8 +15,8 @@ const ClientApp = () => {
 
   useEffect(() => {
     if (!user) {
-      // Redirect to login if not authenticated
-      window.location.href = '/auth';
+      // Redirect to home page if not authenticated
+      window.location.href = '/';
     }
   }, [user]);
 
