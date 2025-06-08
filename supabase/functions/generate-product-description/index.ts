@@ -27,7 +27,17 @@ serve(async (req) => {
       );
     }
 
-    const { productName, category, price } = await req.json();
+    const { 
+      productName, 
+      ingredients = [], 
+      category = '', 
+      nutritionalInfo = {}, 
+      calories = 0,
+      isVegetarian = false,
+      isVegan = false,
+      isGlutenFree = false,
+      isLactoseFree = false
+    } = await req.json();
 
     if (!productName) {
       return new Response(
@@ -41,14 +51,53 @@ serve(async (req) => {
 
     console.log('Gerando descrição para produto:', productName);
 
-    const prompt = `Crie uma descrição atrativa e apetitosa para o produto de comida "${productName}" ${category ? `da categoria ${category}` : ''} ${price ? `com preço de R$ ${price}` : ''}. 
+    // Construir informações adicionais
+    let additionalInfo = '';
+    
+    if (ingredients.length > 0) {
+      additionalInfo += `\nIngredientes principais: ${ingredients.join(', ')}`;
+    }
+    
+    if (calories > 0) {
+      additionalInfo += `\nCalorias: ${calories} kcal`;
+    }
+    
+    if (nutritionalInfo.proteinas) {
+      additionalInfo += `\nProteínas: ${nutritionalInfo.proteinas}g`;
+    }
+    
+    if (nutritionalInfo.carboidratos) {
+      additionalInfo += `\nCarboidratos: ${nutritionalInfo.carboidratos}g`;
+    }
+    
+    if (nutritionalInfo.gorduras) {
+      additionalInfo += `\nGorduras: ${nutritionalInfo.gorduras}g`;
+    }
+
+    // Características especiais
+    const specialFeatures = [];
+    if (isVegetarian) specialFeatures.push('vegetariano');
+    if (isVegan) specialFeatures.push('vegano');
+    if (isGlutenFree) specialFeatures.push('sem glúten');
+    if (isLactoseFree) specialFeatures.push('sem lactose');
+    
+    if (specialFeatures.length > 0) {
+      additionalInfo += `\nCaracterísticas especiais: ${specialFeatures.join(', ')}`;
+    }
+
+    const prompt = `Crie uma descrição atrativa, detalhada e apetitosa para o produto de comida "${productName}" ${category ? `da categoria ${category}` : ''}.
+
+${additionalInfo}
 
 A descrição deve:
-- Ter entre 80-150 caracteres
-- Ser apetitosa e convidativa
-- Destacar ingredientes ou características especiais
-- Ser adequada para um cardápio de delivery
-- Usar linguagem brasileira informal mas profissional
+- Ter entre 120-200 caracteres
+- Ser extremamente apetitosa e convidativa
+- Destacar sabores, texturas e aromas
+- Mencionar ingredientes especiais se houver
+- Incluir benefícios nutricionais se relevante
+- Ser adequada para um cardápio de delivery/restaurante
+- Usar linguagem brasileira calorosa e profissional
+- Despertar o desejo de consumo no cliente
 
 Retorne apenas a descrição, sem aspas ou formatação adicional.`;
 
@@ -63,12 +112,12 @@ Retorne apenas a descrição, sem aspas ou formatação adicional.`;
         messages: [
           { 
             role: 'system', 
-            content: 'Você é um especialista em criar descrições atrativas para produtos alimentícios em aplicativos de delivery. Suas descrições são sempre apetitosas, concisas e eficazes para aumentar as vendas.'
+            content: 'Você é um especialista em gastronomia e marketing culinário. Suas descrições são irresistíveis e fazem os clientes desejarem o produto imediatamente. Você conhece técnicas de copywriting para vendas no setor alimentício.'
           },
           { role: 'user', content: prompt }
         ],
-        max_tokens: 200,
-        temperature: 0.7,
+        max_tokens: 300,
+        temperature: 0.8,
       }),
     });
 

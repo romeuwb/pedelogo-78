@@ -218,10 +218,10 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
   };
 
   const generateDescriptionWithAI = async () => {
-    if (!formData.nome || formData.ingredientes.length === 0) {
+    if (!formData.nome) {
       toast({
         title: "Erro",
-        description: "Nome do produto e ingredientes são necessários para gerar descrição.",
+        description: "Nome do produto é necessário para gerar descrição.",
         variant: "destructive"
       });
       return;
@@ -230,30 +230,52 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
     setIsGeneratingDescription(true);
     
     try {
+      console.log('Iniciando geração de descrição com dados:', {
+        nome: formData.nome,
+        ingredientes: formData.ingredientes,
+        informacoes_nutricionais: formData.informacoes_nutricionais,
+        categoria: categories?.find(c => c.id === formData.category_id)?.nome || ''
+      });
+
       const response = await supabase.functions.invoke('generate-product-description', {
         body: {
-          nome: formData.nome,
-          ingredientes: formData.ingredientes,
-          categoria: categories?.find(c => c.id === formData.category_id)?.nome || '',
-          informacoes_nutricionais: formData.informacoes_nutricionais
+          productName: formData.nome,
+          ingredients: formData.ingredientes,
+          category: categories?.find(c => c.id === formData.category_id)?.nome || '',
+          nutritionalInfo: formData.informacoes_nutricionais,
+          calories: formData.calorias,
+          isVegetarian: formData.vegetariano,
+          isVegan: formData.vegano,
+          isGlutenFree: formData.livre_gluten,
+          isLactoseFree: formData.livre_lactose
         }
       });
 
-      if (response.error) throw response.error;
+      console.log('Resposta da função:', response);
 
-      setFormData({
-        ...formData,
-        descricao: response.data.description
-      });
+      if (response.error) {
+        console.error('Erro da função:', response.error);
+        throw response.error;
+      }
 
-      toast({
-        title: "Sucesso",
-        description: "Descrição gerada com IA!",
-      });
+      if (response.data && response.data.description) {
+        setFormData({
+          ...formData,
+          descricao: response.data.description
+        });
+
+        toast({
+          title: "Sucesso",
+          description: "Descrição gerada com IA!",
+        });
+      } else {
+        throw new Error('Resposta inválida da função');
+      }
     } catch (error: any) {
+      console.error('Erro completo:', error);
       toast({
         title: "Erro",
-        description: "Erro ao gerar descrição: " + error.message,
+        description: "Erro ao gerar descrição: " + (error.message || 'Erro desconhecido'),
         variant: "destructive"
       });
     } finally {
@@ -442,7 +464,7 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
                 variant="outline"
                 size="sm"
                 onClick={generateDescriptionWithAI}
-                disabled={isGeneratingDescription || !formData.nome || formData.ingredientes.length === 0}
+                disabled={isGeneratingDescription || !formData.nome}
               >
                 <Sparkles className="h-4 w-4 mr-2" />
                 {isGeneratingDescription ? 'Gerando...' : 'Gerar com IA'}
@@ -451,7 +473,7 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
             <Textarea
               value={formData.descricao}
               onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-              placeholder="Descreva o produto..."
+              placeholder="Descreva o produto... ou use o botão 'Gerar com IA' para criar automaticamente"
               rows={3}
             />
           </div>
