@@ -47,7 +47,6 @@ interface ProductFormData {
   disponivel: boolean;
   ativo: boolean;
   favorito: boolean;
-  peso_volume: string;
   informacoes_nutricionais: {
     proteinas?: number;
     carboidratos?: number;
@@ -77,7 +76,6 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
     disponivel: true,
     ativo: true,
     favorito: false,
-    peso_volume: '',
     informacoes_nutricionais: {}
   });
 
@@ -186,7 +184,6 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
         disponivel: existingProduct.disponivel !== false,
         ativo: existingProduct.ativo !== false,
         favorito: existingProduct.favorito || false,
-        peso_volume: (existingProduct as any).peso_volume || '',
         informacoes_nutricionais: (existingProduct as any).informacoes_nutricionais || {}
       });
       
@@ -218,6 +215,50 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
     }
     
     setShowGlobalSearch(false);
+  };
+
+  const generateDescriptionWithAI = async () => {
+    if (!formData.nome || formData.ingredientes.length === 0) {
+      toast({
+        title: "Erro",
+        description: "Nome do produto e ingredientes são necessários para gerar descrição.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGeneratingDescription(true);
+    
+    try {
+      const response = await supabase.functions.invoke('generate-product-description', {
+        body: {
+          nome: formData.nome,
+          ingredientes: formData.ingredientes,
+          categoria: categories?.find(c => c.id === formData.category_id)?.nome || '',
+          informacoes_nutricionais: formData.informacoes_nutricionais
+        }
+      });
+
+      if (response.error) throw response.error;
+
+      setFormData({
+        ...formData,
+        descricao: response.data.description
+      });
+
+      toast({
+        title: "Sucesso",
+        description: "Descrição gerada com IA!",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: "Erro ao gerar descrição: " + error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingDescription(false);
+    }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -328,23 +369,25 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
             <Package className="h-5 w-5 mr-2" />
             {productId ? 'Editar Produto' : 'Novo Produto'}
           </div>
-          <Dialog open={showGlobalSearch} onOpenChange={setShowGlobalSearch}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Search className="h-4 w-4 mr-2" />
-                Buscar Produtos Globais
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Produtos Globais</DialogTitle>
-              </DialogHeader>
-              <GlobalProductSearch
-                onSelectProduct={handleGlobalProductSelect}
-                onClose={() => setShowGlobalSearch(false)}
-              />
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-2">
+            <Dialog open={showGlobalSearch} onOpenChange={setShowGlobalSearch}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Search className="h-4 w-4 mr-2" />
+                  Buscar Produtos Globais
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Produtos Globais</DialogTitle>
+                </DialogHeader>
+                <GlobalProductSearch
+                  onSelectProduct={handleGlobalProductSelect}
+                  onClose={() => setShowGlobalSearch(false)}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -390,9 +433,21 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Descrição
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium">
+                Descrição
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={generateDescriptionWithAI}
+                disabled={isGeneratingDescription || !formData.nome || formData.ingredientes.length === 0}
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                {isGeneratingDescription ? 'Gerando...' : 'Gerar com IA'}
+              </Button>
+            </div>
             <Textarea
               value={formData.descricao}
               onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
@@ -402,7 +457,7 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
           </div>
 
           {/* Preços */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">
                 Preço de Venda (R$) *
@@ -448,16 +503,69 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Peso/Volume
-              </label>
-              <Input
-                value={formData.peso_volume}
-                onChange={(e) => setFormData({ ...formData, peso_volume: e.target.value })}
-                placeholder="Ex: 300g, 500ml"
-              />
+          {/* Informações Nutricionais */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Informações Nutricionais</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Calorias</label>
+                <Input
+                  type="number"
+                  value={formData.calorias}
+                  onChange={(e) => setFormData({ ...formData, calorias: parseInt(e.target.value) || 0 })}
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Proteínas (g)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={formData.informacoes_nutricionais.proteinas || ''}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    informacoes_nutricionais: { 
+                      ...formData.informacoes_nutricionais, 
+                      proteinas: parseFloat(e.target.value) || undefined 
+                    }
+                  })}
+                  placeholder="0.0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Carboidratos (g)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={formData.informacoes_nutricionais.carboidratos || ''}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    informacoes_nutricionais: { 
+                      ...formData.informacoes_nutricionais, 
+                      carboidratos: parseFloat(e.target.value) || undefined 
+                    }
+                  })}
+                  placeholder="0.0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Gorduras (g)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={formData.informacoes_nutricionais.gorduras || ''}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    informacoes_nutricionais: { 
+                      ...formData.informacoes_nutricionais, 
+                      gorduras: parseFloat(e.target.value) || undefined 
+                    }
+                  })}
+                  placeholder="0.0"
+                />
+              </div>
             </div>
           </div>
 
@@ -546,6 +654,42 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
                 onCheckedChange={(checked) => setFormData({ ...formData, favorito: checked })}
               />
               <label className="text-sm">Produto em Destaque</label>
+            </div>
+          </div>
+
+          {/* Tempo de Preparo */}
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Tempo de Preparo (minutos)
+            </label>
+            <Input
+              type="number"
+              value={formData.tempo_preparo}
+              onChange={(e) => setFormData({ ...formData, tempo_preparo: parseInt(e.target.value) || 0 })}
+              placeholder="0"
+            />
+          </div>
+
+          {/* Upload de Imagem */}
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Imagem do Produto
+            </label>
+            <div className="space-y-2">
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+              />
+              {imagePreview && (
+                <div className="mt-2">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-32 h-32 object-cover rounded-lg"
+                  />
+                </div>
+              )}
             </div>
           </div>
 

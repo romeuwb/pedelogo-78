@@ -2,22 +2,12 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  BarChart3, 
-  Users, 
-  Package, 
-  Settings, 
-  MapPin, 
-  MessageSquare,
-  Calculator,
-  Utensils,
-  ClipboardList
-} from 'lucide-react';
+import { BarChart3, Users, Package, Settings, MapPin, MessageSquare, Calculator, ClipboardList } from 'lucide-react';
 import { RestaurantMenuPanel } from './RestaurantMenuPanel';
 import { DeliveryRouteOptimizer } from './DeliveryRouteOptimizer';
 import { RestaurantSettings } from './RestaurantSettings';
 import { CustomerCommunication } from './CustomerCommunication';
-import TableManagementPage from './TableManagementPage';
+import { TableManagementPage } from './TableManagementPage';
 import { POSSystemPage } from './POSSystemPage';
 
 interface RestaurantDashboardProps {
@@ -65,128 +55,87 @@ const RestaurantDashboard = ({ restaurantId }: RestaurantDashboardProps) => {
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Pedidos Hoje</CardTitle>
                 <ClipboardList className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">127</div>
-                <p className="text-xs text-muted-foreground">+12% desde ontem</p>
+                <div className="text-2xl font-bold">24</div>
+                <p className="text-xs text-muted-foreground">+12% em relação a ontem</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Receita Hoje</CardTitle>
+                <CardTitle className="text-sm font-medium">Faturamento Hoje</CardTitle>
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">R$ 3.847</div>
-                <p className="text-xs text-muted-foreground">+8% desde ontem</p>
+                <div className="text-2xl font-bold">R$ 1.234,56</div>
+                <p className="text-xs text-muted-foreground">+8% em relação a ontem</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Mesas Ocupadas</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">18/24</div>
-                <p className="text-xs text-muted-foreground">75% ocupação</p>
+                <div className="text-2xl font-bold">8/12</div>
+                <p className="text-xs text-muted-foreground">67% de ocupação</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Produtos Ativos</CardTitle>
+                <CardTitle className="text-sm font-medium">Itens no Cardápio</CardTitle>
                 <Package className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">156</div>
-                <p className="text-xs text-muted-foreground">12 categorias</p>
+                <div className="text-2xl font-bold">48</div>
+                <p className="text-xs text-muted-foreground">3 novos esta semana</p>
               </CardContent>
             </Card>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 mt-6">
+          <div className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Pedidos Recentes</CardTitle>
+                <CardTitle>Vendas por Período</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {[
-                    { id: '#001', cliente: 'João Silva', valor: 'R$ 45,90', status: 'Preparando' },
-                    { id: '#002', cliente: 'Maria Santos', valor: 'R$ 32,50', status: 'Pronto' },
-                    { id: '#003', cliente: 'Pedro Costa', valor: 'R$ 78,20', status: 'Entregue' },
-                  ].map((pedido) => (
-                    <div key={pedido.id} className="flex items-center justify-between p-3 border rounded">
-                      <div>
-                        <p className="font-medium">{pedido.id} - {pedido.cliente}</p>
-                        <p className="text-sm text-gray-500">{pedido.valor}</p>
-                      </div>
-                      <span className={`px-2 py-1 text-xs rounded ${
-                        pedido.status === 'Preparando' ? 'bg-yellow-100 text-yellow-800' :
-                        pedido.status === 'Pronto' ? 'bg-green-100 text-green-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
-                        {pedido.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Produtos Mais Vendidos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {[
-                    { nome: 'Pizza Margherita', vendas: 24, receita: 'R$ 456,00' },
-                    { nome: 'Hambúrguer Artesanal', vendas: 18, receita: 'R$ 324,00' },
-                    { nome: 'Lasanha Bolonhesa', vendas: 15, receita: 'R$ 285,00' },
-                  ].map((produto, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded">
-                      <div>
-                        <p className="font-medium">{produto.nome}</p>
-                        <p className="text-sm text-gray-500">{produto.vendas} vendas</p>
-                      </div>
-                      <span className="font-semibold">{produto.receita}</span>
-                    </div>
-                  ))}
+                <div className="h-64 flex items-center justify-center text-gray-500">
+                  Gráfico de vendas será exibido aqui
                 </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="menu">
+        <TabsContent value="menu" className="mt-6">
           <RestaurantMenuPanel restaurantId={restaurantId} />
         </TabsContent>
 
-        <TabsContent value="tables">
+        <TabsContent value="tables" className="mt-6">
           <TableManagementPage restaurantId={restaurantId} />
         </TabsContent>
 
-        <TabsContent value="pos">
+        <TabsContent value="pos" className="mt-6">
           <POSSystemPage restaurantId={restaurantId} />
         </TabsContent>
 
-        <TabsContent value="routes">
+        <TabsContent value="routes" className="mt-6">
           <DeliveryRouteOptimizer restaurantId={restaurantId} />
         </TabsContent>
 
-        <TabsContent value="communication">
+        <TabsContent value="communication" className="mt-6">
           <CustomerCommunication restaurantId={restaurantId} />
         </TabsContent>
 
-        <TabsContent value="settings">
+        <TabsContent value="settings" className="mt-6">
           <RestaurantSettings restaurantId={restaurantId} />
         </TabsContent>
       </Tabs>
