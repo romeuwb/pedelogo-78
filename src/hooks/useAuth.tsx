@@ -38,15 +38,33 @@ const cleanupAuthState = () => {
   }
 };
 
-// Função para redirecionar todos os usuários para dashboard
-const redirectToDashboard = () => {
-  console.log('Redirecionando para dashboard');
+// Função para redirecionar baseado no tipo de usuário
+const redirectBasedOnUserType = (userType: string) => {
+  console.log('Redirecionando baseado no tipo:', userType);
   
   // Verificar se já está na rota correta
   const currentPath = window.location.pathname;
   
-  if (currentPath !== '/dashboard') {
-    window.location.href = '/dashboard';
+  let targetPath = '';
+  switch (userType) {
+    case 'cliente':
+      targetPath = '/cliente/dashboard';
+      break;
+    case 'restaurante':
+      targetPath = '/restaurante/dashboard';
+      break;
+    case 'entregador':
+      targetPath = '/entregador/dashboard';
+      break;
+    case 'admin':
+      targetPath = '/painel-admin/dashboard';
+      break;
+    default:
+      targetPath = '/cliente/dashboard';
+  }
+  
+  if (!currentPath.startsWith(targetPath)) {
+    window.location.href = targetPath;
   }
 };
 
@@ -160,9 +178,9 @@ export const useAuth = () => {
             } else {
               console.log('Perfil criado:', createdProfile);
               setProfile(createdProfile);
-              // Redirecionar para dashboard após criar perfil
+              // Redirecionar baseado no tipo após criar perfil
               setTimeout(() => {
-                redirectToDashboard();
+                redirectBasedOnUserType(createdProfile.tipo);
               }, 500);
             }
           }
@@ -174,11 +192,11 @@ export const useAuth = () => {
       console.log('Perfil carregado:', data);
       setProfile(data);
       
-      // Redirecionar para dashboard se estiver na página inicial
+      // Redirecionar baseado no tipo se estiver na página inicial
       const currentPath = window.location.pathname;
       if (currentPath === '/') {
         setTimeout(() => {
-          redirectToDashboard();
+          redirectBasedOnUserType(data.tipo);
         }, 500);
       }
       

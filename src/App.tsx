@@ -1,67 +1,28 @@
 
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
-import { useAuth } from '@/hooks/useAuth';
 
 import Index from '@/pages/Index';
-import Dashboard from '@/pages/Dashboard';
-import ClientDashboard from '@/pages/ClientDashboard';
-import AdminDashboard from '@/pages/AdminDashboard';
-import DeliveryDashboard from '@/pages/DeliveryDashboard';
 import RestaurantsPage from '@/pages/RestaurantsPage';
 import PromotionsPage from '@/pages/PromotionsPage';
 import ResetPassword from '@/pages/ResetPassword';
 import NotFound from '@/pages/NotFound';
 
+// Dashboards
+import ClientApp from '@/components/client/ClientApp';
+import RestaurantDashboard from '@/components/restaurant/RestaurantDashboard';
+import DeliveryDashboard from '@/pages/DeliveryDashboard';
+import AdminDashboard from '@/pages/AdminDashboard';
+
+// Protected Routes
+import { ClientProtectedRoute } from '@/components/auth/ClientProtectedRoute';
+import { RestaurantProtectedRoute } from '@/components/auth/RestaurantProtectedRoute';
+import { DeliveryProtectedRoute } from '@/components/auth/DeliveryProtectedRoute';
+import { AdminProtectedRoute } from '@/components/auth/AdminProtectedRoute';
+
 const queryClient = new QueryClient();
-
-// Component to handle protected routes
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, profile, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
-
-  if (!user || !profile) {
-    return <Navigate to="/" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-// Component to render the correct dashboard based on user type
-const DashboardRouter = () => {
-  const { profile } = useAuth();
-
-  if (!profile) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
-
-  // Renderizar o dashboard apropriado baseado no tipo de usuário
-  switch (profile.tipo) {
-    case 'cliente':
-      return <ClientDashboard />;
-    case 'restaurante':
-      return <Dashboard />;
-    case 'entregador':
-      return <DeliveryDashboard />;
-    case 'admin':
-      return <Dashboard />; // Admin também vê o dashboard por padrão
-    default:
-      return <Dashboard />;
-  }
-};
 
 function App() {
   return (
@@ -69,20 +30,41 @@ function App() {
       <Router>
         <div className="min-h-screen bg-gray-100">
           <Routes>
+            {/* Public routes */}
             <Route path="/" element={<Index />} />
             <Route path="/restaurantes" element={<RestaurantsPage />} />
             <Route path="/promocoes" element={<PromotionsPage />} />
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <DashboardRouter />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin" element={
-              <ProtectedRoute>
-                <AdminDashboard />
-              </ProtectedRoute>
-            } />
             <Route path="/reset-password" element={<ResetPassword />} />
+
+            {/* Cliente Dashboard */}
+            <Route path="/cliente/dashboard/*" element={
+              <ClientProtectedRoute>
+                <ClientApp />
+              </ClientProtectedRoute>
+            } />
+
+            {/* Restaurante Dashboard */}
+            <Route path="/restaurante/dashboard/*" element={
+              <RestaurantProtectedRoute>
+                <RestaurantDashboard restaurantId="current-restaurant" />
+              </RestaurantProtectedRoute>
+            } />
+
+            {/* Entregador Dashboard */}
+            <Route path="/entregador/dashboard/*" element={
+              <DeliveryProtectedRoute>
+                <DeliveryDashboard />
+              </DeliveryProtectedRoute>
+            } />
+
+            {/* Admin Dashboard */}
+            <Route path="/painel-admin/dashboard/*" element={
+              <AdminProtectedRoute>
+                <AdminDashboard />
+              </AdminProtectedRoute>
+            } />
+
+            {/* Catch all */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

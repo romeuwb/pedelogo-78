@@ -25,17 +25,22 @@ const Header = () => {
   const handleProfileClick = () => {
     console.log('Profile type:', profile?.tipo);
     
-    if (profile?.tipo === 'cliente') {
-      navigate('/client-dashboard');
-    } else if (profile?.tipo === 'restaurante') {
-      console.log('Redirecting restaurant to dashboard');
-      navigate('/dashboard');
-    } else if (profile?.tipo === 'entregador') {
-      navigate('/delivery-dashboard');
-    } else {
-      // Fallback baseado no usuário logado
-      console.log('Fallback to dashboard for authenticated user');
-      navigate('/dashboard');
+    // Redirecionar para o dashboard específico baseado no tipo
+    switch (profile?.tipo) {
+      case 'cliente':
+        navigate('/cliente/dashboard');
+        break;
+      case 'restaurante':
+        navigate('/restaurante/dashboard');
+        break;
+      case 'entregador':
+        navigate('/entregador/dashboard');
+        break;
+      case 'admin':
+        navigate('/painel-admin/dashboard');
+        break;
+      default:
+        navigate('/cliente/dashboard');
     }
   };
 
@@ -101,7 +106,8 @@ const Header = () => {
                     >
                       <User className="h-4 w-4" />
                       <span className="hidden sm:inline">
-                        {profile?.tipo === 'restaurante' ? 'Dashboard' : 'Meu Perfil'}
+                        {profile?.tipo === 'restaurante' ? 'Dashboard' : 
+                         profile?.tipo === 'admin' ? 'Painel Admin' : 'Meu Perfil'}
                       </span>
                     </Button>
                     <Button
@@ -179,7 +185,8 @@ const Header = () => {
                       className="justify-start"
                     >
                       <User className="h-4 w-4 mr-2" />
-                      {profile?.tipo === 'restaurante' ? 'Dashboard' : 'Meu Perfil'}
+                      {profile?.tipo === 'restaurante' ? 'Dashboard' : 
+                       profile?.tipo === 'admin' ? 'Painel Admin' : 'Meu Perfil'}
                     </Button>
                     <Button
                       variant="outline"
