@@ -6,7 +6,6 @@ import { Toaster } from '@/components/ui/toaster';
 import { useAuth } from '@/hooks/useAuth';
 
 import Index from '@/pages/Index';
-import Dashboard from '@/pages/Dashboard';
 import ClientDashboard from '@/pages/ClientDashboard';
 import AdminDashboard from '@/pages/AdminDashboard';
 import DeliveryDashboard from '@/pages/DeliveryDashboard';
@@ -14,6 +13,7 @@ import RestaurantsPage from '@/pages/RestaurantsPage';
 import PromotionsPage from '@/pages/PromotionsPage';
 import ResetPassword from '@/pages/ResetPassword';
 import NotFound from '@/pages/NotFound';
+import RestaurantDashboard from '@/components/restaurant/RestaurantDashboard';
 
 const queryClient = new QueryClient();
 
@@ -38,7 +38,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Component to render the correct dashboard based on user type
 const DashboardRouter = () => {
-  const { profile, loading } = useAuth();
+  const { profile, loading, user } = useAuth();
 
   if (loading) {
     return (
@@ -48,17 +48,22 @@ const DashboardRouter = () => {
     );
   }
 
-  if (!profile) {
+  if (!profile || !user) {
     return <Navigate to="/" replace />;
   }
 
-  console.log('DashboardRouter - profile.tipo:', profile.tipo);
-
+  // Renderizar diretamente o dashboard correto baseado no tipo do usuário
   switch (profile.tipo) {
     case 'cliente':
       return <ClientDashboard />;
     case 'restaurante':
-      return <Dashboard />;
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+            <RestaurantDashboard restaurantId={user.id} />
+          </div>
+        </div>
+      );
     case 'entregador':
       return <DeliveryDashboard />;
     case 'admin':
