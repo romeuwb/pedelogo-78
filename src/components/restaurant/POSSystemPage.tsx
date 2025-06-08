@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, ShoppingCart, Users, Package, DollarSign, Search, Trash2, Calculator } from 'lucide-react';
+import { Plus, ShoppingCart, Users, Package, DollarSign, Search, Trash2, Calculator, Table, CreditCard } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
 interface POSSystemPageProps {
@@ -21,10 +22,13 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showTableOrdersModal, setShowTableOrdersModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('dinheiro');
   const [customerName, setCustomerName] = useState('');
   const [tableNumber, setTableNumber] = useState<number | null>(null);
   const [orderType, setOrderType] = useState<'mesa' | 'balcao'>('balcao');
+  const [valorPago, setValorPago] = useState<string>('');
+  const [mostrarTroco, setMostrarTroco] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -73,10 +77,29 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
     }
   });
 
+  // Buscar pedidos de mesa aguardando pagamento
+  const { data: pendingTableOrders } = useQuery({
+    queryKey: ['pending-table-orders', restaurantId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('pos_orders')
+        .select(`
+          *,
+          pos_order_items (*)
+        `)
+        .eq('restaurant_id', restaurantId)
+        .eq('tipo_pedido', 'mesa')
+        .eq('status', 'aguardando_pagamento')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
   // Criar pedido POS
   const createPOSOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
-      // Criar o pedido POS
       const { data: posOrder, error: orderError } = await supabase
         .from('pos_orders')
         .insert({
@@ -94,7 +117,6 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
 
       if (orderError) throw orderError;
 
-      // Inserir itens do pedido
       if (orderItems.length > 0) {
         const { error: itemsError } = await supabase
           .from('pos_order_items')
@@ -119,11 +141,37 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
       setOrderItems([]);
       setCustomerName('');
       setTableNumber(null);
+      setValorPago('');
+      setMostrarTroco(false);
       setShowPaymentModal(false);
       queryClient.invalidateQueries({ queryKey: ['pos-orders'] });
     },
     onError: (error: any) => {
       toast.error('Erro ao realizar venda: ' + error.message);
+    }
+  });
+
+  // Finalizar pagamento de mesa
+  const finalizarPagamentoMesaMutation = useMutation({
+    mutationFn: async ({ orderId, metodoPagamento, valorPago }: { orderId: string, metodoPagamento: string, valorPago?: number }) => {
+      const { error } = await supabase
+        .from('pos_orders')
+        .update({
+          status: 'finalizado',
+          metodo_pagamento: metodoPagamento,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Pagamento realizado com sucesso!');
+      setShowTableOrdersModal(false);
+      queryClient.invalidateQueries({ queryKey: ['pending-table-orders'] });
+    },
+    onError: (error: any) => {
+      toast.error('Erro ao processar pagamento: ' + error.message);
     }
   });
 
@@ -167,7 +215,13 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
   };
 
   const calculateTotal = () => {
-    return calculateSubtotal(); // Por enquanto sem taxas adicionais
+    return calculateSubtotal();
+  };
+
+  const calculateTroco = () => {
+    const valorPagoNum = parseFloat(valorPago) || 0;
+    const total = calculateTotal();
+    return valorPagoNum > total ? valorPagoNum - total : 0;
   };
 
   const handleFinalizeSale = () => {
@@ -185,16 +239,33 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
   };
 
   const handleConfirmPayment = () => {
+    const valorPagoNum = parseFloat(valorPago) || 0;
+    const total = calculateTotal();
+
+    if (paymentMethod === 'dinheiro' && valorPagoNum < total) {
+      toast.error('Valor pago é inferior ao total da venda');
+      return;
+    }
+
     createPOSOrderMutation.mutate({
       subtotal: calculateSubtotal(),
       total: calculateTotal()
     });
   };
 
+  const handleValorPagoChange = (value: string) => {
+    setValorPago(value);
+    const valorNum = parseFloat(value) || 0;
+    const total = calculateTotal();
+    setMostrarTroco(paymentMethod === 'dinheiro' && valorNum > total);
+  };
+
   const clearOrder = () => {
     setOrderItems([]);
     setCustomerName('');
     setTableNumber(null);
+    setValorPago('');
+    setMostrarTroco(false);
   };
 
   return (
@@ -230,6 +301,15 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
                   ))}
                 </SelectContent>
               </Select>
+
+              <Button
+                onClick={() => setShowTableOrdersModal(true)}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <Table className="h-4 w-4" />
+                Mesas ({pendingTableOrders?.length || 0})
+              </Button>
             </div>
           </div>
 
@@ -443,8 +523,16 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium mb-2">Método de Pagamento</label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <Label htmlFor="metodo-pagamento">Método de Pagamento</Label>
+              <Select value={paymentMethod} onValueChange={(value) => {
+                setPaymentMethod(value);
+                if (value !== 'dinheiro') {
+                  setMostrarTroco(false);
+                  setValorPago('');
+                } else {
+                  handleValorPagoChange(valorPago);
+                }
+              }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -456,6 +544,31 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
                 </SelectContent>
               </Select>
             </div>
+
+            {paymentMethod === 'dinheiro' && (
+              <div>
+                <Label htmlFor="valor-pago">Valor Pago</Label>
+                <Input
+                  id="valor-pago"
+                  type="number"
+                  step="0.01"
+                  placeholder="0,00"
+                  value={valorPago}
+                  onChange={(e) => handleValorPagoChange(e.target.value)}
+                />
+              </div>
+            )}
+
+            {mostrarTroco && (
+              <div className="bg-green-50 p-3 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Troco:</span>
+                  <span className="text-lg font-bold text-green-600">
+                    R$ {calculateTroco().toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            )}
             
             <div className="flex gap-2">
               <Button
@@ -473,6 +586,85 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
                 {createPOSOrderMutation.isPending ? 'Processando...' : 'Confirmar Pagamento'}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Pedidos de Mesa */}
+      <Dialog open={showTableOrdersModal} onOpenChange={setShowTableOrdersModal}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Pedidos de Mesa Aguardando Pagamento</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            {pendingTableOrders?.length === 0 ? (
+              <div className="text-center py-8">
+                <Table className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-600">Nenhum pedido aguardando pagamento</p>
+              </div>
+            ) : (
+              pendingTableOrders?.map((order) => (
+                <Card key={order.id} className="p-4">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h4 className="font-semibold">Mesa {order.numero_mesa}</h4>
+                      <p className="text-sm text-gray-600">Cliente: {order.cliente_nome}</p>
+                      <p className="text-sm text-gray-600">
+                        Pedido: {new Date(order.created_at).toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold">R$ {order.total.toFixed(2)}</p>
+                      <Badge variant="secondary">Aguardando Pagamento</Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1 mb-4">
+                    {order.pos_order_items?.map((item: any) => (
+                      <div key={item.id} className="flex justify-between text-sm">
+                        <span>{item.quantidade}x {item.nome_produto}</span>
+                        <span>R$ {item.preco_total.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => finalizarPagamentoMesaMutation.mutate({
+                        orderId: order.id,
+                        metodoPagamento: 'dinheiro'
+                      })}
+                      className="flex-1"
+                    >
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Dinheiro
+                    </Button>
+                    <Button
+                      onClick={() => finalizarPagamentoMesaMutation.mutate({
+                        orderId: order.id,
+                        metodoPagamento: 'cartao'
+                      })}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Cartão
+                    </Button>
+                    <Button
+                      onClick={() => finalizarPagamentoMesaMutation.mutate({
+                        orderId: order.id,
+                        metodoPagamento: 'pix'
+                      })}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      PIX
+                    </Button>
+                  </div>
+                </Card>
+              ))
+            )}
           </div>
         </DialogContent>
       </Dialog>
