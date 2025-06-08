@@ -11,8 +11,8 @@ import ResetPassword from '@/pages/ResetPassword';
 import NotFound from '@/pages/NotFound';
 
 // Dashboards
-import ClientApp from '@/components/client/ClientApp';
-import RestaurantDashboard from '@/components/restaurant/RestaurantDashboard';
+import ClientDashboard from '@/pages/ClientDashboard';
+import RestaurantDashboardPage from '@/pages/RestaurantDashboard';
 import DeliveryDashboard from '@/pages/DeliveryDashboard';
 import AdminDashboard from '@/pages/AdminDashboard';
 
@@ -39,14 +39,14 @@ function App() {
             {/* Cliente Dashboard */}
             <Route path="/cliente/dashboard/*" element={
               <ClientProtectedRoute>
-                <ClientApp />
+                <ClientDashboard />
               </ClientProtectedRoute>
             } />
 
             {/* Restaurante Dashboard */}
             <Route path="/restaurante/dashboard/*" element={
               <RestaurantProtectedRoute>
-                <RestaurantDashboard restaurantId="current-restaurant" />
+                <RestaurantDashboardPage />
               </RestaurantProtectedRoute>
             } />
 
