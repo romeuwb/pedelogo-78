@@ -23,8 +23,6 @@ const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, profile, loading } = useAuth();
 
-  console.log('ProtectedRoute - User:', !!user, 'Profile:', !!profile, 'Loading:', loading);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -33,34 +31,25 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  // Se não há usuário autenticado, redirecionar para auth
   if (!user) {
-    console.log('No user found, redirecting to auth');
     return <Navigate to="/auth" replace />;
   }
 
-  // Se há usuário mas não há perfil ainda, aguardar um pouco mais ou mostrar erro
+  // Aguardar o perfil carregar
   if (!profile) {
-    console.log('User found but no profile, waiting...');
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p>Carregando perfil...</p>
-        </div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
       </div>
     );
   }
 
-  console.log('User and profile found, rendering protected content');
   return <>{children}</>;
 };
 
 // Component to render the correct dashboard based on user type
 const DashboardRouter = () => {
   const { profile, loading } = useAuth();
-
-  console.log('DashboardRouter - Profile:', profile?.tipo, 'Loading:', loading);
 
   if (loading || !profile) {
     return (
@@ -73,19 +62,14 @@ const DashboardRouter = () => {
   // Renderizar o dashboard apropriado baseado no tipo de usuário
   switch (profile.tipo) {
     case 'cliente':
-      console.log('Rendering ClientDashboard');
       return <ClientDashboard />;
     case 'restaurante':
-      console.log('Rendering Restaurant Dashboard');
       return <Dashboard />;
     case 'entregador':
-      console.log('Rendering DeliveryDashboard');
       return <DeliveryDashboard />;
     case 'admin':
-      console.log('Rendering AdminDashboard');
       return <AdminDashboard />;
     default:
-      console.log('Unknown user type, defaulting to ClientDashboard');
       return <ClientDashboard />;
   }
 };

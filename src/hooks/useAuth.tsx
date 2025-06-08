@@ -47,7 +47,7 @@ export const useAuth = () => {
   useEffect(() => {
     let mounted = true;
 
-    // Configurar listener de mudanças de autenticação PRIMEIRO
+    // Configurar listener de mudanças de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state change:', event, session?.user?.id);
@@ -62,25 +62,22 @@ export const useAuth = () => {
           return;
         }
 
-        if (event === 'SIGNED_IN' && session?.user) {
-          console.log('Usuario logado:', session.user.id);
+        if (session?.user) {
+          console.log('Usuario encontrado:', session.user.id);
           setUser(session.user);
-          // Buscar perfil após login
-          await fetchProfile(session.user.id);
-        }
-
-        if (event === 'TOKEN_REFRESHED' && session?.user) {
-          console.log('Token refreshed para:', session.user.id);
-          setUser(session.user);
-          // Verificar se ainda temos o perfil
-          if (!profile) {
+          
+          // Buscar perfil
+          try {
             await fetchProfile(session.user.id);
+          } catch (error) {
+            console.error('Erro ao buscar perfil:', error);
+            setLoading(false);
           }
         }
       }
     );
 
-    // Verificar sessão existente DEPOIS
+    // Verificar sessão existente
     const initializeAuth = async () => {
       try {
         console.log('Inicializando autenticação...');
@@ -88,7 +85,6 @@ export const useAuth = () => {
         
         if (error) {
           console.error('Erro ao buscar sessão:', error);
-          cleanupAuthState();
           setLoading(false);
           return;
         }
@@ -103,7 +99,6 @@ export const useAuth = () => {
         }
       } catch (error) {
         console.error('Erro na inicialização da autenticação:', error);
-        cleanupAuthState();
         setLoading(false);
       }
     };
