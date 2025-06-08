@@ -11,8 +11,6 @@ const Index = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  console.log('Index component rendered');
-
   return (
     <div className="min-h-screen">
       {/* Hero Section */}

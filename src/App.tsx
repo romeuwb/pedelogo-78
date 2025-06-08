@@ -21,8 +21,6 @@ const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, profile, loading } = useAuth();
 
-  console.log('ProtectedRoute - user:', !!user, 'profile:', !!profile, 'loading:', loading);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -32,7 +30,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user || !profile) {
-    console.log('Redirecting to home - no user or profile');
     return <Navigate to="/" replace />;
   }
 
@@ -43,8 +40,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const DashboardRouter = () => {
   const { profile } = useAuth();
 
-  console.log('DashboardRouter - profile:', profile);
-
   if (!profile) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -53,7 +48,6 @@ const DashboardRouter = () => {
     );
   }
 
-  // Renderizar o dashboard apropriado baseado no tipo de usuário
   switch (profile.tipo) {
     case 'cliente':
       return <ClientDashboard />;
@@ -62,15 +56,13 @@ const DashboardRouter = () => {
     case 'entregador':
       return <DeliveryDashboard />;
     case 'admin':
-      return <Dashboard />; // Admin também vê o dashboard por padrão
+      return <Dashboard />;
     default:
       return <Dashboard />;
   }
 };
 
 function App() {
-  console.log('App component rendered');
-
   return (
     <QueryClientProvider client={queryClient}>
       <Router>

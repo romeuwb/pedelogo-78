@@ -10,18 +10,27 @@ import ClientProfile from './ClientProfile';
 import ClientSearch from './ClientSearch';
 
 const ClientApp = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
 
-  useEffect(() => {
-    if (!user) {
-      // Redirect to home page if not authenticated
-      window.location.href = '/';
-    }
-  }, [user]);
+  // Não redirecionar aqui, deixar o App.tsx gerenciar
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   if (!user) {
-    return <div>Carregando...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Sessão expirada</h2>
+          <p className="text-gray-600">Redirecionando...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
