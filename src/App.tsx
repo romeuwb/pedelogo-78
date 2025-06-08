@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { useAuth } from '@/hooks/useAuth';
+import Header from '@/components/Header';
 
 import Index from '@/pages/Index';
 import Dashboard from '@/pages/Dashboard';
@@ -63,18 +64,50 @@ const DashboardRouter = () => {
   }
 };
 
+// Layout wrapper for pages that need header
+const LayoutWithHeader = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <>
+      <Header />
+      {children}
+    </>
+  );
+};
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
         <div className="min-h-screen bg-gray-100">
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/restaurantes" element={<RestaurantsPage />} />
-            <Route path="/promocoes" element={<PromotionsPage />} />
+            <Route path="/" element={
+              <LayoutWithHeader>
+                <Index />
+              </LayoutWithHeader>
+            } />
+            <Route path="/restaurantes" element={
+              <LayoutWithHeader>
+                <RestaurantsPage />
+              </LayoutWithHeader>
+            } />
+            <Route path="/promocoes" element={
+              <LayoutWithHeader>
+                <PromotionsPage />
+              </LayoutWithHeader>
+            } />
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <DashboardRouter />
+              </ProtectedRoute>
+            } />
+            <Route path="/client-dashboard" element={
+              <ProtectedRoute>
+                <ClientDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/delivery-dashboard" element={
+              <ProtectedRoute>
+                <DeliveryDashboard />
               </ProtectedRoute>
             } />
             <Route path="/admin" element={
