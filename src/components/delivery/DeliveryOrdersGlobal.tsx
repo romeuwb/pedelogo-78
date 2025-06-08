@@ -1,22 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { supabase } from '@/integrations/supabase/client';
-import { 
-  MapPin, 
-  Clock, 
-  Phone,
-  Navigation,
-  Package,
-  DollarSign,
-  Star,
-  CheckCircle,
-  AlertTriangle
-} from 'lucide-react';
+import { MapPin, Clock, DollarSign, Package, CheckCircle, X, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import DeliveryOrderDetails from './DeliveryOrderDetails';
 
 interface DeliveryOrdersGlobalProps {
   deliveryDetails: any;
@@ -24,382 +16,475 @@ interface DeliveryOrdersGlobalProps {
   setCurrentOrder: (order: any) => void;
 }
 
-const DeliveryOrdersGlobal = ({ deliveryDetails, currentOrder, setCurrentOrder }: DeliveryOrdersGlobalProps) => {
-  const [availableOrders, setAvailableOrders] = useState([]);
-  const [myOrders, setMyOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedTab, setSelectedTab] = useState('available');
+const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
+  deliveryDetails,
+  currentOrder,
+  setCurrentOrder
+}) => {
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (deliveryDetails) {
-      loadAvailableOrders();
-      loadMyOrders();
-    }
-  }, [deliveryDetails]);
-
-  const loadAvailableOrders = async () => {
-    try {
+  // Buscar pedidos disponíveis
+  const { data: availableOrders, isLoading: loadingAvailable } = useQuery({
+    queryKey: ['available-orders', deliveryDetails?.id],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('orders')
         .select(`
           *,
-          restaurant_details:restaurante_id (nome, endereco, telefone),
+          restaurant_details:restaurante_id (nome_fantasia, endereco, telefone),
           order_items (*),
           profiles:cliente_id (nome, telefone)
         `)
-        .eq('status', 'pronto')
         .is('entregador_id', null)
-        .order('created_at', { ascending: true })
-        .limit(20);
-
-      if (error) throw error;
-      setAvailableOrders(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar pedidos disponíveis:', error);
-      toast.error('Erro ao carregar pedidos disponíveis');
-    }
-  };
-
-  const loadMyOrders = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          restaurant_details:restaurante_id (nome, endereco, telefone),
-          order_items (*),
-          profiles:cliente_id (nome, telefone)
-        `)
-        .eq('entregador_id', deliveryDetails.user_id)
-        .in('status', ['aceito_entregador', 'preparando', 'pronto_retirada', 'saiu_entrega', 'caminho_restaurante', 'chegou_restaurante', 'pedido_retirado', 'caminho_cliente', 'chegou_cliente'])
+        .eq('status', 'confirmado')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setMyOrders(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar meus pedidos:', error);
-      toast.error('Erro ao carregar meus pedidos');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return data || [];
+    },
+    enabled: !!deliveryDetails?.id && deliveryDetails?.status_online,
+    refetchInterval: 10000 // Atualizar a cada 10 segundos
+  });
 
-  const acceptOrder = async (orderId: string) => {
-    try {
-      // Atualizar o pedido para aceito pelo entregador
+  // Buscar pedidos aceitos
+  const { data: acceptedOrders, isLoading: loadingAccepted } = useQuery({
+    queryKey: ['accepted-orders', deliveryDetails?.user_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          restaurant_details:restaurante_id (nome_fantasia, endereco, telefone),
+          order_items (*),
+          profiles:cliente_id (nome, telefone)
+        `)
+        .eq('entregador_id', deliveryDetails?.user_id)
+        .in('status', ['aceito_entregador', 'caminho_restaurante', 'chegou_restaurante', 'pedido_retirado', 'caminho_cliente', 'chegou_cliente'])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!deliveryDetails?.user_id,
+    refetchInterval: 5000 // Atualizar a cada 5 segundos
+  });
+
+  // Buscar histórico de entregas
+  const { data: deliveryHistory, isLoading: loadingHistory } = useQuery({
+    queryKey: ['delivery-history', deliveryDetails?.user_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          restaurant_details:restaurante_id (nome_fantasia),
+          delivery_earnings!inner (valor_total, gorjeta, bonus)
+        `)
+        .eq('entregador_id', deliveryDetails?.user_id)
+        .eq('status', 'entregue')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!deliveryDetails?.user_id
+  });
+
+  // Aceitar pedido
+  const acceptOrderMutation = useMutation({
+    mutationFn: async (orderId: string) => {
       const { error } = await supabase
         .from('orders')
         .update({ 
           entregador_id: deliveryDetails.user_id,
-          status: 'aceito_entregador'
+          status: 'aceito_entregador',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .is('entregador_id', null); // Garantir que ainda não foi aceito
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Pedido aceito com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['available-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['accepted-orders'] });
+    },
+    onError: (error: any) => {
+      toast.error('Erro ao aceitar pedido: ' + error.message);
+    }
+  });
+
+  // Atualizar status do pedido
+  const updateOrderStatusMutation = useMutation({
+    mutationFn: async ({ orderId, newStatus }: { orderId: string; newStatus: string }) => {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
         })
         .eq('id', orderId);
 
       if (error) throw error;
-
-      // Recarregar listas
-      loadAvailableOrders();
-      loadMyOrders();
-      
-      toast.success('Pedido aceito com sucesso!');
-    } catch (error) {
-      console.error('Erro ao aceitar pedido:', error);
-      toast.error('Erro ao aceitar pedido');
+    },
+    onSuccess: () => {
+      toast.success('Status atualizado');
+      queryClient.invalidateQueries({ queryKey: ['accepted-orders'] });
+      if (selectedOrder) {
+        setSelectedOrder({ ...selectedOrder, status: 'updated' });
+      }
+    },
+    onError: (error: any) => {
+      toast.error('Erro ao atualizar status: ' + error.message);
     }
+  });
+
+  const getStatusColor = (status: string) => {
+    const colors = {
+      'confirmado': 'bg-blue-100 text-blue-800',
+      'aceito_entregador': 'bg-green-100 text-green-800',
+      'caminho_restaurante': 'bg-yellow-100 text-yellow-800',
+      'chegou_restaurante': 'bg-orange-100 text-orange-800',
+      'pedido_retirado': 'bg-purple-100 text-purple-800',
+      'caminho_cliente': 'bg-indigo-100 text-indigo-800',
+      'chegou_cliente': 'bg-pink-100 text-pink-800',
+      'entregue': 'bg-green-100 text-green-800'
+    };
+    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  const updateOrderStatus = async (orderId: string, newStatus: string) => {
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', orderId);
-
-      if (error) throw error;
-
-      loadMyOrders();
-      toast.success('Status atualizado com sucesso!');
-    } catch (error) {
-      console.error('Erro ao atualizar status:', error);
-      toast.error('Erro ao atualizar status');
-    }
+  const getStatusText = (status: string) => {
+    const texts = {
+      'confirmado': 'Disponível',
+      'aceito_entregador': 'Aceito',
+      'caminho_restaurante': 'Indo ao restaurante',
+      'chegou_restaurante': 'No restaurante',
+      'pedido_retirado': 'Pedido retirado',
+      'caminho_cliente': 'Indo ao cliente',
+      'chegou_cliente': 'No cliente',
+      'entregue': 'Entregue'
+    };
+    return texts[status as keyof typeof texts] || status;
   };
 
-  const calculateDistance = (endereco: any) => {
-    // Simulação de cálculo de distância - em produção, usar API de mapas
-    return Math.floor(Math.random() * 10) + 1;
+  const calculateDistance = (order: any) => {
+    // Simular cálculo de distância - em produção usar API de mapas
+    return (Math.random() * 10 + 1).toFixed(1);
   };
 
-  const formatAddress = (endereco: any) => {
-    if (typeof endereco === 'string') return endereco;
-    if (typeof endereco === 'object' && endereco) {
-      return `${endereco.rua || endereco.logradouro || ''}, ${endereco.numero || ''} - ${endereco.bairro || ''}, ${endereco.cidade || ''}`;
-    }
-    return 'Endereço não informado';
+  const calculateDeliveryFee = (distance: number) => {
+    // Cálculo simples da taxa - R$ 2,00 base + R$ 0,50 por km
+    return (2 + (distance * 0.5)).toFixed(2);
   };
 
-  if (loading) {
+  if (showDetails && selectedOrder) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Detalhes do Pedido</h2>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowDetails(false);
+              setSelectedOrder(null);
+            }}
+          >
+            <X className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
+        </div>
+        
+        <DeliveryOrderDetails
+          order={selectedOrder}
+          onStatusUpdate={(newStatus) => {
+            updateOrderStatusMutation.mutate({
+              orderId: selectedOrder.id,
+              newStatus
+            });
+          }}
+          onComplete={() => {
+            setShowDetails(false);
+            setSelectedOrder(null);
+            queryClient.invalidateQueries({ queryKey: ['accepted-orders'] });
+          }}
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs defaultValue="available" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="available">
-            Pedidos Disponíveis ({availableOrders.length})
+            Disponíveis ({availableOrders?.length || 0})
           </TabsTrigger>
-          <TabsTrigger value="my-orders">
-            Meus Pedidos ({myOrders.length})
+          <TabsTrigger value="active">
+            Ativos ({acceptedOrders?.length || 0})
+          </TabsTrigger>
+          <TabsTrigger value="history">
+            Histórico
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="available" className="space-y-4">
-          {availableOrders.length === 0 ? (
+          {!deliveryDetails?.status_online ? (
             <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <Package className="h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Nenhum pedido disponível
-                </h3>
+              <CardContent className="p-6 text-center">
+                <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-lg font-medium mb-2">Você está offline</h3>
                 <p className="text-gray-600">
-                  Não há pedidos aguardando entregador no momento
+                  Fique online para ver pedidos disponíveis
+                </p>
+              </CardContent>
+            </Card>
+          ) : loadingAvailable ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+              <p className="mt-2 text-gray-600">Carregando pedidos...</p>
+            </div>
+          ) : availableOrders?.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-lg font-medium mb-2">Nenhum pedido disponível</h3>
+                <p className="text-gray-600">
+                  Aguarde novos pedidos aparecerem
                 </p>
               </CardContent>
             </Card>
           ) : (
-            availableOrders.map((order) => (
-              <Card key={order.id} className="border-blue-200 hover:border-blue-400 transition-colors">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg">
-                        Pedido #{order.id.slice(-8)}
-                      </CardTitle>
-                      <p className="text-sm text-gray-600">
-                        {order.restaurant_details?.nome}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold text-green-600">
-                        R$ {order.total.toFixed(2)}
-                      </div>
-                      <Badge variant="secondary" className="mt-1">
-                        {calculateDistance(order.endereco_entrega)} km
-                      </Badge>
-                    </div>
-                  </div>
-                </CardHeader>
+            <div className="space-y-4">
+              {availableOrders.map((order) => {
+                const distance = parseFloat(calculateDistance(order));
+                const deliveryFee = calculateDeliveryFee(distance);
                 
-                <CardContent className="space-y-4">
-                  {/* Endereços */}
-                  <div className="space-y-2">
-                    <div className="flex items-start space-x-2">
-                      <MapPin className="h-4 w-4 text-blue-600 mt-1" />
-                      <div>
-                        <p className="text-sm font-medium text-blue-800">Retirar em:</p>
-                        <p className="text-sm text-gray-600">{order.restaurant_details?.endereco}</p>
+                return (
+                  <Card key={order.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-semibold">
+                            {order.restaurant_details?.nome_fantasia || 'Restaurante'}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            Pedido #{order.id.slice(-8)}
+                          </p>
+                        </div>
+                        <Badge className={getStatusColor(order.status)}>
+                          {getStatusText(order.status)}
+                        </Badge>
                       </div>
-                    </div>
-                    
-                    <div className="flex items-start space-x-2">
-                      <MapPin className="h-4 w-4 text-green-600 mt-1" />
-                      <div>
-                        <p className="text-sm font-medium text-green-800">Entregar em:</p>
-                        <p className="text-sm text-gray-600">{formatAddress(order.endereco_entrega)}</p>
+                      
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="flex items-center space-x-2">
+                          <DollarSign className="h-4 w-4 text-green-500" />
+                          <div>
+                            <p className="text-sm text-gray-600">Valor do pedido</p>
+                            <p className="font-medium">R$ {order.total.toFixed(2)}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <MapPin className="h-4 w-4 text-blue-500" />
+                          <div>
+                            <p className="text-sm text-gray-600">Distância</p>
+                            <p className="font-medium">{distance} km</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Clock className="h-4 w-4 text-orange-500" />
+                          <div>
+                            <p className="text-sm text-gray-600">Há</p>
+                            <p className="font-medium">
+                              {Math.floor((Date.now() - new Date(order.created_at).getTime()) / (1000 * 60))} min
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <DollarSign className="h-4 w-4 text-purple-500" />
+                          <div>
+                            <p className="text-sm text-gray-600">Ganho estimado</p>
+                            <p className="font-medium text-green-600">R$ {deliveryFee}</p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Cliente */}
-                  <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium">Cliente:</span>
-                      <span className="text-sm">{order.profiles?.nome}</span>
-                    </div>
-                    {order.profiles?.telefone && (
-                      <Button variant="outline" size="sm">
-                        <Phone className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Itens do pedido */}
-                  <div className="border-t pt-2">
-                    <p className="text-sm font-medium mb-1">Itens:</p>
-                    <div className="text-sm text-gray-600">
-                      {order.order_items?.map((item: any, index: number) => (
-                        <span key={item.id}>
-                          {item.quantidade}x {item.nome_item}
-                          {index < order.order_items.length - 1 && ', '}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Ações */}
-                  <div className="flex space-x-2 pt-2">
-                    <Button 
-                      onClick={() => acceptOrder(order.id)}
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Aceitar Pedido
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Navigation className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                      
+                      <div className="flex space-x-2">
+                        <Button
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setShowDetails(true);
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Ver Detalhes
+                        </Button>
+                        
+                        <Button
+                          onClick={() => acceptOrderMutation.mutate(order.id)}
+                          disabled={acceptOrderMutation.isPending}
+                          size="sm"
+                          className="flex-1"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Aceitar
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           )}
         </TabsContent>
 
-        <TabsContent value="my-orders" className="space-y-4">
-          {myOrders.length === 0 ? (
+        <TabsContent value="active" className="space-y-4">
+          {loadingAccepted ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+              <p className="mt-2 text-gray-600">Carregando pedidos ativos...</p>
+            </div>
+          ) : acceptedOrders?.length === 0 ? (
             <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <Clock className="h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Nenhum pedido ativo
-                </h3>
+              <CardContent className="p-6 text-center">
+                <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-lg font-medium mb-2">Nenhum pedido ativo</h3>
                 <p className="text-gray-600">
-                  Aceite pedidos para começar suas entregas
+                  Aceite pedidos para começar a entregar
                 </p>
               </CardContent>
             </Card>
           ) : (
-            myOrders.map((order) => (
-              <Card key={order.id} className="border-orange-200">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg">
-                        Pedido #{order.id.slice(-8)}
-                      </CardTitle>
-                      <p className="text-sm text-gray-600">
-                        {order.restaurant_details?.nome}
-                      </p>
+            <div className="space-y-4">
+              {acceptedOrders.map((order) => (
+                <Card key={order.id} className="border-orange-200">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="font-semibold">
+                          {order.restaurant_details?.nome_fantasia || 'Restaurante'}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Pedido #{order.id.slice(-8)}
+                        </p>
+                      </div>
+                      <Badge className={getStatusColor(order.status)}>
+                        {getStatusText(order.status)}
+                      </Badge>
                     </div>
-                    <Badge className={getStatusColor(order.status)}>
-                      {getStatusLabel(order.status)}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="space-y-4">
-                  {/* Informações do pedido */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-medium">Valor</p>
-                      <p className="text-lg font-bold text-green-600">R$ {order.total.toFixed(2)}</p>
+                    
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div className="flex items-center space-x-2">
+                        <DollarSign className="h-4 w-4 text-green-500" />
+                        <div>
+                          <p className="text-sm text-gray-600">Valor</p>
+                          <p className="font-medium">R$ {order.total.toFixed(2)}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4 text-orange-500" />
+                        <div>
+                          <p className="text-sm text-gray-600">Aceito há</p>
+                          <p className="font-medium">
+                            {Math.floor((Date.now() - new Date(order.updated_at).getTime()) / (1000 * 60))} min
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">Cliente</p>
-                      <p className="text-sm">{order.profiles?.nome}</p>
-                    </div>
-                  </div>
-
-                  {/* Endereço de entrega */}
-                  <div className="p-2 bg-gray-50 rounded">
-                    <p className="text-sm font-medium mb-1">Entregar em:</p>
-                    <p className="text-sm text-gray-600">{formatAddress(order.endereco_entrega)}</p>
-                  </div>
-
-                  {/* Ações baseadas no status */}
-                  <div className="flex space-x-2">
-                    {getNextActions(order.status).map((action) => (
-                      <Button
-                        key={action.status}
-                        onClick={() => updateOrderStatus(order.id, action.status)}
-                        className={action.primary ? 'flex-1' : ''}
-                        variant={action.primary ? 'default' : 'outline'}
-                      >
-                        {action.icon && <action.icon className="h-4 w-4 mr-2" />}
-                        {action.label}
-                      </Button>
-                    ))}
-                    <Button variant="outline" size="sm">
-                      <Navigation className="h-4 w-4" />
+                    
+                    <Button
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        setShowDetails(true);
+                      }}
+                      className="w-full"
+                      variant="outline"
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Gerenciar Entrega
                     </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-4">
+          {loadingHistory ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+              <p className="mt-2 text-gray-600">Carregando histórico...</p>
+            </div>
+          ) : deliveryHistory?.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-lg font-medium mb-2">Nenhuma entrega realizada</h3>
+                <p className="text-gray-600">
+                  Suas entregas concluídas aparecerão aqui
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {deliveryHistory.map((order) => (
+                <Card key={order.id}>
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="font-semibold">
+                          {order.restaurant_details?.nome_fantasia || 'Restaurante'}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {new Date(order.created_at).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                      <Badge className="bg-green-100 text-green-800">
+                        Entregue
+                      </Badge>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <p className="text-sm text-gray-600">Valor do pedido</p>
+                        <p className="font-medium">R$ {order.total.toFixed(2)}</p>
+                      </div>
+                      
+                      <div className="text-center">
+                        <p className="text-sm text-gray-600">Ganho</p>
+                        <p className="font-medium text-green-600">
+                          R$ {order.delivery_earnings?.[0]?.valor_total?.toFixed(2) || '0.00'}
+                        </p>
+                      </div>
+                      
+                      <div className="text-center">
+                        <p className="text-sm text-gray-600">Gorjeta</p>
+                        <p className="font-medium text-blue-600">
+                          R$ {order.delivery_earnings?.[0]?.gorjeta?.toFixed(2) || '0.00'}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </TabsContent>
       </Tabs>
     </div>
   );
-};
-
-const getStatusColor = (status: string) => {
-  const colors: Record<string, string> = {
-    'aceito_entregador': 'bg-blue-500',
-    'preparando': 'bg-orange-500',
-    'pronto_retirada': 'bg-purple-500',
-    'caminho_restaurante': 'bg-indigo-500',
-    'chegou_restaurante': 'bg-yellow-500',
-    'pedido_retirado': 'bg-cyan-500',
-    'saiu_entrega': 'bg-teal-500',
-    'caminho_cliente': 'bg-green-500',
-    'chegou_cliente': 'bg-emerald-500',
-  };
-  return colors[status] || 'bg-gray-500';
-};
-
-const getStatusLabel = (status: string) => {
-  const labels: Record<string, string> = {
-    'aceito_entregador': 'Aceito',
-    'preparando': 'Preparando',
-    'pronto_retirada': 'Pronto',
-    'caminho_restaurante': 'Indo ao restaurante',
-    'chegou_restaurante': 'No restaurante',
-    'pedido_retirado': 'Pedido retirado',
-    'saiu_entrega': 'Saiu para entrega',
-    'caminho_cliente': 'Indo ao cliente',
-    'chegou_cliente': 'No cliente',
-  };
-  return labels[status] || status;
-};
-
-const getNextActions = (status: string) => {
-  const actions: Record<string, Array<{status: string, label: string, icon?: any, primary?: boolean}>> = {
-    'aceito_entregador': [
-      { status: 'caminho_restaurante', label: 'Saí para o restaurante', icon: Navigation, primary: true }
-    ],
-    'preparando': [
-      { status: 'caminho_restaurante', label: 'Saí para o restaurante', icon: Navigation, primary: true }
-    ],
-    'pronto_retirada': [
-      { status: 'caminho_restaurante', label: 'Saí para o restaurante', icon: Navigation, primary: true }
-    ],
-    'caminho_restaurante': [
-      { status: 'chegou_restaurante', label: 'Cheguei no restaurante', icon: MapPin, primary: true }
-    ],
-    'chegou_restaurante': [
-      { status: 'pedido_retirado', label: 'Pedido retirado', icon: Package, primary: true }
-    ],
-    'pedido_retirado': [
-      { status: 'caminho_cliente', label: 'Saí para o cliente', icon: Navigation, primary: true }
-    ],
-    'saiu_entrega': [
-      { status: 'caminho_cliente', label: 'A caminho do cliente', icon: Navigation, primary: true }
-    ],
-    'caminho_cliente': [
-      { status: 'chegou_cliente', label: 'Cheguei no cliente', icon: MapPin, primary: true }
-    ],
-    'chegou_cliente': [
-      { status: 'entregue', label: 'Pedido entregue', icon: CheckCircle, primary: true }
-    ]
-  };
-  
-  return actions[status] || [];
 };
 
 export default DeliveryOrdersGlobal;
