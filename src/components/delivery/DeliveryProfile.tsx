@@ -1,904 +1,329 @@
+
 import React, { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
+import { User, Truck, MapPin, Phone, Mail, Settings, LogOut, Edit2, DollarSign } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { 
-  User, 
-  Car, 
-  FileText, 
-  CreditCard,
-  Camera,
-  CheckCircle,
-  AlertCircle,
-  Plus,
-  Edit,
-  Trash2,
-  Save,
-  X
-} from 'lucide-react';
-import { toast } from 'sonner';
 
-type VehicleType = 'moto' | 'carro' | 'bicicleta' | 'patinete';
-
-const DeliveryProfile = ({ deliveryDetails, setDeliveryDetails }) => {
-  const { user, profile } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [vehicles, setVehicles] = useState([]);
-  const [documents, setDocuments] = useState([]);
-  const [bankDetails, setBankDetails] = useState(null);
-  const [editingPersonal, setEditingPersonal] = useState(false);
-  const [editingBank, setEditingBank] = useState(false);
-  const [showAddVehicle, setShowAddVehicle] = useState(false);
-  
-  const [personalData, setPersonalData] = useState({
-    nome: '',
-    telefone: '',
-    endereco: '',
-    cidade: '',
-    estado: '',
-    cep: '',
-    cpf: ''
-  });
-
-  const [bankData, setBankData] = useState({
-    banco: '',
-    tipo_conta: 'corrente',
-    agencia: '',
-    conta: '',
-    titular_conta: '',
-    cpf_titular: '',
-    tipo_chave_pix: '',
-    chave_pix: ''
-  });
-
-  const [vehicleData, setVehicleData] = useState({
-    tipo_veiculo: 'moto' as VehicleType,
-    marca: '',
-    modelo: '',
-    ano: new Date().getFullYear(),
-    cor: '',
-    placa: '',
-    renavam: '',
-    principal: false
-  });
+const DeliveryProfile = () => {
+  const { user, signOut } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const [deliveryDetails, setDeliveryDetails] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
-    if (deliveryDetails && profile) {
-      // Combinar dados do delivery_details com profile
-      setPersonalData({
-        nome: profile.nome || deliveryDetails.nome || '',
-        telefone: profile.telefone || deliveryDetails.telefone || '',
-        endereco: deliveryDetails.endereco || '',
-        cidade: deliveryDetails.cidade || '',
-        estado: deliveryDetails.estado || '',
-        cep: deliveryDetails.cep || '',
-        cpf: deliveryDetails.cpf || ''
-      });
-      loadVehicles();
-      loadDocuments();
-      loadBankDetails();
+    if (user) {
+      fetchUserData();
     }
-  }, [deliveryDetails, profile]);
+  }, [user]);
 
-  const loadVehicles = async () => {
+  const fetchUserData = async () => {
     try {
-      const { data, error } = await supabase
-        .from('delivery_vehicles')
+      // Fetch profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
         .select('*')
-        .eq('delivery_detail_id', deliveryDetails.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setVehicles(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar veículos:', error);
-    }
-  };
-
-  const loadDocuments = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('delivery_documents')
-        .select('*')
-        .eq('delivery_detail_id', deliveryDetails.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setDocuments(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar documentos:', error);
-    }
-  };
-
-  const loadBankDetails = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('delivery_bank_details')
-        .select('*')
-        .eq('delivery_detail_id', deliveryDetails.id)
-        .eq('ativo', true)
+        .eq('user_id', user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') throw error;
-      if (data) {
-        setBankDetails(data);
-        setBankData({
-          banco: data.banco || '',
-          tipo_conta: data.tipo_conta || 'corrente',
-          agencia: data.agencia || '',
-          conta: data.conta || '',
-          titular_conta: data.titular_conta || '',
-          cpf_titular: data.cpf_titular || '',
-          tipo_chave_pix: data.tipo_chave_pix || '',
-          chave_pix: data.chave_pix || ''
-        });
-      }
-    } catch (error) {
-      console.error('Erro ao carregar dados bancários:', error);
-    }
-  };
+      if (profileError && profileError.code !== 'PGRST116') throw profileError;
 
-  const updatePersonalData = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      // Atualizar delivery_details
-      const { error: deliveryError } = await supabase
+      // Fetch delivery details
+      const { data: deliveryData, error: deliveryError } = await supabase
         .from('delivery_details')
-        .update({
-          endereco: personalData.endereco,
-          cidade: personalData.cidade,
-          estado: personalData.estado,
-          cep: personalData.cep,
-          cpf: personalData.cpf
-        })
-        .eq('id', deliveryDetails.id);
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      if (deliveryError) throw deliveryError;
+      if (deliveryError && deliveryError.code !== 'PGRST116') throw deliveryError;
 
-      // Atualizar profiles
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          nome: personalData.nome,
-          telefone: personalData.telefone
-        })
-        .eq('user_id', user.id);
-
-      if (profileError) throw profileError;
-
-      setDeliveryDetails({ ...deliveryDetails, ...personalData });
-      setEditingPersonal(false);
-      toast.success('Dados pessoais atualizados');
+      setProfile(profileData);
+      setDeliveryDetails(deliveryData);
     } catch (error) {
-      console.error('Erro ao atualizar dados:', error);
-      toast.error('Erro ao atualizar dados');
+      console.error('Error fetching user data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const saveBankDetails = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      if (bankDetails) {
-        // Atualizar dados existentes
-        const { error } = await supabase
-          .from('delivery_bank_details')
-          .update(bankData)
-          .eq('id', bankDetails.id);
-
-        if (error) throw error;
-      } else {
-        // Criar novos dados bancários
-        const { data, error } = await supabase
-          .from('delivery_bank_details')
-          .insert({
-            delivery_detail_id: deliveryDetails.id,
-            ...bankData
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        setBankDetails(data);
-      }
-      
-      setEditingBank(false);
-      toast.success('Dados bancários salvos');
-      loadBankDetails();
-    } catch (error) {
-      console.error('Erro ao salvar dados bancários:', error);
-      toast.error('Erro ao salvar dados bancários');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const addVehicle = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
+  const updateProfile = async (updates) => {
     try {
       const { error } = await supabase
-        .from('delivery_vehicles')
-        .insert({
-          delivery_detail_id: deliveryDetails.id,
-          tipo_veiculo: vehicleData.tipo_veiculo,
-          marca: vehicleData.marca,
-          modelo: vehicleData.modelo,
-          ano: vehicleData.ano,
-          cor: vehicleData.cor,
-          placa: vehicleData.placa,
-          renavam: vehicleData.renavam,
-          principal: vehicleData.principal
+        .from('profiles')
+        .upsert({
+          user_id: user.id,
+          ...updates
         });
 
       if (error) throw error;
       
-      setShowAddVehicle(false);
-      setVehicleData({
-        tipo_veiculo: 'moto',
-        marca: '',
-        modelo: '',
-        ano: new Date().getFullYear(),
-        cor: '',
-        placa: '',
-        renavam: '',
-        principal: false
-      });
-      loadVehicles();
-      toast.success('Veículo adicionado');
+      setProfile({ ...profile, ...updates });
+      setEditing(false);
     } catch (error) {
-      console.error('Erro ao adicionar veículo:', error);
-      toast.error('Erro ao adicionar veículo');
-    } finally {
-      setLoading(false);
+      console.error('Error updating profile:', error);
     }
   };
 
-  const deleteVehicle = async (vehicleId) => {
+  const updateDeliveryDetails = async (updates) => {
     try {
       const { error } = await supabase
-        .from('delivery_vehicles')
-        .delete()
-        .eq('id', vehicleId);
+        .from('delivery_details')
+        .upsert({
+          user_id: user.id,
+          ...updates
+        });
 
       if (error) throw error;
       
-      loadVehicles();
-      toast.success('Veículo removido');
+      setDeliveryDetails({ ...deliveryDetails, ...updates });
     } catch (error) {
-      console.error('Erro ao remover veículo:', error);
-      toast.error('Erro ao remover veículo');
+      console.error('Error updating delivery details:', error);
     }
   };
 
-  const getDocumentStatusColor = (status) => {
-    const colors = {
-      pendente: 'bg-yellow-100 text-yellow-800',
-      enviado: 'bg-blue-100 text-blue-800',
-      aprovado: 'bg-green-100 text-green-800',
-      rejeitado: 'bg-red-100 text-red-800',
-      expirado: 'bg-gray-100 text-gray-800'
-    };
-    return colors[status] || colors.pendente;
-  };
-
-  const getDocumentStatusIcon = (status) => {
-    if (status === 'aprovado') return <CheckCircle className="h-4 w-4 text-green-600" />;
-    if (status === 'rejeitado') return <AlertCircle className="h-4 w-4 text-red-600" />;
-    return <AlertCircle className="h-4 w-4 text-yellow-600" />;
-  };
+  if (loading) {
+    return (
+      <div className="p-4">
+        <div className="animate-pulse space-y-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-24 bg-gray-200 rounded-lg"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="personal" className="w-full">
+    <div className="p-4 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Perfil do Entregador</h1>
+        <Button variant="ghost" onClick={signOut} className="text-red-600">
+          <LogOut size={20} className="mr-2" />
+          Sair
+        </Button>
+      </div>
+
+      <Tabs defaultValue="profile" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="personal" className="text-xs">
-            <User className="h-4 w-4 mr-1" />
-            Pessoal
-          </TabsTrigger>
-          <TabsTrigger value="vehicles" className="text-xs">
-            <Car className="h-4 w-4 mr-1" />
-            Veículos
-          </TabsTrigger>
-          <TabsTrigger value="documents" className="text-xs">
-            <FileText className="h-4 w-4 mr-1" />
-            Documentos
-          </TabsTrigger>
-          <TabsTrigger value="banking" className="text-xs">
-            <CreditCard className="h-4 w-4 mr-1" />
-            Bancário
-          </TabsTrigger>
+          <TabsTrigger value="profile">Perfil</TabsTrigger>
+          <TabsTrigger value="delivery">Entrega</TabsTrigger>
+          <TabsTrigger value="earnings">Ganhos</TabsTrigger>
+          <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="personal" className="space-y-4">
+        <TabsContent value="profile" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Dados Pessoais</span>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <User size={20} />
+                  Informações Pessoais
+                </CardTitle>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  onClick={() => setEditingPersonal(!editingPersonal)}
+                  onClick={() => setEditing(!editing)}
                 >
-                  {editingPersonal ? <X className="h-4 w-4 mr-1" /> : <Edit className="h-4 w-4 mr-1" />}
-                  {editingPersonal ? 'Cancelar' : 'Editar'}
+                  <Edit2 size={16} />
                 </Button>
-              </CardTitle>
+              </div>
             </CardHeader>
-            <CardContent>
-              {editingPersonal ? (
-                <form onSubmit={updatePersonalData} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+            <CardContent className="space-y-4">
+              {editing ? (
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget as HTMLFormElement);
+                  updateProfile({
+                    nome: formData.get('nome'),
+                    telefone: formData.get('telefone')
+                  });
+                }}>
+                  <div className="space-y-4">
                     <div>
-                      <Label htmlFor="nome">Nome</Label>
+                      <Label htmlFor="nome">Nome completo</Label>
                       <Input
                         id="nome"
-                        value={personalData.nome}
-                        onChange={(e) => setPersonalData({ ...personalData, nome: e.target.value })}
+                        name="nome"
+                        defaultValue={profile?.nome || ''}
                         required
                       />
                     </div>
+                    
+                    <div>
+                      <Label htmlFor="email">E-mail</Label>
+                      <Input
+                        id="email"
+                        value={user.email}
+                        disabled
+                        className="bg-gray-50"
+                      />
+                    </div>
+                    
                     <div>
                       <Label htmlFor="telefone">Telefone</Label>
                       <Input
                         id="telefone"
-                        value={personalData.telefone}
-                        onChange={(e) => setPersonalData({ ...personalData, telefone: e.target.value })}
-                        required
+                        name="telefone"
+                        type="tel"
+                        defaultValue={profile?.telefone || ''}
                       />
                     </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="cpf">CPF</Label>
-                    <Input
-                      id="cpf"
-                      value={personalData.cpf}
-                      onChange={(e) => setPersonalData({ ...personalData, cpf: e.target.value })}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="endereco">Endereço</Label>
-                    <Input
-                      id="endereco"
-                      value={personalData.endereco}
-                      onChange={(e) => setPersonalData({ ...personalData, endereco: e.target.value })}
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="cidade">Cidade</Label>
-                      <Input
-                        id="cidade"
-                        value={personalData.cidade}
-                        onChange={(e) => setPersonalData({ ...personalData, cidade: e.target.value })}
-                      />
+                    
+                    <div className="flex gap-2">
+                      <Button type="submit">Salvar</Button>
+                      <Button variant="outline" onClick={() => setEditing(false)}>
+                        Cancelar
+                      </Button>
                     </div>
-                    <div>
-                      <Label htmlFor="estado">Estado</Label>
-                      <Input
-                        id="estado"
-                        value={personalData.estado}
-                        onChange={(e) => setPersonalData({ ...personalData, estado: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="cep">CEP</Label>
-                      <Input
-                        id="cep"
-                        value={personalData.cep}
-                        onChange={(e) => setPersonalData({ ...personalData, cep: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex space-x-2">
-                    <Button type="submit" disabled={loading}>
-                      <Save className="h-4 w-4 mr-1" />
-                      Salvar
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setEditingPersonal(false)}
-                    >
-                      Cancelar
-                    </Button>
                   </div>
                 </form>
               ) : (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm text-gray-600">Nome</Label>
-                      <p className="font-medium">{personalData.nome || 'Não informado'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-600">Telefone</Label>
-                      <p className="font-medium">{personalData.telefone || 'Não informado'}</p>
-                    </div>
+                  <div>
+                    <Label>Nome completo</Label>
+                    <p className="text-gray-900">{profile?.nome || 'Não informado'}</p>
                   </div>
                   
                   <div>
-                    <Label className="text-sm text-gray-600">CPF</Label>
-                    <p className="font-medium">{personalData.cpf || 'Não informado'}</p>
+                    <Label>E-mail</Label>
+                    <p className="text-gray-900">{user.email}</p>
                   </div>
                   
                   <div>
-                    <Label className="text-sm text-gray-600">Endereço</Label>
-                    <p className="font-medium">{personalData.endereco || 'Não informado'}</p>
+                    <Label>Telefone</Label>
+                    <p className="text-gray-900">{profile?.telefone || 'Não informado'}</p>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label className="text-sm text-gray-600">Cidade</Label>
-                      <p className="font-medium">{personalData.cidade || 'Não informado'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-600">Estado</Label>
-                      <p className="font-medium">{personalData.estado || 'Não informado'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-600">CEP</Label>
-                      <p className="font-medium">{personalData.cep || 'Não informado'}</p>
-                    </div>
+                  <div>
+                    <Label>Membro desde</Label>
+                    <p className="text-gray-500">
+                      {new Date(profile?.created_at || user.created_at).toLocaleDateString('pt-BR')}
+                    </p>
                   </div>
                 </div>
               )}
             </CardContent>
           </Card>
-
-          {/* Profile Stats */}
-          <div className="grid grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-green-600">
-                  {deliveryDetails.rating_medio?.toFixed(1) || '0.0'}
-                </div>
-                <div className="text-sm text-gray-600">Avaliação</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-blue-600">
-                  {deliveryDetails.total_entregas || 0}
-                </div>
-                <div className="text-sm text-gray-600">Entregas</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-purple-600">
-                  {deliveryDetails.raio_atuacao || 10} km
-                </div>
-                <div className="text-sm text-gray-600">Raio</div>
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
 
-        <TabsContent value="vehicles" className="space-y-4">
+        <TabsContent value="delivery" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Meus Veículos</span>
-                <Button size="sm" onClick={() => setShowAddVehicle(true)}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Adicionar
-                </Button>
+              <CardTitle className="flex items-center gap-2">
+                <Truck size={20} />
+                Dados de Entrega
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              {showAddVehicle && (
-                <Card className="mb-4">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Adicionar Veículo</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={addVehicle} className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="tipo_veiculo">Tipo de Veículo</Label>
-                          <Select
-                            value={vehicleData.tipo_veiculo}
-                            onValueChange={(value: VehicleType) => setVehicleData({ ...vehicleData, tipo_veiculo: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="moto">Moto</SelectItem>
-                              <SelectItem value="carro">Carro</SelectItem>
-                              <SelectItem value="bicicleta">Bicicleta</SelectItem>
-                              <SelectItem value="patinete">Patinete</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label htmlFor="marca">Marca</Label>
-                          <Input
-                            id="marca"
-                            value={vehicleData.marca}
-                            onChange={(e) => setVehicleData({ ...vehicleData, marca: e.target.value })}
-                            required
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <Label htmlFor="modelo">Modelo</Label>
-                          <Input
-                            id="modelo"
-                            value={vehicleData.modelo}
-                            onChange={(e) => setVehicleData({ ...vehicleData, modelo: e.target.value })}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="ano">Ano</Label>
-                          <Input
-                            id="ano"
-                            type="number"
-                            value={vehicleData.ano}
-                            onChange={(e) => setVehicleData({ ...vehicleData, ano: parseInt(e.target.value) })}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="cor">Cor</Label>
-                          <Input
-                            id="cor"
-                            value={vehicleData.cor}
-                            onChange={(e) => setVehicleData({ ...vehicleData, cor: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="placa">Placa</Label>
-                          <Input
-                            id="placa"
-                            value={vehicleData.placa}
-                            onChange={(e) => setVehicleData({ ...vehicleData, placa: e.target.value })}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="renavam">RENAVAM</Label>
-                          <Input
-                            id="renavam"
-                            value={vehicleData.renavam}
-                            onChange={(e) => setVehicleData({ ...vehicleData, renavam: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="flex space-x-2">
-                        <Button type="submit" disabled={loading}>
-                          <Save className="h-4 w-4 mr-1" />
-                          Salvar
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setShowAddVehicle(false)}
-                        >
-                          Cancelar
-                        </Button>
-                      </div>
-                    </form>
-                  </CardContent>
-                </Card>
-              )}
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Veículo</Label>
+                <p className="text-gray-900">{deliveryDetails?.veiculo || 'Não informado'}</p>
+              </div>
               
-              {vehicles.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Car className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>Nenhum veículo cadastrado</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {vehicles.map((vehicle) => (
-                    <div key={vehicle.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <h4 className="font-medium">
-                            {vehicle.marca} {vehicle.modelo}
-                          </h4>
-                          {vehicle.principal && (
-                            <Badge variant="default" className="text-xs">Principal</Badge>
-                          )}
-                          <Badge 
-                            variant="secondary"
-                            className={getDocumentStatusColor(vehicle.status_verificacao)}
-                          >
-                            {vehicle.status_verificacao}
-                          </Badge>
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {vehicle.tipo_veiculo} • {vehicle.placa} • {vehicle.ano}
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => deleteVehicle(vehicle.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+              <div>
+                <Label>Placa</Label>
+                <p className="text-gray-900">{deliveryDetails?.placa || 'Não informado'}</p>
+              </div>
+              
+              <div>
+                <Label>CNH</Label>
+                <p className="text-gray-900">{deliveryDetails?.cnh || 'Não informado'}</p>
+              </div>
 
-        <TabsContent value="documents" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Documentos</span>
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-1" />
-                  Enviar
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {['cnh', 'cpf', 'rg', 'comprovante_residencia', 'documento_veiculo'].map((docType) => {
-                  const doc = documents.find(d => d.tipo_documento === docType);
-                  const docNames = {
-                    cnh: 'CNH',
-                    cpf: 'CPF',
-                    rg: 'RG',
-                    comprovante_residencia: 'Comprovante de Residência',
-                    documento_veiculo: 'Documento do Veículo'
-                  };
-                  
-                  return (
-                    <div key={docType} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        {getDocumentStatusIcon(doc?.status_verificacao || 'pendente')}
-                        <div>
-                          <h4 className="font-medium">{docNames[docType]}</h4>
-                          <p className="text-sm text-gray-600">
-                            {doc ? 'Enviado' : 'Não enviado'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {doc && (
-                          <Badge 
-                            variant="secondary"
-                            className={getDocumentStatusColor(doc.status_verificacao)}
-                          >
-                            {doc.status_verificacao}
-                          </Badge>
-                        )}
-                        <Button variant="outline" size="sm">
-                          <Camera className="h-4 w-4 mr-1" />
-                          {doc ? 'Alterar' : 'Enviar'}
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div>
+                <Label>Status</Label>
+                <p className={`text-sm ${deliveryDetails?.ativo ? 'text-green-600' : 'text-red-600'}`}>
+                  {deliveryDetails?.ativo ? 'Ativo' : 'Inativo'}
+                </p>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="banking" className="space-y-4">
+        <TabsContent value="earnings" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Dados Bancários</span>
-                {!editingBank && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditingBank(true)}
-                  >
-                    {bankDetails ? <Edit className="h-4 w-4 mr-1" /> : <Plus className="h-4 w-4 mr-1" />}
-                    {bankDetails ? 'Editar' : 'Adicionar'}
-                  </Button>
-                )}
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign size={20} />
+                Resumo de Ganhos
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              {editingBank ? (
-                <form onSubmit={saveBankDetails} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Hoje</p>
+                  <p className="text-2xl font-bold text-green-600">R$ 85,50</p>
+                </div>
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Esta semana</p>
+                  <p className="text-2xl font-bold text-blue-600">R$ 425,80</p>
+                </div>
+                <div className="text-center p-4 bg-purple-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Este mês</p>
+                  <p className="text-2xl font-bold text-purple-600">R$ 1.850,40</p>
+                </div>
+                <div className="text-center p-4 bg-orange-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Total</p>
+                  <p className="text-2xl font-bold text-orange-600">R$ 12.450,20</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings size={20} />
+                Configurações
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <h3 className="font-medium text-gray-900">Notificações</h3>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="banco">Banco</Label>
-                      <Input
-                        id="banco"
-                        value={bankData.banco}
-                        onChange={(e) => setBankData({ ...bankData, banco: e.target.value })}
-                        placeholder="Ex: Banco do Brasil"
-                        required
-                      />
+                      <p className="text-sm font-medium text-gray-900">Novos pedidos</p>
+                      <p className="text-xs text-gray-500">Receba notificações de novos pedidos</p>
                     </div>
-                    <div>
-                      <Label htmlFor="tipo_conta">Tipo de Conta</Label>
-                      <Select
-                        value={bankData.tipo_conta}
-                        onValueChange={(value) => setBankData({ ...bankData, tipo_conta: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="corrente">Corrente</SelectItem>
-                          <SelectItem value="poupanca">Poupança</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <Switch defaultChecked />
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="agencia">Agência</Label>
-                      <Input
-                        id="agencia"
-                        value={bankData.agencia}
-                        onChange={(e) => setBankData({ ...bankData, agencia: e.target.value })}
-                        required
-                      />
+                      <p className="text-sm font-medium text-gray-900">Localização</p>
+                      <p className="text-xs text-gray-500">Permitir rastreamento de localização</p>
                     </div>
-                    <div>
-                      <Label htmlFor="conta">Conta</Label>
-                      <Input
-                        id="conta"
-                        value={bankData.conta}
-                        onChange={(e) => setBankData({ ...bankData, conta: e.target.value })}
-                        required
-                      />
-                    </div>
+                    <Switch defaultChecked />
                   </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="titular_conta">Titular da Conta</Label>
-                      <Input
-                        id="titular_conta"
-                        value={bankData.titular_conta}
-                        onChange={(e) => setBankData({ ...bankData, titular_conta: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="cpf_titular">CPF do Titular</Label>
-                      <Input
-                        id="cpf_titular"
-                        value={bankData.cpf_titular}
-                        onChange={(e) => setBankData({ ...bankData, cpf_titular: e.target.value })}
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="tipo_chave_pix">Tipo de Chave PIX</Label>
-                      <Select
-                        value={bankData.tipo_chave_pix}
-                        onValueChange={(value) => setBankData({ ...bankData, tipo_chave_pix: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="cpf">CPF</SelectItem>
-                          <SelectItem value="email">E-mail</SelectItem>
-                          <SelectItem value="telefone">Telefone</SelectItem>
-                          <SelectItem value="aleatoria">Chave Aleatória</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="chave_pix">Chave PIX</Label>
-                      <Input
-                        id="chave_pix"
-                        value={bankData.chave_pix}
-                        onChange={(e) => setBankData({ ...bankData, chave_pix: e.target.value })}
-                        placeholder="Digite a chave PIX"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex space-x-2">
-                    <Button type="submit" disabled={loading}>
-                      <Save className="h-4 w-4 mr-1" />
-                      Salvar
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setEditingBank(false)}
-                    >
-                      Cancelar
-                    </Button>
-                  </div>
-                </form>
-              ) : bankDetails ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm text-gray-600">Banco</Label>
-                      <p className="font-medium">{bankDetails.banco}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-600">Tipo de Conta</Label>
-                      <p className="font-medium capitalize">{bankDetails.tipo_conta}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm text-gray-600">Agência</Label>
-                      <p className="font-medium">{bankDetails.agencia}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-600">Conta</Label>
-                      <p className="font-medium">{bankDetails.conta}</p>
-                    </div>
-                  </div>
-                  
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-medium text-gray-900">Disponibilidade</h3>
+                
+                <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-sm text-gray-600">Titular</Label>
-                    <p className="font-medium">{bankDetails.titular_conta}</p>
+                    <p className="text-sm font-medium text-gray-900">Disponível para entregas</p>
+                    <p className="text-xs text-gray-500">Receber novos pedidos</p>
                   </div>
-                  
-                  {bankDetails.chave_pix && (
-                    <div>
-                      <Label className="text-sm text-gray-600">Chave PIX</Label>
-                      <p className="font-medium">{bankDetails.chave_pix}</p>
-                    </div>
-                  )}
-                  
-                  <div className="flex items-center space-x-2">
-                    {bankDetails.verificado ? (
-                      <Badge className="bg-green-100 text-green-800">
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Verificado
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        Pendente
-                      </Badge>
-                    )}
-                  </div>
+                  <Switch 
+                    checked={deliveryDetails?.ativo || false}
+                    onCheckedChange={(checked) => 
+                      updateDeliveryDetails({ ativo: checked })
+                    }
+                  />
                 </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p className="mb-4">Nenhum dado bancário cadastrado</p>
-                  <Button onClick={() => setEditingBank(true)}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Cadastrar
-                  </Button>
-                </div>
-              )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

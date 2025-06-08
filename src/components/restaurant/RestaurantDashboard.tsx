@@ -2,13 +2,14 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, Users, Package, Settings, MapPin, MessageSquare, Calculator, ClipboardList } from 'lucide-react';
+import { BarChart3, Users, Package, Settings, MapPin, MessageSquare, Calculator, ClipboardList, User } from 'lucide-react';
 import { RestaurantMenuPanel } from './RestaurantMenuPanel';
 import { DeliveryRouteOptimizer } from './DeliveryRouteOptimizer';
 import { RestaurantSettings } from './RestaurantSettings';
 import { CustomerCommunication } from './CustomerCommunication';
 import TableManagementPage from './TableManagementPage';
 import { POSSystemPage } from './POSSystemPage';
+import RestaurantProfile from './RestaurantProfile';
 
 interface RestaurantDashboardProps {
   restaurantId: string;
@@ -23,7 +24,7 @@ const RestaurantDashboard = ({ restaurantId }: RestaurantDashboardProps) => {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Visão Geral
@@ -47,6 +48,10 @@ const RestaurantDashboard = ({ restaurantId }: RestaurantDashboardProps) => {
           <TabsTrigger value="communication" className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
             Comunicação
+          </TabsTrigger>
+          <TabsTrigger value="profile" className="flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Perfil
           </TabsTrigger>
           <TabsTrigger value="settings" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
@@ -133,6 +138,10 @@ const RestaurantDashboard = ({ restaurantId }: RestaurantDashboardProps) => {
 
         <TabsContent value="communication" className="mt-6">
           <CustomerCommunication restaurantId={restaurantId} />
+        </TabsContent>
+
+        <TabsContent value="profile" className="mt-6">
+          <RestaurantProfile />
         </TabsContent>
 
         <TabsContent value="settings" className="mt-6">

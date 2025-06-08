@@ -5,17 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, MapPin, CreditCard, Settings, LogOut, Edit2 } from 'lucide-react';
+import { User, Store, Clock, MapPin, Phone, Mail, Settings, LogOut, Edit2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
-const ClientProfile = () => {
+const RestaurantProfile = () => {
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState(null);
-  const [preferences, setPreferences] = useState(null);
-  const [addresses, setAddresses] = useState([]);
-  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [restaurantDetails, setRestaurantDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
 
@@ -36,38 +35,17 @@ const ClientProfile = () => {
 
       if (profileError && profileError.code !== 'PGRST116') throw profileError;
 
-      // Fetch preferences
-      const { data: preferencesData, error: preferencesError } = await supabase
-        .from('client_preferences')
+      // Fetch restaurant details
+      const { data: restaurantData, error: restaurantError } = await supabase
+        .from('restaurant_details')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (preferencesError && preferencesError.code !== 'PGRST116') throw preferencesError;
-
-      // Fetch addresses
-      const { data: addressesData, error: addressesError } = await supabase
-        .from('user_addresses')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('is_default', { ascending: false });
-
-      if (addressesError) throw addressesError;
-
-      // Fetch payment methods
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from('client_payment_methods')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('ativo', true)
-        .order('padrao', { ascending: false });
-
-      if (paymentsError) throw paymentsError;
+      if (restaurantError && restaurantError.code !== 'PGRST116') throw restaurantError;
 
       setProfile(profileData);
-      setPreferences(preferencesData);
-      setAddresses(addressesData || []);
-      setPaymentMethods(paymentsData || []);
+      setRestaurantDetails(restaurantData);
     } catch (error) {
       console.error('Error fetching user data:', error);
     } finally {
@@ -93,10 +71,10 @@ const ClientProfile = () => {
     }
   };
 
-  const updatePreferences = async (updates) => {
+  const updateRestaurantDetails = async (updates) => {
     try {
       const { error } = await supabase
-        .from('client_preferences')
+        .from('restaurant_details')
         .upsert({
           user_id: user.id,
           ...updates
@@ -104,9 +82,9 @@ const ClientProfile = () => {
 
       if (error) throw error;
       
-      setPreferences({ ...preferences, ...updates });
+      setRestaurantDetails({ ...restaurantDetails, ...updates });
     } catch (error) {
-      console.error('Error updating preferences:', error);
+      console.error('Error updating restaurant details:', error);
     }
   };
 
@@ -125,7 +103,7 @@ const ClientProfile = () => {
   return (
     <div className="p-4 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Meu Perfil</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Perfil do Restaurante</h1>
         <Button variant="ghost" onClick={signOut} className="text-red-600">
           <LogOut size={20} className="mr-2" />
           Sair
@@ -133,10 +111,9 @@ const ClientProfile = () => {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="profile">Perfil</TabsTrigger>
-          <TabsTrigger value="addresses">Endereços</TabsTrigger>
-          <TabsTrigger value="payments">Pagamento</TabsTrigger>
+          <TabsTrigger value="restaurant">Restaurante</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
 
@@ -164,8 +141,7 @@ const ClientProfile = () => {
                   const formData = new FormData(e.currentTarget as HTMLFormElement);
                   updateProfile({
                     nome: formData.get('nome'),
-                    telefone: formData.get('telefone'),
-                    endereco: formData.get('endereco')
+                    telefone: formData.get('telefone')
                   });
                 }}>
                   <div className="space-y-4">
@@ -236,95 +212,41 @@ const ClientProfile = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="addresses" className="space-y-4">
+        <TabsContent value="restaurant" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <MapPin size={20} />
-                Meus Endereços
+                <Store size={20} />
+                Dados do Restaurante
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              {addresses.length === 0 ? (
-                <div className="text-center py-6 text-gray-500">
-                  <MapPin size={48} className="mx-auto mb-4 text-gray-300" />
-                  <p>Nenhum endereço cadastrado</p>
-                  <Button className="mt-4">Adicionar endereço</Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {addresses.map((address) => (
-                    <div key={address.id} className="p-3 border border-gray-200 rounded-lg">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {address.logradouro}, {address.numero}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {address.bairro}, {address.cidade} - {address.estado}
-                          </p>
-                          <p className="text-sm text-gray-600">CEP: {address.cep}</p>
-                          {address.is_default && (
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mt-1 inline-block">
-                              Padrão
-                            </span>
-                          )}
-                        </div>
-                        <Button variant="ghost" size="sm">
-                          <Edit2 size={16} />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  <Button variant="outline" className="w-full">
-                    Adicionar novo endereço
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Nome do Restaurante</Label>
+                <p className="text-gray-900">{restaurantDetails?.nome || 'Não informado'}</p>
+              </div>
+              
+              <div>
+                <Label>Endereço</Label>
+                <p className="text-gray-900">{restaurantDetails?.endereco || 'Não informado'}</p>
+              </div>
+              
+              <div>
+                <Label>Telefone</Label>
+                <p className="text-gray-900">{restaurantDetails?.telefone || 'Não informado'}</p>
+              </div>
+              
+              <div>
+                <Label>Descrição</Label>
+                <p className="text-gray-900">{restaurantDetails?.descricao || 'Não informado'}</p>
+              </div>
 
-        <TabsContent value="payments" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard size={20} />
-                Formas de Pagamento
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {paymentMethods.length === 0 ? (
-                <div className="text-center py-6 text-gray-500">
-                  <CreditCard size={48} className="mx-auto mb-4 text-gray-300" />
-                  <p>Nenhum método de pagamento cadastrado</p>
-                  <Button className="mt-4">Adicionar cartão</Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {paymentMethods.map((method) => (
-                    <div key={method.id} className="p-3 border border-gray-200 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">{method.nome_metodo}</p>
-                          <p className="text-sm text-gray-600 capitalize">{method.tipo.replace('_', ' ')}</p>
-                          {method.padrao && (
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mt-1 inline-block">
-                              Padrão
-                            </span>
-                          )}
-                        </div>
-                        <Button variant="ghost" size="sm">
-                          <Edit2 size={16} />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  <Button variant="outline" className="w-full">
-                    Adicionar nova forma de pagamento
-                  </Button>
-                </div>
-              )}
+              <div>
+                <Label>Status</Label>
+                <p className={`text-sm ${restaurantDetails?.ativo ? 'text-green-600' : 'text-red-600'}`}>
+                  {restaurantDetails?.ativo ? 'Ativo' : 'Inativo'}
+                </p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -344,57 +266,34 @@ const ClientProfile = () => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-900">Notificações push</p>
-                      <p className="text-xs text-gray-500">Receba atualizações sobre seus pedidos</p>
+                      <p className="text-sm font-medium text-gray-900">Novos pedidos</p>
+                      <p className="text-xs text-gray-500">Receba notificações de novos pedidos</p>
                     </div>
-                    <Switch
-                      checked={preferences?.notificacoes_push ?? true}
-                      onCheckedChange={(checked) => 
-                        updatePreferences({ notificacoes_push: checked })
-                      }
-                    />
+                    <Switch defaultChecked />
                   </div>
                   
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-900">E-mail</p>
-                      <p className="text-xs text-gray-500">Receba ofertas e novidades por e-mail</p>
+                      <p className="text-xs text-gray-500">Receba relatórios por e-mail</p>
                     </div>
-                    <Switch
-                      checked={preferences?.notificacoes_email ?? true}
-                      onCheckedChange={(checked) => 
-                        updatePreferences({ notificacoes_email: checked })
-                      }
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Promoções</p>
-                      <p className="text-xs text-gray-500">Receba notificações sobre promoções</p>
-                    </div>
-                    <Switch
-                      checked={preferences?.notificacoes_promocoes ?? true}
-                      onCheckedChange={(checked) => 
-                        updatePreferences({ notificacoes_promocoes: checked })
-                      }
-                    />
+                    <Switch defaultChecked />
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h3 className="font-medium text-gray-900">Aparência</h3>
+                <h3 className="font-medium text-gray-900">Operação</h3>
                 
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Modo escuro</p>
-                    <p className="text-xs text-gray-500">Ativar tema escuro</p>
+                    <p className="text-sm font-medium text-gray-900">Restaurante aberto</p>
+                    <p className="text-xs text-gray-500">Aceitar novos pedidos</p>
                   </div>
-                  <Switch
-                    checked={preferences?.modo_escuro ?? false}
+                  <Switch 
+                    checked={restaurantDetails?.ativo || false}
                     onCheckedChange={(checked) => 
-                      updatePreferences({ modo_escuro: checked })
+                      updateRestaurantDetails({ ativo: checked })
                     }
                   />
                 </div>
@@ -407,4 +306,4 @@ const ClientProfile = () => {
   );
 };
 
-export default ClientProfile;
+export default RestaurantProfile;

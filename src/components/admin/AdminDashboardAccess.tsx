@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Store, Truck, Users, User } from 'lucide-react';
+import { Store, Truck, User, Shield } from 'lucide-react';
 
 interface AdminDashboardAccessProps {
   onAccessDashboard: (type: 'restaurant' | 'delivery' | 'client') => void;
@@ -73,6 +73,21 @@ export const AdminDashboardAccess = ({ onAccessDashboard }: AdminDashboardAccess
           </CardContent>
         </Card>
       </div>
+
+      <Card className="bg-blue-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-blue-700">
+            <Shield className="h-5 w-5" />
+            Informação Importante
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-blue-700">
+            O acesso aos dashboards permite visualizar e interagir com as funcionalidades de cada tipo de usuário.
+            Todas as ações realizadas serão registradas nos logs de auditoria.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 };
