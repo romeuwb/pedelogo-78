@@ -22,7 +22,8 @@ import {
   Grid,
   List,
   DollarSign,
-  Clock
+  Clock,
+  Utensils
 } from 'lucide-react';
 import {
   Dialog,
