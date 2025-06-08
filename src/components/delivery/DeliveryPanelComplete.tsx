@@ -1,5 +1,7 @@
-
 import React, { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +21,39 @@ import {
 import DeliveryProfile from './DeliveryProfile';
 
 const DeliveryPanelComplete = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [deliveryDetails, setDeliveryDetails] = useState<any>(null);
+
+  // Fetch delivery details
+  const { data, isLoading } = useQuery({
+    queryKey: ['delivery-details', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('delivery_details')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Erro ao buscar delivery_details:', error);
+        throw error;
+      }
+      
+      return data;
+    },
+    enabled: !!user?.id,
+    retry: 1
+  });
+
+  // Update local state when data is fetched
+  React.useEffect(() => {
+    if (data) {
+      setDeliveryDetails(data);
+    }
+  }, [data]);
 
   // Mock data - em produção, vir do banco de dados
   const deliveryStats = {
@@ -64,6 +98,16 @@ const DeliveryPanelComplete = () => {
       fee: "R$ 12,50"
     }
   ];
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -284,7 +328,10 @@ const DeliveryPanelComplete = () => {
           </TabsContent>
 
           <TabsContent value="profile" className="mt-0">
-            <DeliveryProfile />
+            <DeliveryProfile 
+              deliveryDetails={deliveryDetails}
+              setDeliveryDetails={setDeliveryDetails}
+            />
           </TabsContent>
 
           <TabsContent value="support" className="mt-0">
