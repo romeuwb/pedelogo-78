@@ -87,6 +87,7 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Buscar categorias
   const { data: categories } = useQuery({
@@ -122,6 +123,47 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
     enabled: !!productId
   });
 
+  // Mutation para salvar produto
+  const saveProductMutation = useMutation({
+    mutationFn: async (productData: any) => {
+      if (productId) {
+        const { data, error } = await supabase
+          .from('restaurant_products')
+          .update(productData)
+          .eq('id', productId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return data;
+      } else {
+        const { data, error } = await supabase
+          .from('restaurant_products')
+          .insert({ ...productData, restaurant_id: restaurantId })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return data;
+      }
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Sucesso",
+        description: productId ? "Produto atualizado com sucesso!" : "Produto criado com sucesso!",
+      });
+      queryClient.invalidateQueries({ queryKey: ['restaurant-products'] });
+      onSave(data);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar produto: " + error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
   // Preencher formulário com dados existentes
   useEffect(() => {
     if (existingProduct) {
@@ -153,52 +195,6 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
       }
     }
   }, [existingProduct]);
-
-  const generateDescription = async () => {
-    if (!formData.nome.trim()) {
-      toast({
-        title: "Nome necessário",
-        description: "Digite o nome do produto para gerar uma descrição.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsGeneratingDescription(true);
-    
-    try {
-      const selectedCategory = categories?.find(cat => cat.id === formData.category_id);
-      
-      const { data, error } = await supabase.functions.invoke('generate-product-description', {
-        body: {
-          productName: formData.nome,
-          category: selectedCategory?.nome,
-          ingredients: formData.ingredientes
-        }
-      });
-
-      if (error) throw error;
-
-      setFormData({
-        ...formData,
-        descricao: data.description
-      });
-
-      toast({
-        title: "Descrição gerada",
-        description: "A descrição foi gerada com sucesso pela IA.",
-      });
-    } catch (error) {
-      console.error('Erro ao gerar descrição:', error);
-      toast({
-        title: "Erro na geração",
-        description: "Não foi possível gerar a descrição. Tente novamente.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsGeneratingDescription(false);
-    }
-  };
 
   const handleGlobalProductSelect = (product: any) => {
     setFormData({
@@ -256,7 +252,6 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validação obrigatória da categoria
     if (!formData.category_id) {
       toast({
         title: "Erro",
@@ -322,7 +317,7 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
       calorias: Number(formData.calorias)
     };
 
-    onSave(productData);
+    saveProductMutation.mutate(productData);
   };
 
   return (
@@ -398,34 +393,12 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
             <label className="block text-sm font-medium mb-1">
               Descrição
             </label>
-            <div className="flex gap-2">
-              <Textarea
-                value={formData.descricao}
-                onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                placeholder="Descreva o produto..."
-                rows={3}
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={generateDescription}
-                disabled={isGeneratingDescription || !formData.nome.trim()}
-                className="whitespace-nowrap"
-              >
-                {isGeneratingDescription ? (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-                    Gerando...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Gerar com IA
-                  </>
-                )}
-              </Button>
-            </div>
+            <Textarea
+              value={formData.descricao}
+              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+              placeholder="Descreva o produto..."
+              rows={3}
+            />
           </div>
 
           {/* Preços */}
@@ -488,128 +461,6 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
             </div>
           </div>
 
-          {/* Informações Nutricionais */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Informações Nutricionais
-            </label>
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Calorias</label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={formData.calorias}
-                  onChange={(e) => setFormData({ ...formData, calorias: parseInt(e.target.value) || 0 })}
-                  placeholder="kcal"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Proteínas (g)</label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={formData.informacoes_nutricionais.proteinas || ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    informacoes_nutricionais: { 
-                      ...formData.informacoes_nutricionais, 
-                      proteinas: parseFloat(e.target.value) || 0 
-                    } 
-                  })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Carboidratos (g)</label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={formData.informacoes_nutricionais.carboidratos || ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    informacoes_nutricionais: { 
-                      ...formData.informacoes_nutricionais, 
-                      carboidratos: parseFloat(e.target.value) || 0 
-                    } 
-                  })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Gorduras (g)</label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={formData.informacoes_nutricionais.gorduras || ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    informacoes_nutricionais: { 
-                      ...formData.informacoes_nutricionais, 
-                      gorduras: parseFloat(e.target.value) || 0 
-                    } 
-                  })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Fibras (g)</label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={formData.informacoes_nutricionais.fibras || ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    informacoes_nutricionais: { 
-                      ...formData.informacoes_nutricionais, 
-                      fibras: parseFloat(e.target.value) || 0 
-                    } 
-                  })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Sódio (mg)</label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={formData.informacoes_nutricionais.sodio || ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    informacoes_nutricionais: { 
-                      ...formData.informacoes_nutricionais, 
-                      sodio: parseFloat(e.target.value) || 0 
-                    } 
-                  })}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Tempo de Preparo (min)
-            </label>
-            <Input
-              type="number"
-              min="0"
-              value={formData.tempo_preparo}
-              onChange={(e) => setFormData({ ...formData, tempo_preparo: parseInt(e.target.value) || 0 })}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Código de Barras
-            </label>
-            <Input
-              value={formData.codigo_barras}
-              onChange={(e) => setFormData({ ...formData, codigo_barras: e.target.value })}
-              placeholder="EAN13, UPC..."
-            />
-          </div>
-
           {/* Ingredientes */}
           <div>
             <label className="block text-sm font-medium mb-2">
@@ -639,29 +490,6 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
             </div>
           </div>
 
-          {/* Imagem */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Imagem do Produto
-            </label>
-            <div className="space-y-2">
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-              />
-              {imagePreview && (
-                <div className="relative w-32 h-32">
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="w-full h-full object-cover rounded-md border"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* Switches/Opções */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="flex items-center space-x-2">
@@ -669,76 +497,69 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
                 checked={formData.vegetariano}
                 onCheckedChange={(checked) => setFormData({ ...formData, vegetariano: checked })}
               />
-              <label className="text-sm font-medium">Vegetariano</label>
+              <label className="text-sm">Vegetariano</label>
             </div>
-
+            
             <div className="flex items-center space-x-2">
               <Switch
                 checked={formData.vegano}
                 onCheckedChange={(checked) => setFormData({ ...formData, vegano: checked })}
               />
-              <label className="text-sm font-medium">Vegano</label>
+              <label className="text-sm">Vegano</label>
             </div>
-
+            
             <div className="flex items-center space-x-2">
               <Switch
                 checked={formData.livre_gluten}
                 onCheckedChange={(checked) => setFormData({ ...formData, livre_gluten: checked })}
               />
-              <label className="text-sm font-medium">Sem Glúten</label>
+              <label className="text-sm">Livre de Glúten</label>
             </div>
-
+            
             <div className="flex items-center space-x-2">
               <Switch
                 checked={formData.livre_lactose}
                 onCheckedChange={(checked) => setFormData({ ...formData, livre_lactose: checked })}
               />
-              <label className="text-sm font-medium">Sem Lactose</label>
+              <label className="text-sm">Livre de Lactose</label>
             </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
+            
             <div className="flex items-center space-x-2">
               <Switch
                 checked={formData.disponivel}
                 onCheckedChange={(checked) => setFormData({ ...formData, disponivel: checked })}
               />
-              <label className="text-sm font-medium">Disponível</label>
+              <label className="text-sm">Disponível</label>
             </div>
-
+            
             <div className="flex items-center space-x-2">
               <Switch
                 checked={formData.ativo}
                 onCheckedChange={(checked) => setFormData({ ...formData, ativo: checked })}
               />
-              <label className="text-sm font-medium">Ativo</label>
+              <label className="text-sm">Ativo</label>
             </div>
-
+            
             <div className="flex items-center space-x-2">
               <Switch
                 checked={formData.favorito}
                 onCheckedChange={(checked) => setFormData({ ...formData, favorito: checked })}
               />
-              <label className="text-sm font-medium">Favorito</label>
+              <label className="text-sm">Produto em Destaque</label>
             </div>
           </div>
 
           {/* Botões */}
-          <div className="flex gap-2">
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="flex-1"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {isLoading 
-                ? 'Salvando...' 
-                : (productId ? 'Atualizar Produto' : 'Criar Produto')
-              }
-            </Button>
-            
+          <div className="flex justify-end space-x-2">
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancelar
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={saveProductMutation.isPending}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              {saveProductMutation.isPending ? 'Salvando...' : (productId ? 'Atualizar' : 'Criar')} Produto
             </Button>
           </div>
         </form>

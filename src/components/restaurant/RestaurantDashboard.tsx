@@ -1,368 +1,189 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { RestaurantOrdersPanel } from './RestaurantOrdersPanel';
-import { RestaurantMenuPanel } from './RestaurantMenuPanel';
-import { RestaurantFinancialPanel } from './RestaurantFinancialPanel';
-import { RestaurantSettings } from './RestaurantSettings';
-import { POSSystem } from './POSSystem';
-import TableManagementPage from './TableManagementPage';
 import { 
-  Package, 
-  DollarSign, 
-  Clock, 
-  TrendingUp, 
+  BarChart3, 
   Users, 
-  Star,
-  Bell,
-  Eye,
-  EyeOff,
-  Monitor,
-  Utensils
+  Package, 
+  Settings, 
+  MapPin, 
+  MessageSquare,
+  Calculator,
+  Utensils,
+  ClipboardList
 } from 'lucide-react';
+import { RestaurantMenuPanel } from './RestaurantMenuPanel';
+import { DeliveryRouteOptimizer } from './DeliveryRouteOptimizer';
+import { RestaurantSettings } from './RestaurantSettings';
+import { CustomerCommunication } from './CustomerCommunication';
+import { TableManagementPage } from './TableManagementPage';
+import { POSSystemPage } from './POSSystemPage';
 
 interface RestaurantDashboardProps {
   restaurantId: string;
-  userId: string;
 }
 
-const RestaurantDashboard = ({ restaurantId, userId }: RestaurantDashboardProps) => {
-  const [selectedPeriod, setSelectedPeriod] = useState('today');
-  const [isOnline, setIsOnline] = useState(true);
-
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['restaurant-stats', restaurantId, selectedPeriod],
-    queryFn: async () => {
-      const now = new Date();
-      let startDate = new Date();
-      
-      switch (selectedPeriod) {
-        case 'today':
-          startDate.setHours(0, 0, 0, 0);
-          break;
-        case 'week':
-          startDate.setDate(now.getDate() - 7);
-          break;
-        case 'month':
-          startDate.setMonth(now.getMonth() - 1);
-          break;
-      }
-
-      const { data: orders, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('restaurante_id', restaurantId)
-        .gte('created_at', startDate.toISOString());
-
-      if (error) throw error;
-
-      const totalOrders = orders.length;
-      const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-      const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-      
-      const statusCounts = orders.reduce((acc, order) => {
-        acc[order.status] = (acc[order.status] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      return {
-        totalOrders,
-        totalRevenue,
-        averageOrderValue,
-        statusCounts,
-        pendingOrders: statusCounts.pendente || 0,
-        completedOrders: statusCounts.entregue || 0
-      };
-    }
-  });
-
-  const { data: restaurant } = useQuery({
-    queryKey: ['restaurant-details', restaurantId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('restaurant_details')
-        .select('*')
-        .eq('id', restaurantId)
-        .single();
-
-      if (error) throw error;
-      return data;
-    }
-  });
-
-  const { data: recentOrders } = useQuery({
-    queryKey: ['recent-orders', restaurantId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          status,
-          total,
-          created_at,
-          cliente_profile:profiles!orders_cliente_id_fkey (nome)
-        `)
-        .eq('restaurante_id', restaurantId)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (error) throw error;
-      return data || [];
-    }
-  });
-
-  const periodOptions = [
-    { value: 'today', label: 'Hoje' },
-    { value: 'week', label: 'Esta Semana' },
-    { value: 'month', label: 'Este Mês' }
-  ];
-
-  const getStatusColor = (status: string) => {
-    const colors = {
-      'pendente': 'bg-yellow-500',
-      'confirmado': 'bg-blue-500',
-      'preparando': 'bg-orange-500',
-      'pronto': 'bg-green-500',
-      'saiu_entrega': 'bg-purple-500',
-      'entregue': 'bg-emerald-500',
-      'cancelado': 'bg-red-500'
-    };
-    return colors[status as keyof typeof colors] || 'bg-gray-500';
-  };
-
-  if (statsLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, index) => (
-            <Card key={index} className="animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                <div className="h-8 bg-gray-200 rounded"></div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
+const RestaurantDashboard = ({ restaurantId }: RestaurantDashboardProps) => {
   return (
     <div className="space-y-6">
-      {/* Header com controles */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard do Restaurante</h1>
-          <p className="text-gray-600">{restaurant?.nome_fantasia}</p>
-        </div>
-        <div className="flex items-center space-x-4">
-          <Button
-            variant={isOnline ? "default" : "secondary"}
-            onClick={() => setIsOnline(!isOnline)}
-            className="flex items-center space-x-2"
-          >
-            {isOnline ? (
-              <>
-                <Eye className="h-4 w-4" />
-                <span>Online</span>
-              </>
-            ) : (
-              <>
-                <EyeOff className="h-4 w-4" />
-                <span>Offline</span>
-              </>
-            )}
-          </Button>
-          <select
-            value={selectedPeriod}
-            onChange={(e) => setSelectedPeriod(e.target.value)}
-            className="px-3 py-2 border rounded-md"
-          >
-            {periodOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Painel do Restaurante</h1>
+        <p className="text-gray-600">Gerencie seu restaurante de forma completa</p>
       </div>
 
-      {/* Alertas importantes */}
-      {stats?.pendingOrders > 0 && (
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Bell className="h-5 w-5 text-yellow-600" />
-              <span className="font-medium text-yellow-800">
-                Você tem {stats.pendingOrders} pedido(s) pendente(s) aguardando confirmação!
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total de Pedidos</p>
-                <p className="text-2xl font-bold">{stats?.totalOrders || 0}</p>
-                <p className="text-xs text-gray-500">
-                  {stats?.pendingOrders || 0} pendentes
-                </p>
-              </div>
-              <Package className="h-8 w-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Receita</p>
-                <p className="text-2xl font-bold">R$ {stats?.totalRevenue?.toFixed(2) || '0,00'}</p>
-                <p className="text-xs text-gray-500">
-                  ~R$ {((stats?.totalRevenue || 0) * 0.85).toFixed(2)} líquido
-                </p>
-              </div>
-              <DollarSign className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Ticket Médio</p>
-                <p className="text-2xl font-bold">R$ {stats?.averageOrderValue?.toFixed(2) || '0,00'}</p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-purple-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Status</p>
-                <Badge className={isOnline ? 'bg-green-500' : 'bg-gray-500'}>
-                  {isOnline ? 'Online' : 'Offline'}
-                </Badge>
-                <p className="text-xs text-gray-500 mt-1">
-                  {restaurant?.status_aprovacao}
-                </p>
-              </div>
-              <Clock className="h-8 w-8 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Status dos Pedidos e Pedidos Recentes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Status dos Pedidos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {stats?.statusCounts && Object.entries(stats.statusCounts).map(([status, count]) => (
-                <div key={status} className="flex justify-between items-center">
-                  <Badge 
-                    variant="outline" 
-                    className={`${getStatusColor(status)} text-white border-0`}
-                  >
-                    {status.replace('_', ' ')}
-                  </Badge>
-                  <span className="font-semibold">{count}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Pedidos Recentes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {recentOrders?.map((order) => (
-                <div key={order.id} className="flex justify-between items-center p-2 border rounded">
-                  <div>
-                    <p className="font-medium">#{order.id.slice(-8)}</p>
-                    <p className="text-sm text-gray-600">{order.cliente_profile?.nome}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold">R$ {order.total.toFixed(2)}</p>
-                    <Badge 
-                      className={`${getStatusColor(order.status)} text-white text-xs`}
-                    >
-                      {order.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tabs principais */}
-      <Tabs defaultValue="orders" className="space-y-4">
+      <Tabs defaultValue="overview" className="w-full">
         <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="orders">Pedidos</TabsTrigger>
-          <TabsTrigger value="menu">Cardápio</TabsTrigger>
-          <TabsTrigger value="pos">POS</TabsTrigger>
-          <TabsTrigger value="tables">Mesas</TabsTrigger>
-          <TabsTrigger value="financial">Financeiro</TabsTrigger>
-          <TabsTrigger value="routes">Rotas</TabsTrigger>
-          <TabsTrigger value="settings">Configurações</TabsTrigger>
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Visão Geral
+          </TabsTrigger>
+          <TabsTrigger value="menu" className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            Cardápio
+          </TabsTrigger>
+          <TabsTrigger value="tables" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Mesas
+          </TabsTrigger>
+          <TabsTrigger value="pos" className="flex items-center gap-2">
+            <Calculator className="h-4 w-4" />
+            POS
+          </TabsTrigger>
+          <TabsTrigger value="routes" className="flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            Rotas
+          </TabsTrigger>
+          <TabsTrigger value="communication" className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            Comunicação
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Configurações
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="orders">
-          <RestaurantOrdersPanel restaurantId={restaurantId} />
+        <TabsContent value="overview" className="mt-6">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pedidos Hoje</CardTitle>
+                <ClipboardList className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">127</div>
+                <p className="text-xs text-muted-foreground">+12% desde ontem</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Receita Hoje</CardTitle>
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">R$ 3.847</div>
+                <p className="text-xs text-muted-foreground">+8% desde ontem</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Mesas Ocupadas</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">18/24</div>
+                <p className="text-xs text-muted-foreground">75% ocupação</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Produtos Ativos</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">156</div>
+                <p className="text-xs text-muted-foreground">12 categorias</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Pedidos Recentes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {[
+                    { id: '#001', cliente: 'João Silva', valor: 'R$ 45,90', status: 'Preparando' },
+                    { id: '#002', cliente: 'Maria Santos', valor: 'R$ 32,50', status: 'Pronto' },
+                    { id: '#003', cliente: 'Pedro Costa', valor: 'R$ 78,20', status: 'Entregue' },
+                  ].map((pedido) => (
+                    <div key={pedido.id} className="flex items-center justify-between p-3 border rounded">
+                      <div>
+                        <p className="font-medium">{pedido.id} - {pedido.cliente}</p>
+                        <p className="text-sm text-gray-500">{pedido.valor}</p>
+                      </div>
+                      <span className={`px-2 py-1 text-xs rounded ${
+                        pedido.status === 'Preparando' ? 'bg-yellow-100 text-yellow-800' :
+                        pedido.status === 'Pronto' ? 'bg-green-100 text-green-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {pedido.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Produtos Mais Vendidos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {[
+                    { nome: 'Pizza Margherita', vendas: 24, receita: 'R$ 456,00' },
+                    { nome: 'Hambúrguer Artesanal', vendas: 18, receita: 'R$ 324,00' },
+                    { nome: 'Lasanha Bolonhesa', vendas: 15, receita: 'R$ 285,00' },
+                  ].map((produto, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 border rounded">
+                      <div>
+                        <p className="font-medium">{produto.nome}</p>
+                        <p className="text-sm text-gray-500">{produto.vendas} vendas</p>
+                      </div>
+                      <span className="font-semibold">{produto.receita}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="menu">
           <RestaurantMenuPanel restaurantId={restaurantId} />
         </TabsContent>
 
-        <TabsContent value="pos">
-          <POSSystem restaurantId={restaurantId} />
-        </TabsContent>
-
         <TabsContent value="tables">
           <TableManagementPage restaurantId={restaurantId} />
         </TabsContent>
 
-        <TabsContent value="financial">
-          <RestaurantFinancialPanel restaurantId={restaurantId} />
+        <TabsContent value="pos">
+          <POSSystemPage restaurantId={restaurantId} />
         </TabsContent>
 
         <TabsContent value="routes">
-          <Card>
-            <CardHeader>
-              <CardTitle>Gerenciamento de Rotas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600 mb-4">
-                Configure e otimize as rotas de entrega do seu restaurante.
-              </p>
-              <Button>
-                Acessar Otimização de Rotas
-              </Button>
-            </CardContent>
-          </Card>
+          <DeliveryRouteOptimizer restaurantId={restaurantId} />
+        </TabsContent>
+
+        <TabsContent value="communication">
+          <CustomerCommunication restaurantId={restaurantId} />
         </TabsContent>
 
         <TabsContent value="settings">
