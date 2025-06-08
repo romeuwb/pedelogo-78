@@ -38,23 +38,37 @@ const cleanupAuthState = () => {
   }
 };
 
-// Função para redirecionar baseado no tipo de usuário
+// Função para redirecionar baseado no tipo de usuário (apenas quando chamada explicitamente)
 const redirectBasedOnUserType = (profile: Profile) => {
-  switch (profile.tipo) {
-    case 'cliente':
-      window.location.href = '/client-dashboard';
-      break;
-    case 'restaurante':
-      window.location.href = '/dashboard';
-      break;
-    case 'entregador':
-      window.location.href = '/delivery-dashboard';
-      break;
-    case 'admin':
-      window.location.href = '/admin';
-      break;
-    default:
-      window.location.href = '/dashboard';
+  // Não redirecionar automaticamente se já estiver em uma rota específica
+  const currentPath = window.location.pathname;
+  
+  // Se já estiver na rota correta para o tipo de usuário, não redirecionar
+  if ((profile.tipo === 'admin' && currentPath === '/admin') ||
+      (profile.tipo === 'cliente' && currentPath === '/client-dashboard') ||
+      (profile.tipo === 'restaurante' && currentPath === '/dashboard') ||
+      (profile.tipo === 'entregador' && currentPath === '/delivery-dashboard')) {
+    return;
+  }
+
+  // Só redirecionar se estiver na página inicial
+  if (currentPath === '/') {
+    switch (profile.tipo) {
+      case 'cliente':
+        window.location.href = '/client-dashboard';
+        break;
+      case 'restaurante':
+        window.location.href = '/dashboard';
+        break;
+      case 'entregador':
+        window.location.href = '/delivery-dashboard';
+        break;
+      case 'admin':
+        window.location.href = '/admin';
+        break;
+      default:
+        window.location.href = '/dashboard';
+    }
   }
 };
 
@@ -257,19 +271,6 @@ export const useAuth = () => {
         description: "Bem-vindo de volta!",
       });
 
-      // Aguardar um pouco antes de redirecionar para garantir que o perfil seja carregado
-      setTimeout(() => {
-        if (data.session?.user) {
-          fetchProfile(data.session.user.id).then(() => {
-            // Redirecionar após carregar o perfil
-            const profile = JSON.parse(localStorage.getItem('userProfile') || 'null');
-            if (profile) {
-              redirectBasedOnUserType(profile);
-            }
-          });
-        }
-      }, 500);
-
       return { data, error: null };
     } catch (error: any) {
       console.error('Erro no login:', error);
@@ -349,5 +350,6 @@ export const useAuth = () => {
     signIn,
     signOut,
     isAuthenticated: !!user && !!profile,
+    redirectBasedOnUserType, // Exportar para uso manual quando necessário
   };
 };

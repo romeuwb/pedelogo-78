@@ -33,8 +33,14 @@ const ProtectedRoute = ({ children, allowedTypes }: { children: React.ReactNode,
     return <Navigate to="/" replace />;
   }
 
+  // Verificar se o usuário tem o tipo correto para a rota
   if (!allowedTypes.includes(profile.tipo)) {
-    // Redirect to appropriate dashboard based on user type
+    // Se for admin tentando acessar qualquer dashboard, permitir
+    if (profile.tipo === 'admin') {
+      return <>{children}</>;
+    }
+    
+    // Para outros casos, redirecionar para o dashboard apropriado
     switch (profile.tipo) {
       case 'cliente':
         return <Navigate to="/client-dashboard" replace />;
@@ -42,8 +48,6 @@ const ProtectedRoute = ({ children, allowedTypes }: { children: React.ReactNode,
         return <Navigate to="/dashboard" replace />;
       case 'entregador':
         return <Navigate to="/delivery-dashboard" replace />;
-      case 'admin':
-        return <Navigate to="/admin" replace />;
       default:
         return <Navigate to="/" replace />;
     }
@@ -71,18 +75,18 @@ function App() {
             <Route path="/restaurantes" element={<RestaurantsPage />} />
             <Route path="/promocoes" element={<PromotionsPage />} />
             <Route path="/dashboard" element={
-              <ProtectedRoute allowedTypes={['restaurante']}>
+              <ProtectedRoute allowedTypes={['restaurante', 'admin']}>
                 <Dashboard />
               </ProtectedRoute>
             } />
             <Route path="/client-dashboard" element={
-              <ProtectedRoute allowedTypes={['cliente']}>
+              <ProtectedRoute allowedTypes={['cliente', 'admin']}>
                 <ClientDashboard />
               </ProtectedRoute>
             } />
             <Route path="/admin" element={<AdminRoute />} />
             <Route path="/delivery-dashboard" element={
-              <ProtectedRoute allowedTypes={['entregador']}>
+              <ProtectedRoute allowedTypes={['entregador', 'admin']}>
                 <DeliveryDashboard />
               </ProtectedRoute>
             } />
