@@ -7,7 +7,7 @@ import { RestaurantMenuPanel } from './RestaurantMenuPanel';
 import { DeliveryRouteOptimizer } from './DeliveryRouteOptimizer';
 import { RestaurantSettings } from './RestaurantSettings';
 import { CustomerCommunication } from './CustomerCommunication';
-import { TableManagementPage } from './TableManagementPage';
+import TableManagementPage from './TableManagementPage';
 import { POSSystemPage } from './POSSystemPage';
 
 interface RestaurantDashboardProps {

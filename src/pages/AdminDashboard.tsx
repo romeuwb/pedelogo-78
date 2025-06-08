@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
@@ -60,7 +59,7 @@ const AdminDashboard = () => {
             Voltar ao Admin
           </Button>
         </div>
-        <RestaurantDashboard restaurantId="admin-access" userId={user.id} />
+        <RestaurantDashboard restaurantId="admin-access" />
       </div>
     );
   }

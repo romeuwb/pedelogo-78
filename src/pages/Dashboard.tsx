@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
@@ -176,10 +175,7 @@ const Dashboard = () => {
             );
           }
           return (
-            <RestaurantDashboard 
-              restaurantId={restaurantDetails.id} 
-              userId={user.id} 
-            />
+            <RestaurantDashboard restaurantId={restaurantDetails.id} />
           );
 
         case 'entregador':
