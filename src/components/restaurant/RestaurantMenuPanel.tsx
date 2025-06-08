@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import EnhancedProductForm from './EnhancedProductForm';
-import ProductCategoryManager from './ProductCategoryManager';
+import { EnhancedProductForm } from './EnhancedProductForm';
+import { ProductCategoryManager } from './ProductCategoryManager';
 import { 
   Plus, 
   Search, 
@@ -247,13 +247,13 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
                       </div>
 
                       {/* Informações Nutricionais */}
-                      {product.informacoes_nutricionais && (
+                      {(product as any).informacoes_nutricionais && (
                         <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
                           <div className="font-medium mb-1">Informações Nutricionais:</div>
                           <div className="text-gray-600">
-                            {typeof product.informacoes_nutricionais === 'string' 
-                              ? product.informacoes_nutricionais 
-                              : JSON.stringify(product.informacoes_nutricionais)
+                            {typeof (product as any).informacoes_nutricionais === 'string' 
+                              ? (product as any).informacoes_nutricionais 
+                              : JSON.stringify((product as any).informacoes_nutricionais)
                             }
                           </div>
                         </div>
@@ -376,8 +376,9 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
             </DialogHeader>
             <EnhancedProductForm
               restaurantId={restaurantId}
-              product={editingProduct}
-              onSuccess={() => {
+              productId={editingProduct?.id}
+              onSave={(data) => {
+                // Handle save logic here
                 setShowProductForm(false);
                 setEditingProduct(null);
                 queryClient.invalidateQueries({ queryKey: ['restaurant-products'] });
@@ -386,6 +387,7 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
                 setShowProductForm(false);
                 setEditingProduct(null);
               }}
+              isLoading={false}
             />
           </DialogContent>
         </Dialog>
@@ -428,13 +430,13 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
                 )}
               </div>
 
-              {selectedProduct.informacoes_nutricionais && (
+              {(selectedProduct as any).informacoes_nutricionais && (
                 <div>
                   <h4 className="font-semibold mb-2">Informações Nutricionais</h4>
                   <div className="p-3 bg-gray-50 rounded-lg text-sm">
-                    {typeof selectedProduct.informacoes_nutricionais === 'string' 
-                      ? selectedProduct.informacoes_nutricionais 
-                      : JSON.stringify(selectedProduct.informacoes_nutricionais, null, 2)
+                    {typeof (selectedProduct as any).informacoes_nutricionais === 'string' 
+                      ? (selectedProduct as any).informacoes_nutricionais 
+                      : JSON.stringify((selectedProduct as any).informacoes_nutricionais, null, 2)
                     }
                   </div>
                 </div>
