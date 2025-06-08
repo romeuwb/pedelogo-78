@@ -31,8 +31,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  if (!user || !profile) {
+  // Se não há usuário autenticado, redirecionar para auth
+  if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Se há usuário mas não há perfil ainda, aguardar um pouco mais
+  if (!profile) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
   }
 
   return <>{children}</>;

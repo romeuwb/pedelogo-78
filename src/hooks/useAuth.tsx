@@ -145,14 +145,19 @@ export const useAuth = () => {
               
             if (createError) {
               console.error('Erro ao criar perfil:', createError);
+              setLoading(false);
+              return;
             } else {
               console.log('Perfil criado:', createdProfile);
               setProfile(createdProfile);
+              setLoading(false);
+              return;
             }
           }
         }
         
-        throw error;
+        setLoading(false);
+        return;
       }
       
       console.log('Perfil carregado:', data);
