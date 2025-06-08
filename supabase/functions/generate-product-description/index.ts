@@ -33,7 +33,7 @@ serve(async (req) => {
     }
 
     const requestBody = await req.json();
-    console.log('Request body:', requestBody);
+    console.log('Request body received:', requestBody);
 
     const { 
       productName, 
@@ -66,7 +66,7 @@ serve(async (req) => {
     // Construir informações adicionais
     let additionalInfo = '';
     
-    if (ingredients && ingredients.length > 0) {
+    if (ingredients && Array.isArray(ingredients) && ingredients.length > 0) {
       additionalInfo += `\nIngredientes principais: ${ingredients.join(', ')}`;
     }
     
@@ -74,7 +74,7 @@ serve(async (req) => {
       additionalInfo += `\nCalorias: ${calories} kcal`;
     }
     
-    if (nutritionalInfo && typeof nutritionalInfo === 'object') {
+    if (nutritionalInfo && typeof nutritionalInfo === 'object' && Object.keys(nutritionalInfo).length > 0) {
       if (nutritionalInfo.proteinas) {
         additionalInfo += `\nProteínas: ${nutritionalInfo.proteinas}g`;
       }
@@ -102,7 +102,7 @@ serve(async (req) => {
 ${additionalInfo}
 
 A descrição deve:
-- Ter entre 150-250 caracteres
+- Ter entre 80-150 palavras
 - Ser extremamente apetitosa e convidativa
 - Destacar sabores, texturas e aromas de forma vívida
 - Mencionar ingredientes especiais se houver
@@ -116,7 +116,7 @@ Exemplo de tom: "Deliciosa pizza margherita com massa artesanal crocante, molho 
 
 Retorne apenas a descrição, sem aspas ou formatação adicional.`;
 
-    console.log('Calling OpenAI API...');
+    console.log('Calling OpenAI API with prompt...');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -133,7 +133,7 @@ Retorne apenas a descrição, sem aspas ou formatação adicional.`;
           },
           { role: 'user', content: prompt }
         ],
-        max_tokens: 400,
+        max_tokens: 300,
         temperature: 0.8,
         presence_penalty: 0.1,
         frequency_penalty: 0.1
@@ -145,19 +145,38 @@ Retorne apenas a descrição, sem aspas ou formatação adicional.`;
     if (!response.ok) {
       const errorText = await response.text();
       console.error('OpenAI API error:', response.status, errorText);
-      throw new Error(`Erro da API OpenAI: ${response.status} - ${errorText}`);
+      return new Response(
+        JSON.stringify({ 
+          error: `Erro da API OpenAI: ${response.status}`,
+          success: false,
+          details: errorText
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     const data = await response.json();
-    console.log('OpenAI API response data:', data);
+    console.log('OpenAI API response received successfully');
     
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      console.error('Invalid OpenAI API response:', data);
-      throw new Error('Resposta inválida da API OpenAI');
+      console.error('Invalid OpenAI API response structure:', data);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Resposta inválida da API OpenAI',
+          success: false 
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     const generatedDescription = data.choices[0].message.content.trim();
-    console.log('Generated description:', generatedDescription);
+    console.log('Generated description successfully');
 
     return new Response(
       JSON.stringify({ 
@@ -173,9 +192,9 @@ Retorne apenas a descrição, sem aspas ou formatação adicional.`;
     console.error('Error in generate-product-description function:', error);
     return new Response(
       JSON.stringify({ 
-        error: 'Erro interno do servidor ao gerar descrição: ' + (error.message || 'Erro desconhecido'),
+        error: 'Erro interno do servidor ao gerar descrição',
         success: false,
-        details: error.message 
+        details: error.message || 'Erro desconhecido'
       }),
       { 
         status: 500, 
