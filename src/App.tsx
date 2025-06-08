@@ -38,15 +38,21 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Component to render the correct dashboard based on user type
 const DashboardRouter = () => {
-  const { profile } = useAuth();
+  const { profile, loading } = useAuth();
 
-  if (!profile) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
       </div>
     );
   }
+
+  if (!profile) {
+    return <Navigate to="/" replace />;
+  }
+
+  console.log('DashboardRouter - profile.tipo:', profile.tipo);
 
   switch (profile.tipo) {
     case 'cliente':
@@ -56,9 +62,10 @@ const DashboardRouter = () => {
     case 'entregador':
       return <DeliveryDashboard />;
     case 'admin':
-      return <Dashboard />;
+      return <AdminDashboard />;
     default:
-      return <Dashboard />;
+      console.warn('Tipo de usuário não reconhecido:', profile.tipo);
+      return <Navigate to="/" replace />;
   }
 };
 
