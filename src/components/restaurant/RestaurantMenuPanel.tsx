@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -72,21 +71,9 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Debug: Log the restaurantId being used
-  useEffect(() => {
-    console.log('RestaurantMenuPanel - restaurantId:', restaurantId);
-  }, [restaurantId]);
-
-  const { data: products, isLoading, error } = useQuery({
+  const { data: products, isLoading } = useQuery({
     queryKey: ['restaurant-products', restaurantId, searchTerm, selectedCategory],
     queryFn: async () => {
-      console.log('Buscando produtos para restaurant_id:', restaurantId);
-      
-      if (!restaurantId) {
-        console.warn('RestaurantId não fornecido');
-        return [];
-      }
-
       let query = supabase
         .from('restaurant_products')
         .select(`
@@ -105,49 +92,24 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
       }
 
       const { data, error } = await query;
-      
-      if (error) {
-        console.error('Erro ao buscar produtos:', error);
-        throw error;
-      }
-      
-      console.log('Produtos encontrados:', data);
+      if (error) throw error;
       return (data || []) as ProductWithNutritionalInfo[];
-    },
-    enabled: !!restaurantId
+    }
   });
 
   const { data: categories } = useQuery({
     queryKey: ['product-categories', restaurantId],
     queryFn: async () => {
-      console.log('Buscando categorias para restaurant_id:', restaurantId);
-      
-      if (!restaurantId) {
-        console.warn('RestaurantId não fornecido para categorias');
-        return [];
-      }
-
       const { data, error } = await supabase
         .from('product_categories')
         .select('*')
         .eq('restaurant_id', restaurantId)
         .order('nome');
       
-      if (error) {
-        console.error('Erro ao buscar categorias:', error);
-        throw error;
-      }
-      
-      console.log('Categorias encontradas:', data);
+      if (error) throw error;
       return data || [];
-    },
-    enabled: !!restaurantId
+    }
   });
-
-  // Debug: Log query states
-  useEffect(() => {
-    console.log('Products query state:', { products, isLoading, error });
-  }, [products, isLoading, error]);
 
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: string) => {
@@ -208,22 +170,6 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
     return <div className="p-6">Carregando cardápio...</div>;
   }
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="text-red-600">
-          Erro ao carregar dados: {error.message}
-        </div>
-        <Button 
-          onClick={() => queryClient.invalidateQueries({ queryKey: ['restaurant-products'] })}
-          className="mt-2"
-        >
-          Tentar novamente
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -238,15 +184,6 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
           <Plus className="h-4 w-4 mr-2" />
           Novo Produto
         </Button>
-      </div>
-
-      {/* Debug Info */}
-      <div className="p-4 bg-gray-100 rounded text-sm">
-        <p><strong>Restaurant ID:</strong> {restaurantId}</p>
-        <p><strong>Produtos encontrados:</strong> {filteredProducts.length}</p>
-        <p><strong>Categorias encontradas:</strong> {categories?.length || 0}</p>
-        <p><strong>Estado do carregamento:</strong> {isLoading ? 'Carregando...' : 'Concluído'}</p>
-        {error && <p className="text-red-600"><strong>Erro:</strong> {error.message}</p>}
       </div>
 
       <Tabs defaultValue="products" className="w-full">

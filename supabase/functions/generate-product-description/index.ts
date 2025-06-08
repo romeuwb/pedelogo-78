@@ -10,8 +10,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  console.log('Generate product description function called');
-  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -19,12 +17,9 @@ serve(async (req) => {
 
   try {
     if (!openAIApiKey) {
-      console.error('OPENAI_API_KEY not configured');
+      console.error('OPENAI_API_KEY não configurada');
       return new Response(
-        JSON.stringify({ 
-          error: 'Configuração da API do OpenAI não encontrada',
-          success: false 
-        }),
+        JSON.stringify({ error: 'Configuração da API do OpenAI não encontrada' }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -32,28 +27,11 @@ serve(async (req) => {
       );
     }
 
-    const requestBody = await req.json();
-    console.log('Request body received:', requestBody);
+    const { productName, category, price } = await req.json();
 
-    const { 
-      productName, 
-      ingredients = [], 
-      category = '', 
-      nutritionalInfo = {}, 
-      calories = 0,
-      isVegetarian = false,
-      isVegan = false,
-      isGlutenFree = false,
-      isLactoseFree = false
-    } = requestBody;
-
-    if (!productName || productName.trim() === '') {
-      console.error('Product name is required');
+    if (!productName) {
       return new Response(
-        JSON.stringify({ 
-          error: 'Nome do produto é obrigatório',
-          success: false 
-        }),
+        JSON.stringify({ error: 'Nome do produto é obrigatório' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -61,62 +39,18 @@ serve(async (req) => {
       );
     }
 
-    console.log('Generating description for product:', productName);
+    console.log('Gerando descrição para produto:', productName);
 
-    // Construir informações adicionais
-    let additionalInfo = '';
-    
-    if (ingredients && Array.isArray(ingredients) && ingredients.length > 0) {
-      additionalInfo += `\nIngredientes principais: ${ingredients.join(', ')}`;
-    }
-    
-    if (calories && calories > 0) {
-      additionalInfo += `\nCalorias: ${calories} kcal`;
-    }
-    
-    if (nutritionalInfo && typeof nutritionalInfo === 'object' && Object.keys(nutritionalInfo).length > 0) {
-      if (nutritionalInfo.proteinas) {
-        additionalInfo += `\nProteínas: ${nutritionalInfo.proteinas}g`;
-      }
-      if (nutritionalInfo.carboidratos) {
-        additionalInfo += `\nCarboidratos: ${nutritionalInfo.carboidratos}g`;
-      }
-      if (nutritionalInfo.gorduras) {
-        additionalInfo += `\nGorduras: ${nutritionalInfo.gorduras}g`;
-      }
-    }
-
-    // Características especiais
-    const specialFeatures = [];
-    if (isVegetarian) specialFeatures.push('vegetariano');
-    if (isVegan) specialFeatures.push('vegano');
-    if (isGlutenFree) specialFeatures.push('sem glúten');
-    if (isLactoseFree) specialFeatures.push('sem lactose');
-    
-    if (specialFeatures.length > 0) {
-      additionalInfo += `\nCaracterísticas especiais: ${specialFeatures.join(', ')}`;
-    }
-
-    const prompt = `Crie uma descrição atrativa, detalhada e apetitosa para o produto de comida "${productName}"${category ? ` da categoria ${category}` : ''}.
-
-${additionalInfo}
+    const prompt = `Crie uma descrição atrativa e apetitosa para o produto de comida "${productName}" ${category ? `da categoria ${category}` : ''} ${price ? `com preço de R$ ${price}` : ''}. 
 
 A descrição deve:
-- Ter entre 80-150 palavras
-- Ser extremamente apetitosa e convidativa
-- Destacar sabores, texturas e aromas de forma vívida
-- Mencionar ingredientes especiais se houver
-- Incluir benefícios nutricionais se relevante
-- Ser adequada para um cardápio de delivery/restaurante
-- Usar linguagem brasileira calorosa e profissional
-- Despertar o desejo de consumo no cliente
-- Ser descritiva e envolvente
-
-Exemplo de tom: "Deliciosa pizza margherita com massa artesanal crocante, molho de tomate fresco, mussarela derretida e manjericão aromático. Uma explosão de sabores tradicionais que transporta você diretamente à Itália."
+- Ter entre 80-150 caracteres
+- Ser apetitosa e convidativa
+- Destacar ingredientes ou características especiais
+- Ser adequada para um cardápio de delivery
+- Usar linguagem brasileira informal mas profissional
 
 Retorne apenas a descrição, sem aspas ou formatação adicional.`;
-
-    console.log('Calling OpenAI API with prompt...');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -129,54 +63,31 @@ Retorne apenas a descrição, sem aspas ou formatação adicional.`;
         messages: [
           { 
             role: 'system', 
-            content: 'Você é um especialista em gastronomia e marketing culinário brasileiro. Suas descrições são irresistíveis e fazem os clientes desejarem o produto imediatamente. Você conhece técnicas de copywriting para vendas no setor alimentício e usa linguagem calorosa e profissional do Brasil.'
+            content: 'Você é um especialista em criar descrições atrativas para produtos alimentícios em aplicativos de delivery. Suas descrições são sempre apetitosas, concisas e eficazes para aumentar as vendas.'
           },
           { role: 'user', content: prompt }
         ],
-        max_tokens: 300,
-        temperature: 0.8,
-        presence_penalty: 0.1,
-        frequency_penalty: 0.1
+        max_tokens: 200,
+        temperature: 0.7,
       }),
     });
 
-    console.log('OpenAI API response status:', response.status);
-
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
-      return new Response(
-        JSON.stringify({ 
-          error: `Erro da API OpenAI: ${response.status}`,
-          success: false,
-          details: errorText
-        }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      const errorData = await response.text();
+      console.error('Erro da API OpenAI:', response.status, errorData);
+      throw new Error(`Erro da API OpenAI: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('OpenAI API response received successfully');
     
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      console.error('Invalid OpenAI API response structure:', data);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Resposta inválida da API OpenAI',
-          success: false 
-        }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      console.error('Resposta inválida da API OpenAI:', data);
+      throw new Error('Resposta inválida da API OpenAI');
     }
 
     const generatedDescription = data.choices[0].message.content.trim();
-    console.log('Generated description successfully');
+
+    console.log('Descrição gerada com sucesso:', generatedDescription);
 
     return new Response(
       JSON.stringify({ 
@@ -189,12 +100,11 @@ Retorne apenas a descrição, sem aspas ou formatação adicional.`;
     );
 
   } catch (error) {
-    console.error('Error in generate-product-description function:', error);
+    console.error('Erro na função generate-product-description:', error);
     return new Response(
       JSON.stringify({ 
         error: 'Erro interno do servidor ao gerar descrição',
-        success: false,
-        details: error.message || 'Erro desconhecido'
+        details: error.message 
       }),
       { 
         status: 500, 

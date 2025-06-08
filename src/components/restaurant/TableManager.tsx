@@ -17,15 +17,12 @@ interface Table {
   numero_mesa: number;
   capacidade: number;
   status: string;
-  posicao_x?: number;
-  posicao_y?: number;
-  qr_code?: string;
+  posicao_x: number;
+  posicao_y: number;
+  qr_code: string;
   ativo: boolean;
-  observacoes?: string;
-  localizacao?: string;
-  restaurant_id: string;
-  created_at: string;
-  updated_at: string;
+  observacoes: string;
+  localizacao: string;
 }
 
 interface TableManagerProps {
@@ -38,7 +35,6 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
   const [loading, setLoading] = useState(true);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [showDialog, setShowDialog] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     numero_mesa: '',
     capacidade: '',
@@ -47,28 +43,19 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
   });
 
   useEffect(() => {
-    if (restaurantId) {
-      loadTables();
-    }
+    loadTables();
   }, [restaurantId]);
 
   const loadTables = async () => {
     try {
       setLoading(true);
-      console.log('Carregando mesas para restaurante:', restaurantId);
-      
       const { data, error } = await supabase
         .from('restaurant_tables')
         .select('*')
         .eq('restaurant_id', restaurantId)
         .order('numero_mesa', { ascending: true });
 
-      if (error) {
-        console.error('Erro ao carregar mesas:', error);
-        throw error;
-      }
-      
-      console.log('Mesas carregadas:', data);
+      if (error) throw error;
       setTables(data || []);
     } catch (error) {
       console.error('Erro ao carregar mesas:', error);
@@ -81,25 +68,13 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.numero_mesa || !formData.capacidade) {
-      toast.error('Número da mesa e capacidade são obrigatórios');
-      return;
-    }
-
-    if (!restaurantId) {
-      toast.error('ID do restaurante não encontrado');
-      return;
-    }
-
     try {
-      setSaving(true);
-      
       const tableData = {
         restaurant_id: restaurantId,
         numero_mesa: parseInt(formData.numero_mesa),
         capacidade: parseInt(formData.capacidade),
-        localizacao: formData.localizacao || null,
-        observacoes: formData.observacoes || null,
+        localizacao: formData.localizacao,
+        observacoes: formData.observacoes,
         status: 'livre',
         ativo: true,
         posicao_x: 0,
@@ -107,65 +82,30 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
         qr_code: `mesa-${formData.numero_mesa}-${Date.now()}`
       };
 
-      console.log('Dados da mesa a serem salvos:', tableData);
-
       if (selectedTable) {
-        // Atualizar mesa existente
         const { error } = await supabase
           .from('restaurant_tables')
-          .update({
-            numero_mesa: tableData.numero_mesa,
-            capacidade: tableData.capacidade,
-            localizacao: tableData.localizacao,
-            observacoes: tableData.observacoes,
-            updated_at: new Date().toISOString()
-          })
+          .update(tableData)
           .eq('id', selectedTable.id);
         
-        if (error) {
-          console.error('Erro ao atualizar mesa:', error);
-          throw error;
-        }
+        if (error) throw error;
         toast.success('Mesa atualizada com sucesso!');
       } else {
-        // Verificar se o número da mesa já existe
-        const { data: existingTable } = await supabase
+        const { error } = await supabase
           .from('restaurant_tables')
-          .select('id')
-          .eq('restaurant_id', restaurantId)
-          .eq('numero_mesa', tableData.numero_mesa)
-          .single();
-
-        if (existingTable) {
-          toast.error('Já existe uma mesa com este número');
-          return;
-        }
-
-        // Criar nova mesa
-        const { data: newTable, error } = await supabase
-          .from('restaurant_tables')
-          .insert(tableData)
-          .select()
-          .single();
+          .insert(tableData);
         
-        if (error) {
-          console.error('Erro ao criar mesa:', error);
-          throw error;
-        }
-        
-        console.log('Mesa criada:', newTable);
+        if (error) throw error;
         toast.success('Mesa criada com sucesso!');
       }
 
       setShowDialog(false);
       setSelectedTable(null);
       setFormData({ numero_mesa: '', capacidade: '', localizacao: '', observacoes: '' });
-      await loadTables();
-    } catch (error: any) {
+      loadTables();
+    } catch (error) {
       console.error('Erro ao salvar mesa:', error);
-      toast.error('Erro ao salvar mesa: ' + (error.message || 'Erro desconhecido'));
-    } finally {
-      setSaving(false);
+      toast.error('Erro ao salvar mesa');
     }
   };
 
@@ -202,10 +142,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
     try {
       const { error } = await supabase
         .from('restaurant_tables')
-        .update({ 
-          ativo: !table.ativo,
-          updated_at: new Date().toISOString()
-        })
+        .update({ ativo: !table.ativo })
         .eq('id', table.id);
 
       if (error) throw error;
@@ -271,7 +208,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="numero_mesa">Número da Mesa *</Label>
+                  <Label htmlFor="numero_mesa">Número da Mesa</Label>
                   <Input
                     id="numero_mesa"
                     type="number"
@@ -279,11 +216,10 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
                     onChange={(e) => setFormData({...formData, numero_mesa: e.target.value})}
                     required
                     min="1"
-                    placeholder="Ex: 1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="capacidade">Capacidade *</Label>
+                  <Label htmlFor="capacidade">Capacidade</Label>
                   <Input
                     id="capacidade"
                     type="number"
@@ -291,7 +227,6 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
                     onChange={(e) => setFormData({...formData, capacidade: e.target.value})}
                     required
                     min="1"
-                    placeholder="Ex: 4"
                   />
                 </div>
               </div>
@@ -314,16 +249,11 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
                 />
               </div>
               <div className="flex justify-end space-x-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setShowDialog(false)}
-                  disabled={saving}
-                >
+                <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={saving}>
-                  {saving ? 'Salvando...' : (selectedTable ? 'Atualizar' : 'Criar')}
+                <Button type="submit">
+                  {selectedTable ? 'Atualizar' : 'Criar'}
                 </Button>
               </div>
             </form>
@@ -367,12 +297,10 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
                 </p>
               )}
 
-              {table.qr_code && (
-                <div className="flex items-center text-sm text-gray-500">
-                  <QrCode className="h-4 w-4 mr-2" />
-                  QR Code: {table.qr_code.slice(-8)}
-                </div>
-              )}
+              <div className="flex items-center text-sm text-gray-500">
+                <QrCode className="h-4 w-4 mr-2" />
+                QR Code: {table.qr_code.slice(-8)}
+              </div>
 
               <div className="flex justify-between items-center pt-2">
                 <div className="flex space-x-2">
