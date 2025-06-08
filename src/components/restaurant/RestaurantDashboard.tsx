@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -17,7 +17,7 @@ import { RestaurantMenuPanel } from './RestaurantMenuPanel';
 import { DeliveryRouteOptimizer } from './DeliveryRouteOptimizer';
 import { RestaurantSettings } from './RestaurantSettings';
 import { CustomerCommunication } from './CustomerCommunication';
-import { TableManagementPage } from './TableManagementPage';
+import TableManagementPage from './TableManagementPage';
 import { POSSystemPage } from './POSSystemPage';
 
 interface RestaurantDashboardProps {
