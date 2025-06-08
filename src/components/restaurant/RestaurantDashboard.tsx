@@ -10,6 +10,7 @@ import { RestaurantMenuPanel } from './RestaurantMenuPanel';
 import { RestaurantFinancialPanel } from './RestaurantFinancialPanel';
 import { RestaurantSettings } from './RestaurantSettings';
 import { POSSystem } from './POSSystem';
+import TableManagementPage from './TableManagementPage';
 import { 
   Package, 
   DollarSign, 
@@ -20,7 +21,8 @@ import {
   Bell,
   Eye,
   EyeOff,
-  Monitor
+  Monitor,
+  Utensils
 } from 'lucide-react';
 
 interface RestaurantDashboardProps {
@@ -317,11 +319,13 @@ const RestaurantDashboard = ({ restaurantId, userId }: RestaurantDashboardProps)
 
       {/* Tabs principais */}
       <Tabs defaultValue="orders" className="space-y-4">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="orders">Pedidos</TabsTrigger>
-          <TabsTrigger value="pos">POS</TabsTrigger>
           <TabsTrigger value="menu">Cardápio</TabsTrigger>
+          <TabsTrigger value="pos">POS</TabsTrigger>
+          <TabsTrigger value="tables">Mesas</TabsTrigger>
           <TabsTrigger value="financial">Financeiro</TabsTrigger>
+          <TabsTrigger value="routes">Rotas</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
 
@@ -329,16 +333,36 @@ const RestaurantDashboard = ({ restaurantId, userId }: RestaurantDashboardProps)
           <RestaurantOrdersPanel restaurantId={restaurantId} />
         </TabsContent>
 
-        <TabsContent value="pos">
-          <POSSystem restaurantId={restaurantId} />
-        </TabsContent>
-
         <TabsContent value="menu">
           <RestaurantMenuPanel restaurantId={restaurantId} />
         </TabsContent>
 
+        <TabsContent value="pos">
+          <POSSystem restaurantId={restaurantId} />
+        </TabsContent>
+
+        <TabsContent value="tables">
+          <TableManagementPage restaurantId={restaurantId} />
+        </TabsContent>
+
         <TabsContent value="financial">
           <RestaurantFinancialPanel restaurantId={restaurantId} />
+        </TabsContent>
+
+        <TabsContent value="routes">
+          <Card>
+            <CardHeader>
+              <CardTitle>Gerenciamento de Rotas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600 mb-4">
+                Configure e otimize as rotas de entrega do seu restaurante.
+              </p>
+              <Button>
+                Acessar Otimização de Rotas
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="settings">
