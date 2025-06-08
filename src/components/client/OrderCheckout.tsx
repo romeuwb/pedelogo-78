@@ -102,7 +102,7 @@ export const OrderCheckout = ({
           total: orderData.total,
           taxa_entrega: restaurant?.taxa_entrega || 0,
           tempo_estimado: restaurant?.tempo_entrega_min || 30,
-          endereco_entrega: deliveryAddress,
+          endereco_entrega: deliveryAddress as any,
           observacoes: observations
         })
         .select()
@@ -262,7 +262,7 @@ export const OrderCheckout = ({
                   {userAddresses.map((address) => (
                     <div key={address.id} className="flex justify-between items-center p-3 border rounded">
                       <div>
-                        <p className="font-medium">{address.titulo}</p>
+                        <p className="font-medium">Endereço {address.is_default ? '(Principal)' : ''}</p>
                         <p className="text-sm text-gray-600">
                           {address.logradouro}, {address.numero} - {address.bairro}
                         </p>

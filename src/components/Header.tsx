@@ -230,7 +230,6 @@ const Header = () => {
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
-        userType={selectedUserType}
       />
     </>
   );
