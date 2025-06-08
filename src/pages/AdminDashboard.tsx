@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import RestaurantDashboard from '@/components/restaurant/RestaurantDashboard';
+import { UserProfile } from '@/components/shared/UserProfile';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -26,7 +27,18 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <RestaurantDashboard restaurantId={user.id} />
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Painel Administrativo</h1>
+            <p className="text-gray-600">Gerencie toda a plataforma</p>
+          </div>
+          <UserProfile />
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Administração do Sistema</h2>
+          <p className="text-gray-600">Funcionalidades administrativas serão implementadas aqui.</p>
+        </div>
       </div>
     </div>
   );

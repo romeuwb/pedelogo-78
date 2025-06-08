@@ -9,6 +9,7 @@ import { RestaurantSettings } from './RestaurantSettings';
 import { CustomerCommunication } from './CustomerCommunication';
 import TableManagementPage from './TableManagementPage';
 import { POSSystemPage } from './POSSystemPage';
+import { UserProfile } from '@/components/shared/UserProfile';
 
 interface RestaurantDashboardProps {
   restaurantId: string;
@@ -17,9 +18,12 @@ interface RestaurantDashboardProps {
 const RestaurantDashboard = ({ restaurantId }: RestaurantDashboardProps) => {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Painel do Restaurante</h1>
-        <p className="text-gray-600">Gerencie seu restaurante de forma completa</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Painel do Restaurante</h1>
+          <p className="text-gray-600">Gerencie seu restaurante de forma completa</p>
+        </div>
+        <UserProfile />
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
@@ -96,7 +100,7 @@ const RestaurantDashboard = ({ restaurantId }: RestaurantDashboardProps) => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">48</div>
-                <p className="text-xs text-muted-foreground">3 novos esta semana</p>
+                <p className="text-xs text-muted-foregreen">3 novos esta semana</p>
               </CardContent>
             </Card>
           </div>

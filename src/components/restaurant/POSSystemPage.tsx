@@ -1,69 +1,94 @@
 
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, ShoppingCart, Users, Package, DollarSign, Search, Trash2, Calculator, Table, CreditCard } from 'lucide-react';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
+import { Separator } from '@/components/ui/separator';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { 
+  Plus, 
+  Minus, 
+  Trash2, 
+  Calculator, 
+  CreditCard, 
+  Users,
+  X,
+  ShoppingCart,
+  Check
+} from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 interface POSSystemPageProps {
   restaurantId: string;
 }
 
-export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [orderItems, setOrderItems] = useState<any[]>([]);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showTableOrdersModal, setShowTableOrdersModal] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('dinheiro');
-  const [customerName, setCustomerName] = useState('');
-  const [tableNumber, setTableNumber] = useState<number | null>(null);
-  const [orderType, setOrderType] = useState<'mesa' | 'balcao'>('balcao');
-  const [valorPago, setValorPago] = useState<string>('');
-  const [mostrarTroco, setMostrarTroco] = useState(false);
+interface CartItem {
+  id: string;
+  nome: string;
+  preco: number;
+  quantidade: number;
+  observacoes?: string;
+}
 
+interface TableOrder {
+  id: string;
+  numero_mesa: number;
+  total: number;
+  status: string;
+  cliente_nome?: string;
+  created_at: string;
+  pos_order_items: Array<{
+    id: string;
+    nome_produto: string;
+    quantidade: number;
+    preco_unitario: number;
+    preco_total: number;
+    observacoes?: string;
+  }>;
+}
+
+export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [selectedTable, setSelectedTable] = useState<number | null>(null);
+  const [customerName, setCustomerName] = useState('');
+  const [orderType, setOrderType] = useState<'mesa' | 'balcao'>('mesa');
+  const [paymentAmount, setPaymentAmount] = useState<string>('');
+  const [showTableOrders, setShowTableOrders] = useState(false);
+  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Buscar produtos do restaurante
-  const { data: products, isLoading: loadingProducts } = useQuery({
-    queryKey: ['restaurant-products-pos', restaurantId, searchTerm, selectedCategory],
+  const { data: products } = useQuery({
+    queryKey: ['restaurant-products-pos', restaurantId],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from('restaurant_products')
         .select(`
           *,
           product_categories (nome)
         `)
         .eq('restaurant_id', restaurantId)
-        .eq('disponivel', true)
         .eq('ativo', true)
+        .eq('disponivel', true)
         .order('nome');
-
-      if (searchTerm) {
-        query = query.or(`nome.ilike.%${searchTerm}%,descricao.ilike.%${searchTerm}%`);
-      }
-
-      if (selectedCategory !== 'all') {
-        query = query.eq('category_id', selectedCategory);
-      }
-
-      const { data, error } = await query;
+      
       if (error) throw error;
       return data || [];
-    },
+    }
   });
 
   // Buscar categorias
   const { data: categories } = useQuery({
-    queryKey: ['product-categories', restaurantId],
+    queryKey: ['product-categories-pos', restaurantId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('product_categories')
@@ -77,9 +102,9 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
     }
   });
 
-  // Buscar pedidos de mesa aguardando pagamento
-  const { data: pendingTableOrders } = useQuery({
-    queryKey: ['pending-table-orders', restaurantId],
+  // Buscar pedidos de mesa fechados (aguardando pagamento)
+  const { data: tableOrders, refetch: refetchTableOrders } = useQuery({
+    queryKey: ['table-orders-closed', restaurantId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('pos_orders')
@@ -88,77 +113,74 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
           pos_order_items (*)
         `)
         .eq('restaurant_id', restaurantId)
+        .eq('status', 'fechado')
         .eq('tipo_pedido', 'mesa')
-        .eq('status', 'aguardando_pagamento')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data || [];
-    }
+      return (data || []) as TableOrder[];
+    },
+    enabled: showTableOrders
   });
 
-  // Criar pedido POS
-  const createPOSOrderMutation = useMutation({
+  // Mutation para criar pedido
+  const createOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
-      const { data: posOrder, error: orderError } = await supabase
+      const { data: order, error: orderError } = await supabase
         .from('pos_orders')
-        .insert({
-          restaurant_id: restaurantId,
-          tipo_pedido: orderType,
-          numero_mesa: tableNumber,
-          cliente_nome: customerName || 'Cliente Balcão',
-          subtotal: orderData.subtotal,
-          total: orderData.total,
-          metodo_pagamento: paymentMethod,
-          status: 'finalizado'
-        })
+        .insert(orderData)
         .select()
         .single();
 
       if (orderError) throw orderError;
 
-      if (orderItems.length > 0) {
-        const { error: itemsError } = await supabase
-          .from('pos_order_items')
-          .insert(
-            orderItems.map(item => ({
-              pos_order_id: posOrder.id,
-              product_id: item.id,
-              nome_produto: item.nome,
-              quantidade: item.quantidade,
-              preco_unitario: item.preco,
-              preco_total: item.preco * item.quantidade
-            }))
-          );
+      // Inserir itens do pedido
+      const items = cart.map(item => ({
+        pos_order_id: order.id,
+        product_id: item.id,
+        nome_produto: item.nome,
+        quantidade: item.quantidade,
+        preco_unitario: item.preco,
+        preco_total: item.preco * item.quantidade,
+        observacoes: item.observacoes
+      }));
 
-        if (itemsError) throw itemsError;
-      }
+      const { error: itemsError } = await supabase
+        .from('pos_order_items')
+        .insert(items);
 
-      return posOrder;
+      if (itemsError) throw itemsError;
+
+      return order;
     },
     onSuccess: () => {
-      toast.success('Venda realizada com sucesso!');
-      setOrderItems([]);
+      toast({
+        title: "Pedido criado com sucesso!",
+        description: "O pedido foi registrado no sistema.",
+      });
+      setCart([]);
+      setSelectedTable(null);
       setCustomerName('');
-      setTableNumber(null);
-      setValorPago('');
-      setMostrarTroco(false);
-      setShowPaymentModal(false);
+      setPaymentAmount('');
       queryClient.invalidateQueries({ queryKey: ['pos-orders'] });
     },
     onError: (error: any) => {
-      toast.error('Erro ao realizar venda: ' + error.message);
+      toast({
+        title: "Erro ao criar pedido",
+        description: error.message,
+        variant: "destructive"
+      });
     }
   });
 
-  // Finalizar pagamento de mesa
-  const finalizarPagamentoMesaMutation = useMutation({
-    mutationFn: async ({ orderId, metodoPagamento, valorPago }: { orderId: string, metodoPagamento: string, valorPago?: number }) => {
+  // Mutation para finalizar pagamento de mesa
+  const finalizeTableOrderMutation = useMutation({
+    mutationFn: async ({ orderId, metodo_pagamento }: { orderId: string; metodo_pagamento: string }) => {
       const { error } = await supabase
         .from('pos_orders')
         .update({
-          status: 'finalizado',
-          metodo_pagamento: metodoPagamento,
+          status: 'pago',
+          metodo_pagamento,
           updated_at: new Date().toISOString()
         })
         .eq('id', orderId);
@@ -166,508 +188,405 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('Pagamento realizado com sucesso!');
-      setShowTableOrdersModal(false);
-      queryClient.invalidateQueries({ queryKey: ['pending-table-orders'] });
+      toast({
+        title: "Pagamento processado!",
+        description: "Mesa liberada com sucesso.",
+      });
+      refetchTableOrders();
+      setShowTableOrders(false);
     },
     onError: (error: any) => {
-      toast.error('Erro ao processar pagamento: ' + error.message);
+      toast({
+        title: "Erro ao processar pagamento",
+        description: error.message,
+        variant: "destructive"
+      });
     }
   });
 
-  const addItemToOrder = (product: any) => {
-    const existingItem = orderItems.find(item => item.id === product.id);
-    
-    if (existingItem) {
-      setOrderItems(orderItems.map(item =>
-        item.id === product.id
-          ? { ...item, quantidade: item.quantidade + 1 }
-          : item
-      ));
-    } else {
-      setOrderItems([...orderItems, { 
-        ...product, 
-        quantidade: 1,
-        categoria: product.product_categories?.nome || 'Sem categoria'
-      }]);
-    }
-  };
-
-  const removeItemFromOrder = (productId: string) => {
-    setOrderItems(orderItems.filter(item => item.id !== productId));
-  };
-
-  const updateItemQuantity = (productId: string, quantidade: number) => {
-    if (quantidade <= 0) {
-      removeItemFromOrder(productId);
-      return;
-    }
-    
-    setOrderItems(orderItems.map(item =>
-      item.id === productId
-        ? { ...item, quantidade }
-        : item
-    ));
-  };
-
-  const calculateSubtotal = () => {
-    return orderItems.reduce((total, item) => total + (item.preco * item.quantidade), 0);
-  };
-
-  const calculateTotal = () => {
-    return calculateSubtotal();
-  };
-
-  const calculateTroco = () => {
-    const valorPagoNum = parseFloat(valorPago) || 0;
-    const total = calculateTotal();
-    return valorPagoNum > total ? valorPagoNum - total : 0;
-  };
-
-  const handleFinalizeSale = () => {
-    if (orderItems.length === 0) {
-      toast.error('Adicione itens ao pedido primeiro');
-      return;
-    }
-
-    if (orderType === 'mesa' && !tableNumber) {
-      toast.error('Informe o número da mesa');
-      return;
-    }
-
-    setShowPaymentModal(true);
-  };
-
-  const handleConfirmPayment = () => {
-    const valorPagoNum = parseFloat(valorPago) || 0;
-    const total = calculateTotal();
-
-    if (paymentMethod === 'dinheiro' && valorPagoNum < total) {
-      toast.error('Valor pago é inferior ao total da venda');
-      return;
-    }
-
-    createPOSOrderMutation.mutate({
-      subtotal: calculateSubtotal(),
-      total: calculateTotal()
+  const addToCart = (product: any) => {
+    setCart(prevCart => {
+      const existingItem = prevCart.find(item => item.id === product.id);
+      if (existingItem) {
+        return prevCart.map(item =>
+          item.id === product.id
+            ? { ...item, quantidade: item.quantidade + 1 }
+            : item
+        );
+      }
+      return [...prevCart, {
+        id: product.id,
+        nome: product.nome,
+        preco: product.preco,
+        quantidade: 1
+      }];
     });
   };
 
-  const handleValorPagoChange = (value: string) => {
-    setValorPago(value);
-    const valorNum = parseFloat(value) || 0;
-    const total = calculateTotal();
-    setMostrarTroco(paymentMethod === 'dinheiro' && valorNum > total);
+  const updateQuantity = (productId: string, change: number) => {
+    setCart(prevCart => {
+      return prevCart.map(item => {
+        if (item.id === productId) {
+          const newQuantity = Math.max(0, item.quantidade + change);
+          return newQuantity === 0 ? null : { ...item, quantidade: newQuantity };
+        }
+        return item;
+      }).filter(Boolean) as CartItem[];
+    });
   };
 
-  const clearOrder = () => {
-    setOrderItems([]);
-    setCustomerName('');
-    setTableNumber(null);
-    setValorPago('');
-    setMostrarTroco(false);
+  const removeFromCart = (productId: string) => {
+    setCart(prevCart => prevCart.filter(item => item.id !== productId));
+  };
+
+  const getSubtotal = () => {
+    return cart.reduce((sum, item) => sum + (item.preco * item.quantidade), 0);
+  };
+
+  const getTotal = () => {
+    return getSubtotal(); // Por enquanto sem taxas adicionais
+  };
+
+  const getChange = () => {
+    const payment = parseFloat(paymentAmount) || 0;
+    const total = getTotal();
+    return payment > total ? payment - total : 0;
+  };
+
+  const handleFinishOrder = async () => {
+    if (cart.length === 0) {
+      toast({
+        title: "Carrinho vazio",
+        description: "Adicione produtos ao carrinho antes de finalizar.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (orderType === 'mesa' && !selectedTable) {
+      toast({
+        title: "Mesa obrigatória",
+        description: "Selecione o número da mesa para pedidos de mesa.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const orderData = {
+      restaurant_id: restaurantId,
+      tipo_pedido: orderType,
+      numero_mesa: orderType === 'mesa' ? selectedTable : null,
+      cliente_nome: customerName || null,
+      subtotal: getSubtotal(),
+      total: getTotal(),
+      status: 'aberto'
+    };
+
+    createOrderMutation.mutate(orderData);
+  };
+
+  const handleImportTableOrder = (order: TableOrder) => {
+    const importedItems: CartItem[] = order.pos_order_items.map(item => ({
+      id: item.id,
+      nome: item.nome_produto,
+      preco: item.preco_unitario,
+      quantidade: item.quantidade,
+      observacoes: item.observacoes
+    }));
+
+    setCart(importedItems);
+    setSelectedTable(order.numero_mesa);
+    setCustomerName(order.cliente_nome || '');
+    setOrderType('mesa');
+    setShowTableOrders(false);
+
+    toast({
+      title: "Pedido importado!",
+      description: `Pedido da mesa ${order.numero_mesa} foi carregado no POS.`,
+    });
+  };
+
+  const handleFinalizeTablePayment = (orderId: string, metodo: string) => {
+    finalizeTableOrderMutation.mutate({ orderId, metodo_pagamento: metodo });
   };
 
   return (
-    <div className="h-screen flex bg-gray-50">
-      {/* Lado esquerdo - Produtos */}
-      <div className="flex-1 p-4 overflow-hidden">
-        <div className="h-full flex flex-col">
-          <div className="mb-4">
-            <h2 className="text-2xl font-bold mb-4">Sistema POS</h2>
-            
-            {/* Filtros */}
-            <div className="flex gap-4 mb-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Buscar produtos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {categories?.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Button
-                onClick={() => setShowTableOrdersModal(true)}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <Table className="h-4 w-4" />
-                Mesas ({pendingTableOrders?.length || 0})
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
+      {/* Produtos */}
+      <div className="lg:col-span-2 space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">Sistema POS</h2>
+          <Dialog open={showTableOrders} onOpenChange={setShowTableOrders}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Users className="h-4 w-4 mr-2" />
+                Mesas Fechadas
               </Button>
-            </div>
-          </div>
-
-          {/* Grid de produtos */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {loadingProducts ? (
-                <div className="col-span-full text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-                  <p className="mt-2 text-gray-600">Carregando produtos...</p>
-                </div>
-              ) : (
-                products?.map((product) => (
-                  <Card 
-                    key={product.id} 
-                    className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => addItemToOrder(product)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
-                        {product.imagem_url ? (
-                          <img
-                            src={product.imagem_url}
-                            alt={product.nome}
-                            className="w-full h-full object-cover rounded-lg"
-                          />
-                        ) : (
-                          <Package className="h-12 w-12 text-gray-400" />
-                        )}
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Pedidos de Mesa Aguardando Pagamento</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {tableOrders?.map((order) => (
+                  <Card key={order.id} className="border-orange-200">
+                    <CardHeader className="pb-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-lg">Mesa {order.numero_mesa}</CardTitle>
+                          {order.cliente_nome && (
+                            <p className="text-sm text-gray-600">{order.cliente_nome}</p>
+                          )}
+                          <p className="text-xs text-gray-500">
+                            {new Date(order.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-bold text-green-600">
+                            R$ {order.total.toFixed(2)}
+                          </p>
+                          <Badge variant="secondary">{order.status}</Badge>
+                        </div>
                       </div>
-                      
-                      <h3 className="font-semibold text-sm mb-1 line-clamp-2">
-                        {product.nome}
-                      </h3>
-                      
-                      <p className="text-lg font-bold text-green-600">
-                        R$ {product.preco.toFixed(2)}
-                      </p>
-                      
-                      <p className="text-xs text-gray-500">
-                        {product.product_categories?.nome || 'Sem categoria'}
-                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2 mb-4">
+                        <h4 className="font-medium">Itens do Pedido:</h4>
+                        {order.pos_order_items.map((item) => (
+                          <div key={item.id} className="flex justify-between text-sm">
+                            <span>{item.quantidade}x {item.nome_produto}</span>
+                            <span>R$ {item.preco_total.toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleImportTableOrder(order)}
+                        >
+                          <ShoppingCart className="h-4 w-4 mr-1" />
+                          Importar para POS
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleFinalizeTablePayment(order.id, 'dinheiro')}
+                          disabled={finalizeTableOrderMutation.isPending}
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Receber Dinheiro
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleFinalizeTablePayment(order.id, 'cartao')}
+                          disabled={finalizeTableOrderMutation.isPending}
+                        >
+                          <CreditCard className="h-4 w-4 mr-1" />
+                          Receber Cartão
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
-                ))
-              )}
-            </div>
-          </div>
+                ))}
+                {tableOrders?.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhum pedido de mesa aguardando pagamento</p>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto max-h-[500px]">
+          {products?.map((product) => (
+            <Card 
+              key={product.id} 
+              className="cursor-pointer hover:bg-gray-50 transition-colors"
+              onClick={() => addToCart(product)}
+            >
+              <CardContent className="p-4">
+                <div className="text-center">
+                  {product.imagem_url && (
+                    <img 
+                      src={product.imagem_url} 
+                      alt={product.nome}
+                      className="w-full h-20 object-cover rounded mb-2"
+                    />
+                  )}
+                  <h3 className="font-medium text-sm">{product.nome}</h3>
+                  <p className="text-green-600 font-bold">
+                    R$ {product.preco.toFixed(2)}
+                  </p>
+                  {product.product_categories && (
+                    <p className="text-xs text-gray-500">
+                      {product.product_categories.nome}
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
 
-      {/* Lado direito - Carrinho e checkout */}
-      <div className="w-96 bg-white border-l border-gray-200 p-4 flex flex-col">
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold mb-4">Pedido Atual</h3>
-          
-          {/* Tipo de pedido */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Tipo de Pedido</label>
-            <div className="flex gap-2">
-              <Button
-                variant={orderType === 'balcao' ? 'default' : 'outline'}
-                onClick={() => setOrderType('balcao')}
-                className="flex-1"
-              >
-                Balcão
-              </Button>
-              <Button
-                variant={orderType === 'mesa' ? 'default' : 'outline'}
-                onClick={() => setOrderType('mesa')}
-                className="flex-1"
-              >
-                Mesa
-              </Button>
+      {/* Carrinho e Checkout */}
+      <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Pedido Atual</span>
+              {cart.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCart([])}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Tipo de Pedido */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tipo de Pedido</label>
+              <div className="flex gap-2">
+                <Button
+                  variant={orderType === 'mesa' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setOrderType('mesa')}
+                >
+                  Mesa
+                </Button>
+                <Button
+                  variant={orderType === 'balcao' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setOrderType('balcao')}
+                >
+                  Balcão
+                </Button>
+              </div>
             </div>
-          </div>
 
-          {/* Mesa (se tipo mesa) */}
-          {orderType === 'mesa' && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">Número da Mesa *</label>
+            {/* Número da Mesa */}
+            {orderType === 'mesa' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Número da Mesa</label>
+                <Input
+                  type="number"
+                  value={selectedTable || ''}
+                  onChange={(e) => setSelectedTable(parseInt(e.target.value) || null)}
+                  placeholder="Ex: 1"
+                />
+              </div>
+            )}
+
+            {/* Nome do Cliente */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nome do Cliente (Opcional)</label>
               <Input
-                type="number"
-                placeholder="Ex: 5"
-                value={tableNumber || ''}
-                onChange={(e) => setTableNumber(parseInt(e.target.value) || null)}
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Nome do cliente"
               />
             </div>
-          )}
 
-          {/* Nome do cliente */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Nome do Cliente</label>
-            <Input
-              placeholder="Nome (opcional)"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Lista de itens */}
-        <div className="flex-1 overflow-y-auto mb-4">
-          {orderItems.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              <ShoppingCart className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-              <p>Nenhum item no pedido</p>
-              <p className="text-sm">Clique nos produtos para adicionar</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {orderItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
+            {/* Itens do Carrinho */}
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {cart.map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                   <div className="flex-1">
-                    <h4 className="font-medium text-sm">{item.nome}</h4>
-                    <p className="text-xs text-gray-500">{item.categoria}</p>
-                    <p className="text-sm font-semibold text-green-600">
-                      R$ {item.preco.toFixed(2)}
+                    <p className="font-medium text-sm">{item.nome}</p>
+                    <p className="text-xs text-gray-600">
+                      R$ {item.preco.toFixed(2)} x {item.quantidade}
                     </p>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center space-x-2">
                     <Button
-                      size="sm"
                       variant="outline"
-                      onClick={() => updateItemQuantity(item.id, item.quantidade - 1)}
+                      size="sm"
+                      onClick={() => updateQuantity(item.id, -1)}
                     >
-                      -
+                      <Minus className="h-3 w-3" />
                     </Button>
-                    <span className="w-8 text-center">{item.quantidade}</span>
+                    <span className="w-8 text-center text-sm">{item.quantidade}</span>
                     <Button
-                      size="sm"
                       variant="outline"
-                      onClick={() => updateItemQuantity(item.id, item.quantidade + 1)}
+                      size="sm"
+                      onClick={() => updateQuantity(item.id, 1)}
                     >
-                      +
+                      <Plus className="h-3 w-3" />
                     </Button>
                     <Button
+                      variant="destructive"
                       size="sm"
-                      variant="outline"
-                      onClick={() => removeItemFromOrder(item.id)}
+                      onClick={() => removeFromCart(item.id)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 </div>
               ))}
             </div>
-          )}
-        </div>
 
-        {/* Total e ações */}
-        <div className="border-t pt-4">
-          <div className="space-y-2 mb-4">
-            <div className="flex justify-between">
-              <span>Subtotal:</span>
-              <span>R$ {calculateSubtotal().toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-lg font-bold">
-              <span>Total:</span>
-              <span>R$ {calculateTotal().toFixed(2)}</span>
-            </div>
-          </div>
-          
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={clearOrder}
-              disabled={orderItems.length === 0}
-              className="flex-1"
-            >
-              Limpar
-            </Button>
-            <Button
-              onClick={handleFinalizeSale}
-              disabled={orderItems.length === 0}
-              className="flex-1 bg-green-600 hover:bg-green-700"
-            >
-              <Calculator className="h-4 w-4 mr-2" />
-              Finalizar
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Modal de Pagamento */}
-      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Finalizar Venda</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div>
-              <h4 className="font-semibold mb-2">Resumo do Pedido</h4>
-              <div className="space-y-1 text-sm">
-                {orderItems.map((item) => (
-                  <div key={item.id} className="flex justify-between">
-                    <span>{item.quantidade}x {item.nome}</span>
-                    <span>R$ {(item.preco * item.quantidade).toFixed(2)}</span>
+            {/* Totais */}
+            {cart.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Subtotal:</span>
+                    <span>R$ {getSubtotal().toFixed(2)}</span>
                   </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="border-t pt-2">
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total:</span>
-                <span>R$ {calculateTotal().toFixed(2)}</span>
-              </div>
-            </div>
-            
-            <div>
-              <Label htmlFor="metodo-pagamento">Método de Pagamento</Label>
-              <Select value={paymentMethod} onValueChange={(value) => {
-                setPaymentMethod(value);
-                if (value !== 'dinheiro') {
-                  setMostrarTroco(false);
-                  setValorPago('');
-                } else {
-                  handleValorPagoChange(valorPago);
-                }
-              }}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                  <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
-                  <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
-                  <SelectItem value="pix">PIX</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {paymentMethod === 'dinheiro' && (
-              <div>
-                <Label htmlFor="valor-pago">Valor Pago</Label>
-                <Input
-                  id="valor-pago"
-                  type="number"
-                  step="0.01"
-                  placeholder="0,00"
-                  value={valorPago}
-                  onChange={(e) => handleValorPagoChange(e.target.value)}
-                />
-              </div>
-            )}
-
-            {mostrarTroco && (
-              <div className="bg-green-50 p-3 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">Troco:</span>
-                  <span className="text-lg font-bold text-green-600">
-                    R$ {calculateTroco().toFixed(2)}
-                  </span>
+                  <div className="flex justify-between font-bold">
+                    <span>Total:</span>
+                    <span>R$ {getTotal().toFixed(2)}</span>
+                  </div>
                 </div>
-              </div>
-            )}
-            
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowPaymentModal(false)}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleConfirmPayment}
-                disabled={createPOSOrderMutation.isPending}
-                className="flex-1 bg-green-600 hover:bg-green-700"
-              >
-                {createPOSOrderMutation.isPending ? 'Processando...' : 'Confirmar Pagamento'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Modal de Pedidos de Mesa */}
-      <Dialog open={showTableOrdersModal} onOpenChange={setShowTableOrdersModal}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Pedidos de Mesa Aguardando Pagamento</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 max-h-96 overflow-y-auto">
-            {pendingTableOrders?.length === 0 ? (
-              <div className="text-center py-8">
-                <Table className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-600">Nenhum pedido aguardando pagamento</p>
-              </div>
-            ) : (
-              pendingTableOrders?.map((order) => (
-                <Card key={order.id} className="p-4">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h4 className="font-semibold">Mesa {order.numero_mesa}</h4>
-                      <p className="text-sm text-gray-600">Cliente: {order.cliente_nome}</p>
-                      <p className="text-sm text-gray-600">
-                        Pedido: {new Date(order.created_at).toLocaleString('pt-BR')}
+                {/* Campo de Pagamento */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Valor Recebido</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    placeholder="Valor recebido"
+                  />
+                  {paymentAmount && parseFloat(paymentAmount) > getTotal() && (
+                    <div className="p-2 bg-green-50 rounded">
+                      <p className="text-sm font-medium text-green-800">
+                        Troco: R$ {getChange().toFixed(2)}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold">R$ {order.total.toFixed(2)}</p>
-                      <Badge variant="secondary">Aguardando Pagamento</Badge>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-1 mb-4">
-                    {order.pos_order_items?.map((item: any) => (
-                      <div key={item.id} className="flex justify-between text-sm">
-                        <span>{item.quantidade}x {item.nome_produto}</span>
-                        <span>R$ {item.preco_total.toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => finalizarPagamentoMesaMutation.mutate({
-                        orderId: order.id,
-                        metodoPagamento: 'dinheiro'
-                      })}
-                      className="flex-1"
-                    >
-                      <DollarSign className="h-4 w-4 mr-2" />
-                      Dinheiro
-                    </Button>
-                    <Button
-                      onClick={() => finalizarPagamentoMesaMutation.mutate({
-                        orderId: order.id,
-                        metodoPagamento: 'cartao'
-                      })}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      Cartão
-                    </Button>
-                    <Button
-                      onClick={() => finalizarPagamentoMesaMutation.mutate({
-                        orderId: order.id,
-                        metodoPagamento: 'pix'
-                      })}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      PIX
-                    </Button>
-                  </div>
-                </Card>
-              ))
+                  )}
+                </div>
+
+                <Button 
+                  onClick={handleFinishOrder}
+                  disabled={createOrderMutation.isPending}
+                  className="w-full"
+                >
+                  <Calculator className="h-4 w-4 mr-2" />
+                  {createOrderMutation.isPending ? 'Processando...' : 'Finalizar Pedido'}
+                </Button>
+              </>
             )}
-          </div>
-        </DialogContent>
-      </Dialog>
+
+            {cart.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Carrinho vazio</p>
+                <p className="text-sm">Adicione produtos para iniciar</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
