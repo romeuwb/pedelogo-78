@@ -15,9 +15,9 @@ import { AdminReports } from '@/components/admin/AdminReports';
 import { AdminAuditLogs } from '@/components/admin/AdminAuditLogs';
 import { AdminSettings } from '@/components/admin/AdminSettings';
 import { AdminDashboardAccess } from '@/components/admin/AdminDashboardAccess';
-import { RestaurantDashboard } from '@/components/restaurant/RestaurantDashboard';
-import { DeliveryPanelComplete } from '@/components/delivery/DeliveryPanelComplete';
-import { ClientApp } from '@/components/client/ClientApp';
+import RestaurantDashboard from '@/components/restaurant/RestaurantDashboard';
+import DeliveryPanelComplete from '@/components/delivery/DeliveryPanelComplete';
+import ClientApp from '@/components/client/ClientApp';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
@@ -60,7 +60,7 @@ const AdminDashboard = () => {
             Voltar ao Admin
           </Button>
         </div>
-        <RestaurantDashboard />
+        <RestaurantDashboard restaurantId="admin-access" userId={user.id} />
       </div>
     );
   }
@@ -134,7 +134,7 @@ const AdminDashboard = () => {
       />
       
       <div className="flex-1 flex flex-col">
-        <AdminHeader user={user} />
+        <AdminHeader />
         
         <main className="flex-1 p-6">
           {renderContent()}

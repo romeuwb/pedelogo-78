@@ -1,300 +1,351 @@
 
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit, Trash2, Users } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { Plus, Edit, Trash2, Users, QrCode, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
+
+interface Table {
+  id: string;
+  numero_mesa: number;
+  capacidade: number;
+  status: string;
+  posicao_x: number;
+  posicao_y: number;
+  qr_code: string;
+  ativo: boolean;
+  observacoes: string;
+  localizacao: string;
+}
 
 interface TableManagerProps {
   restaurantId: string;
 }
 
-export const TableManager = ({ restaurantId }: TableManagerProps) => {
-  const [showModal, setShowModal] = useState(false);
-  const [editingTable, setEditingTable] = useState<any>(null);
-
-  const queryClient = useQueryClient();
-
-  // Buscar mesas
-  const { data: tables } = useQuery({
-    queryKey: ['restaurant-tables', restaurantId],
-    queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from('restaurant_tables')
-          .select('*')
-          .eq('restaurant_id', restaurantId)
-          .order('numero', { ascending: true });
-
-        if (error) {
-          console.log('Erro ao buscar mesas:', error);
-          return [];
-        }
-        return data || [];
-      } catch (error) {
-        console.log('Erro ao buscar mesas:', error);
-        return [];
-      }
-    },
+const TableManager = ({ restaurantId }: TableManagerProps) => {
+  const { user } = useAuth();
+  const [tables, setTables] = useState<Table[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTable, setSelectedTable] = useState<Table | null>(null);
+  const [showDialog, setShowDialog] = useState(false);
+  const [formData, setFormData] = useState({
+    numero_mesa: '',
+    capacidade: '',
+    localizacao: '',
+    observacoes: ''
   });
 
-  // Adicionar/Editar mesa
-  const saveTableMutation = useMutation({
-    mutationFn: async (tableData: any) => {
-      if (editingTable) {
+  useEffect(() => {
+    loadTables();
+  }, [restaurantId]);
+
+  const loadTables = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('restaurant_tables')
+        .select('*')
+        .eq('restaurant_id', restaurantId)
+        .order('numero_mesa', { ascending: true });
+
+      if (error) throw error;
+      setTables(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar mesas:', error);
+      toast.error('Erro ao carregar mesas');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const tableData = {
+        restaurant_id: restaurantId,
+        numero_mesa: parseInt(formData.numero_mesa),
+        capacidade: parseInt(formData.capacidade),
+        localizacao: formData.localizacao,
+        observacoes: formData.observacoes,
+        status: 'livre',
+        ativo: true,
+        posicao_x: 0,
+        posicao_y: 0,
+        qr_code: `mesa-${formData.numero_mesa}-${Date.now()}`
+      };
+
+      if (selectedTable) {
         const { error } = await supabase
           .from('restaurant_tables')
           .update(tableData)
-          .eq('id', editingTable.id);
+          .eq('id', selectedTable.id);
+        
         if (error) throw error;
+        toast.success('Mesa atualizada com sucesso!');
       } else {
         const { error } = await supabase
           .from('restaurant_tables')
-          .insert({
-            restaurant_id: restaurantId,
-            ...tableData
-          });
+          .insert(tableData);
+        
         if (error) throw error;
+        toast.success('Mesa criada com sucesso!');
       }
-    },
-    onSuccess: () => {
-      toast.success(editingTable ? 'Mesa atualizada!' : 'Mesa criada!');
-      queryClient.invalidateQueries({ queryKey: ['restaurant-tables'] });
-      setShowModal(false);
-      setEditingTable(null);
-    },
-    onError: (error: any) => {
-      toast.error('Erro ao salvar mesa: ' + error.message);
-    }
-  });
 
-  // Deletar mesa
-  const deleteTableMutation = useMutation({
-    mutationFn: async (tableId: string) => {
+      setShowDialog(false);
+      setSelectedTable(null);
+      setFormData({ numero_mesa: '', capacidade: '', localizacao: '', observacoes: '' });
+      loadTables();
+    } catch (error) {
+      console.error('Erro ao salvar mesa:', error);
+      toast.error('Erro ao salvar mesa');
+    }
+  };
+
+  const handleEdit = (table: Table) => {
+    setSelectedTable(table);
+    setFormData({
+      numero_mesa: table.numero_mesa.toString(),
+      capacidade: table.capacidade.toString(),
+      localizacao: table.localizacao || '',
+      observacoes: table.observacoes || ''
+    });
+    setShowDialog(true);
+  };
+
+  const handleDelete = async (tableId: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta mesa?')) return;
+
+    try {
       const { error } = await supabase
         .from('restaurant_tables')
         .delete()
         .eq('id', tableId);
+
       if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success('Mesa excluída!');
-      queryClient.invalidateQueries({ queryKey: ['restaurant-tables'] });
-    },
-    onError: (error: any) => {
-      toast.error('Erro ao excluir mesa: ' + error.message);
+      toast.success('Mesa excluída com sucesso!');
+      loadTables();
+    } catch (error) {
+      console.error('Erro ao excluir mesa:', error);
+      toast.error('Erro ao excluir mesa');
     }
-  });
+  };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    
-    const tableData = {
-      numero: parseInt(formData.get('numero') as string),
-      capacidade: parseInt(formData.get('capacidade') as string),
-      localizacao: formData.get('localizacao') as string,
-      observacoes: formData.get('observacoes') as string,
-    };
+  const toggleTableStatus = async (table: Table) => {
+    try {
+      const { error } = await supabase
+        .from('restaurant_tables')
+        .update({ ativo: !table.ativo })
+        .eq('id', table.id);
 
-    saveTableMutation.mutate(tableData);
+      if (error) throw error;
+      toast.success(`Mesa ${!table.ativo ? 'ativada' : 'desativada'} com sucesso!`);
+      loadTables();
+    } catch (error) {
+      console.error('Erro ao alterar status da mesa:', error);
+      toast.error('Erro ao alterar status da mesa');
+    }
   };
 
   const getStatusColor = (status: string) => {
     const colors = {
-      'disponivel': 'bg-green-100 text-green-800',
-      'ocupada': 'bg-red-100 text-red-800',
-      'reservada': 'bg-yellow-100 text-yellow-800',
-      'manutencao': 'bg-gray-100 text-gray-800'
+      'livre': 'bg-green-500',
+      'ocupada': 'bg-red-500',
+      'reservada': 'bg-yellow-500',
+      'limpeza': 'bg-blue-500'
     };
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return colors[status as keyof typeof colors] || 'bg-gray-500';
   };
 
   const getStatusText = (status: string) => {
     const texts = {
-      'disponivel': 'Disponível',
+      'livre': 'Livre',
       'ocupada': 'Ocupada',
       'reservada': 'Reservada',
-      'manutencao': 'Manutenção'
+      'limpeza': 'Limpeza'
     };
     return texts[status as keyof typeof texts] || status;
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Gerenciamento de Mesas</h2>
-          <p className="text-gray-600">Configure e organize as mesas do seu restaurante</p>
+          <h2 className="text-2xl font-bold">Gerenciar Mesas</h2>
+          <p className="text-gray-600">Configure e monitore as mesas do seu restaurante</p>
         </div>
-        
-        <Button onClick={() => setShowModal(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Mesa
-        </Button>
+        <Dialog open={showDialog} onOpenChange={setShowDialog}>
+          <DialogTrigger asChild>
+            <Button onClick={() => {
+              setSelectedTable(null);
+              setFormData({ numero_mesa: '', capacidade: '', localizacao: '', observacoes: '' });
+            }}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Mesa
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {selectedTable ? 'Editar Mesa' : 'Nova Mesa'}
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="numero_mesa">Número da Mesa</Label>
+                  <Input
+                    id="numero_mesa"
+                    type="number"
+                    value={formData.numero_mesa}
+                    onChange={(e) => setFormData({...formData, numero_mesa: e.target.value})}
+                    required
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="capacidade">Capacidade</Label>
+                  <Input
+                    id="capacidade"
+                    type="number"
+                    value={formData.capacidade}
+                    onChange={(e) => setFormData({...formData, capacidade: e.target.value})}
+                    required
+                    min="1"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="localizacao">Localização</Label>
+                <Input
+                  id="localizacao"
+                  value={formData.localizacao}
+                  onChange={(e) => setFormData({...formData, localizacao: e.target.value})}
+                  placeholder="Ex: Próximo à janela, Terraço, Salão principal..."
+                />
+              </div>
+              <div>
+                <Label htmlFor="observacoes">Observações</Label>
+                <Textarea
+                  id="observacoes"
+                  value={formData.observacoes}
+                  onChange={(e) => setFormData({...formData, observacoes: e.target.value})}
+                  placeholder="Observações adicionais sobre a mesa..."
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit">
+                  {selectedTable ? 'Atualizar' : 'Criar'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {/* Grid de mesas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        {(tables || []).map((table) => (
-          <Card key={table.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-4">
-              <div className="text-center space-y-3">
-                <Users className="h-8 w-8 mx-auto text-gray-400" />
-                
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {tables.map((table) => (
+          <Card key={table.id} className={`${!table.ativo ? 'opacity-50' : ''}`}>
+            <CardHeader className="pb-3">
+              <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="font-semibold">Mesa {table.numero}</h3>
-                  <p className="text-sm text-gray-600">{table.capacidade} pessoas</p>
+                  <CardTitle className="flex items-center">
+                    Mesa {table.numero_mesa}
+                    {!table.ativo && (
+                      <Badge variant="secondary" className="ml-2">Inativa</Badge>
+                    )}
+                  </CardTitle>
+                  <div className="flex items-center mt-1">
+                    <Users className="h-4 w-4 mr-1 text-gray-500" />
+                    <span className="text-sm text-gray-600">{table.capacidade} pessoas</span>
+                  </div>
                 </div>
-                
-                <Badge className={getStatusColor(table.status)}>
+                <Badge className={`${getStatusColor(table.status)} text-white`}>
                   {getStatusText(table.status)}
                 </Badge>
-                
-                {table.observacoes && (
-                  <p className="text-xs text-gray-500">{table.observacoes}</p>
-                )}
-                
-                <div className="flex gap-1">
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {table.localizacao && (
+                <div className="flex items-center text-sm text-gray-600">
+                  <MapPin className="h-4 w-4 mr-2" />
+                  {table.localizacao}
+                </div>
+              )}
+              
+              {table.observacoes && (
+                <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                  {table.observacoes}
+                </p>
+              )}
+
+              <div className="flex items-center text-sm text-gray-500">
+                <QrCode className="h-4 w-4 mr-2" />
+                QR Code: {table.qr_code.slice(-8)}
+              </div>
+
+              <div className="flex justify-between items-center pt-2">
+                <div className="flex space-x-2">
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      setEditingTable(table);
-                      setShowModal(true);
-                    }}
+                    onClick={() => handleEdit(table)}
                   >
-                    <Edit className="h-3 w-3" />
+                    <Edit className="h-4 w-4" />
                   </Button>
-                  
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      if (confirm('Deseja excluir esta mesa?')) {
-                        deleteTableMutation.mutate(table.id);
-                      }
-                    }}
+                    onClick={() => handleDelete(table.id)}
+                    className="text-red-600 hover:text-red-800"
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
+                <Button
+                  size="sm"
+                  variant={table.ativo ? "secondary" : "default"}
+                  onClick={() => toggleTableStatus(table)}
+                >
+                  {table.ativo ? 'Desativar' : 'Ativar'}
+                </Button>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Resumo */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Resumo das Mesas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600">
-                {(tables || []).length}
-              </p>
-              <p className="text-sm text-gray-600">Total de Mesas</p>
-            </div>
-            
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-600">
-                {(tables || []).filter(t => t.status === 'disponivel').length}
-              </p>
-              <p className="text-sm text-gray-600">Disponíveis</p>
-            </div>
-            
-            <div className="text-center">
-              <p className="text-2xl font-bold text-red-600">
-                {(tables || []).filter(t => t.status === 'ocupada').length}
-              </p>
-              <p className="text-sm text-gray-600">Ocupadas</p>
-            </div>
-            
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-600">
-                {(tables || []).reduce((acc, table) => acc + (table.capacidade || 0), 0)}
-              </p>
-              <p className="text-sm text-gray-600">Capacidade Total</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Modal de mesa */}
-      <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingTable ? 'Editar Mesa' : 'Nova Mesa'}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Número da Mesa</label>
-              <Input 
-                name="numero" 
-                type="number" 
-                required 
-                defaultValue={editingTable?.numero || ''}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Capacidade</label>
-              <Input 
-                name="capacidade" 
-                type="number" 
-                required 
-                defaultValue={editingTable?.capacidade || '4'}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Localização</label>
-              <Input 
-                name="localizacao" 
-                placeholder="Ex: Área interna, Varanda, Área externa"
-                defaultValue={editingTable?.localizacao || ''}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Observações</label>
-              <Input 
-                name="observacoes" 
-                placeholder="Observações adicionais"
-                defaultValue={editingTable?.observacoes || ''}
-              />
-            </div>
-            
-            <div className="flex gap-2">
-              <Button type="submit" disabled={saveTableMutation.isPending}>
-                {editingTable ? 'Atualizar' : 'Criar'}
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => {
-                  setShowModal(false);
-                  setEditingTable(null);
-                }}
-              >
-                Cancelar
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {tables.length === 0 && (
+        <div className="text-center py-12">
+          <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma mesa cadastrada</h3>
+          <p className="text-gray-600 mb-6">Comece adicionando as mesas do seu restaurante</p>
+          <Button onClick={() => setShowDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar primeira mesa
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
+
+export default TableManager;
