@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, ShoppingCart, User, Menu, X } from 'lucide-react';
+import { MapPin, ShoppingCart, User, Menu, X, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import LoginModal from '@/components/auth/LoginModal';
 import UserTypeModal from '@/components/UserTypeModal';
@@ -52,6 +52,10 @@ const Header = () => {
     }
   };
 
+  const handleAdminPanelClick = () => {
+    navigate('/painel-admin/dashboard');
+  };
+
   const handleLogout = async () => {
     try {
       await signOut();
@@ -62,6 +66,8 @@ const Header = () => {
       navigate('/');
     }
   };
+
+  const isAdmin = profile?.tipo === 'admin';
 
   return (
     <>
@@ -106,6 +112,19 @@ const Header = () => {
                   </Button>
                   
                   <div className="flex items-center space-x-2">
+                    {/* Admin Panel Button - only show for admins */}
+                    {isAdmin && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAdminPanelClick}
+                        className="flex items-center space-x-2 bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+                      >
+                        <Shield className="h-4 w-4" />
+                        <span className="hidden sm:inline">Painel Admin</span>
+                      </Button>
+                    )}
+                    
                     <Button
                       variant="ghost"
                       size="sm"
@@ -115,7 +134,7 @@ const Header = () => {
                       <User className="h-4 w-4" />
                       <span className="hidden sm:inline">
                         {profile?.tipo === 'restaurante' ? 'Dashboard' : 
-                         profile?.tipo === 'admin' ? 'Painel Admin' : 'Meu Perfil'}
+                         profile?.tipo === 'admin' ? 'Meu Perfil' : 'Meu Perfil'}
                       </span>
                     </Button>
                     <Button
@@ -184,6 +203,21 @@ const Header = () => {
                 
                 {user ? (
                   <div className="flex flex-col space-y-2 pt-4 border-t">
+                    {/* Admin Panel Button for mobile - only show for admins */}
+                    {isAdmin && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          handleAdminPanelClick();
+                          setMobileMenuOpen(false);
+                        }}
+                        className="justify-start bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+                      >
+                        <Shield className="h-4 w-4 mr-2" />
+                        Painel Admin
+                      </Button>
+                    )}
+                    
                     <Button
                       variant="ghost"
                       onClick={() => {
@@ -194,7 +228,7 @@ const Header = () => {
                     >
                       <User className="h-4 w-4 mr-2" />
                       {profile?.tipo === 'restaurante' ? 'Dashboard' : 
-                       profile?.tipo === 'admin' ? 'Painel Admin' : 'Meu Perfil'}
+                       profile?.tipo === 'admin' ? 'Meu Perfil' : 'Meu Perfil'}
                     </Button>
                     <Button
                       variant="outline"

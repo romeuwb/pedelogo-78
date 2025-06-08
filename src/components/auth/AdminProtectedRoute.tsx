@@ -10,6 +10,10 @@ interface AdminProtectedRouteProps {
 export const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
   const { user, profile, loading } = useAuth();
 
+  console.log('AdminProtectedRoute - User:', user?.id);
+  console.log('AdminProtectedRoute - Profile:', profile);
+  console.log('AdminProtectedRoute - Loading:', loading);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -19,12 +23,15 @@ export const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
   }
 
   if (!user || !profile) {
-    return <Navigate to="/" replace />;
+    console.log('AdminProtectedRoute - Redirecting to auth (no user or profile)');
+    return <Navigate to="/auth" replace />;
   }
 
   if (profile.tipo !== 'admin') {
+    console.log('AdminProtectedRoute - Redirecting to home (not admin):', profile.tipo);
     return <Navigate to="/" replace />;
   }
 
+  console.log('AdminProtectedRoute - Access granted to admin');
   return <>{children}</>;
 };
