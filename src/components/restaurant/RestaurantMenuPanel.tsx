@@ -247,13 +247,13 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
                       </div>
 
                       {/* Informações Nutricionais */}
-                      {(product as any).informacoes_nutricionais && (
+                      {product.informacoes_nutricionais && (
                         <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
                           <div className="font-medium mb-1">Informações Nutricionais:</div>
                           <div className="text-gray-600">
-                            {typeof (product as any).informacoes_nutricionais === 'string' 
-                              ? (product as any).informacoes_nutricionais 
-                              : JSON.stringify((product as any).informacoes_nutricionais)
+                            {typeof product.informacoes_nutricionais === 'string' 
+                              ? product.informacoes_nutricionais 
+                              : JSON.stringify(product.informacoes_nutricionais)
                             }
                           </div>
                         </div>
@@ -430,13 +430,13 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
                 )}
               </div>
 
-              {(selectedProduct as any).informacoes_nutricionais && (
+              {selectedProduct.informacoes_nutricionais && (
                 <div>
                   <h4 className="font-semibold mb-2">Informações Nutricionais</h4>
                   <div className="p-3 bg-gray-50 rounded-lg text-sm">
-                    {typeof (selectedProduct as any).informacoes_nutricionais === 'string' 
-                      ? (selectedProduct as any).informacoes_nutricionais 
-                      : JSON.stringify((selectedProduct as any).informacoes_nutricionais, null, 2)
+                    {typeof selectedProduct.informacoes_nutricionais === 'string' 
+                      ? selectedProduct.informacoes_nutricionais 
+                      : JSON.stringify(selectedProduct.informacoes_nutricionais, null, 2)
                     }
                   </div>
                 </div>
