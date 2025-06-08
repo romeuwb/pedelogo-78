@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Clock, Star, MapPin, Utensils } from 'lucide-react';
-import { toast } from 'react-toastify';
+import { useToast } from '@/hooks/use-toast';
 
 interface Restaurant {
   id: string;
@@ -26,6 +26,7 @@ interface RestaurantListProps {
 }
 
 const RestaurantList = ({ selectedCategory }: RestaurantListProps) => {
+  const { toast } = useToast();
   const { data: restaurants, isLoading, error } = useQuery({
     queryKey: ['restaurants', selectedCategory],
     queryFn: async () => {
