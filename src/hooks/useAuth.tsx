@@ -65,12 +65,17 @@ export const useAuth = () => {
         if (event === 'SIGNED_IN' && session?.user) {
           console.log('Usuario logado:', session.user.id);
           setUser(session.user);
-          // Buscar perfil após um pequeno delay para evitar conflitos
-          setTimeout(() => {
-            if (mounted) {
-              fetchProfile(session.user.id);
-            }
-          }, 100);
+          // Buscar perfil após login
+          await fetchProfile(session.user.id);
+        }
+
+        if (event === 'TOKEN_REFRESHED' && session?.user) {
+          console.log('Token refreshed para:', session.user.id);
+          setUser(session.user);
+          // Verificar se ainda temos o perfil
+          if (!profile) {
+            await fetchProfile(session.user.id);
+          }
         }
       }
     );
@@ -145,23 +150,16 @@ export const useAuth = () => {
               
             if (createError) {
               console.error('Erro ao criar perfil:', createError);
-              setLoading(false);
-              return;
             } else {
               console.log('Perfil criado:', createdProfile);
               setProfile(createdProfile);
-              setLoading(false);
-              return;
             }
           }
         }
-        
-        setLoading(false);
-        return;
+      } else {
+        console.log('Perfil carregado:', data);
+        setProfile(data);
       }
-      
-      console.log('Perfil carregado:', data);
-      setProfile(data);
       
     } catch (error) {
       console.error('Error fetching profile:', error);
