@@ -35,7 +35,7 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
           *,
           restaurant_details:restaurante_id (nome_fantasia, endereco, telefone),
           order_items (*),
-          profiles:cliente_id (nome, telefone)
+          client_profile:profiles!cliente_id (nome, telefone)
         `)
         .is('entregador_id', null)
         .eq('status', 'confirmado')
@@ -58,7 +58,7 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
           *,
           restaurant_details:restaurante_id (nome_fantasia, endereco, telefone),
           order_items (*),
-          profiles:cliente_id (nome, telefone)
+          client_profile:profiles!cliente_id (nome, telefone)
         `)
         .eq('entregador_id', deliveryDetails?.user_id)
         .in('status', ['aceito_entregador', 'caminho_restaurante', 'chegou_restaurante', 'pedido_retirado', 'caminho_cliente', 'chegou_cliente'])

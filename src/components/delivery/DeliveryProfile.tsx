@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+type VehicleType = 'moto' | 'carro' | 'bicicleta' | 'patinete';
+
 const DeliveryProfile = ({ deliveryDetails, setDeliveryDetails }) => {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -56,7 +58,7 @@ const DeliveryProfile = ({ deliveryDetails, setDeliveryDetails }) => {
   });
 
   const [vehicleData, setVehicleData] = useState({
-    tipo_veiculo: 'moto',
+    tipo_veiculo: 'moto' as VehicleType,
     marca: '',
     modelo: '',
     ano: new Date().getFullYear(),
@@ -231,7 +233,14 @@ const DeliveryProfile = ({ deliveryDetails, setDeliveryDetails }) => {
         .from('delivery_vehicles')
         .insert({
           delivery_detail_id: deliveryDetails.id,
-          ...vehicleData
+          tipo_veiculo: vehicleData.tipo_veiculo,
+          marca: vehicleData.marca,
+          modelo: vehicleData.modelo,
+          ano: vehicleData.ano,
+          cor: vehicleData.cor,
+          placa: vehicleData.placa,
+          renavam: vehicleData.renavam,
+          principal: vehicleData.principal
         });
 
       if (error) throw error;
@@ -506,7 +515,7 @@ const DeliveryProfile = ({ deliveryDetails, setDeliveryDetails }) => {
                           <Label htmlFor="tipo_veiculo">Tipo de Veículo</Label>
                           <Select
                             value={vehicleData.tipo_veiculo}
-                            onValueChange={(value) => setVehicleData({ ...vehicleData, tipo_veiculo: value })}
+                            onValueChange={(value: VehicleType) => setVehicleData({ ...vehicleData, tipo_veiculo: value })}
                           >
                             <SelectTrigger>
                               <SelectValue />
