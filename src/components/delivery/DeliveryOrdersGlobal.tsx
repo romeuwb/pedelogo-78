@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -221,10 +220,10 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
       <Tabs defaultValue="available" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="available">
-            Disponíveis ({availableOrders?.length || 0})
+            Disponíveis ({(availableOrders || []).length})
           </TabsTrigger>
           <TabsTrigger value="active">
-            Ativos ({acceptedOrders?.length || 0})
+            Ativos ({(acceptedOrders || []).length})
           </TabsTrigger>
           <TabsTrigger value="history">
             Histórico
@@ -247,7 +246,7 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
               <p className="mt-2 text-gray-600">Carregando pedidos...</p>
             </div>
-          ) : availableOrders?.length === 0 ? (
+          ) : !availableOrders || availableOrders.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center">
                 <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -259,7 +258,7 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
             </Card>
           ) : (
             <div className="space-y-4">
-              {availableOrders.map((order) => {
+              {(availableOrders || []).map((order) => {
                 const distance = parseFloat(calculateDistance(order));
                 const deliveryFee = calculateDeliveryFee(distance);
                 
@@ -285,7 +284,7 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
                           <DollarSign className="h-4 w-4 text-green-500" />
                           <div>
                             <p className="text-sm text-gray-600">Valor do pedido</p>
-                            <p className="font-medium">R$ {order.total.toFixed(2)}</p>
+                            <p className="font-medium">R$ {order.total?.toFixed(2) || '0.00'}</p>
                           </div>
                         </div>
                         
@@ -354,7 +353,7 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
               <p className="mt-2 text-gray-600">Carregando pedidos ativos...</p>
             </div>
-          ) : acceptedOrders?.length === 0 ? (
+          ) : !acceptedOrders || acceptedOrders.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center">
                 <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -366,7 +365,7 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
             </Card>
           ) : (
             <div className="space-y-4">
-              {acceptedOrders.map((order) => (
+              {(acceptedOrders || []).map((order) => (
                 <Card key={order.id} className="border-orange-200">
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-3">
@@ -388,7 +387,7 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
                         <DollarSign className="h-4 w-4 text-green-500" />
                         <div>
                           <p className="text-sm text-gray-600">Valor</p>
-                          <p className="font-medium">R$ {order.total.toFixed(2)}</p>
+                          <p className="font-medium">R$ {order.total?.toFixed(2) || '0.00'}</p>
                         </div>
                       </div>
                       
@@ -427,7 +426,7 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
               <p className="mt-2 text-gray-600">Carregando histórico...</p>
             </div>
-          ) : deliveryHistory?.length === 0 ? (
+          ) : !deliveryHistory || deliveryHistory.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center">
                 <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -439,7 +438,7 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
             </Card>
           ) : (
             <div className="space-y-4">
-              {deliveryHistory.map((order) => (
+              {(deliveryHistory || []).map((order) => (
                 <Card key={order.id}>
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-3">
@@ -459,7 +458,7 @@ const DeliveryOrdersGlobal: React.FC<DeliveryOrdersGlobalProps> = ({
                     <div className="grid grid-cols-3 gap-4">
                       <div className="text-center">
                         <p className="text-sm text-gray-600">Valor do pedido</p>
-                        <p className="font-medium">R$ {order.total.toFixed(2)}</p>
+                        <p className="font-medium">R$ {order.total?.toFixed(2) || '0.00'}</p>
                       </div>
                       
                       <div className="text-center">
