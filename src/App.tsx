@@ -14,6 +14,7 @@ import DeliveryDashboard from '@/pages/DeliveryDashboard';
 import RestaurantsPage from '@/pages/RestaurantsPage';
 import PromotionsPage from '@/pages/PromotionsPage';
 import ResetPassword from '@/pages/ResetPassword';
+import Auth from '@/pages/Auth';
 import NotFound from '@/pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -31,7 +32,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user || !profile) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/auth" replace />;
   }
 
   return <>{children}</>;
@@ -58,9 +59,9 @@ const DashboardRouter = () => {
     case 'entregador':
       return <DeliveryDashboard />;
     case 'admin':
-      return <Dashboard />; // Admin também vê o dashboard por padrão
+      return <AdminDashboard />;
     default:
-      return <Dashboard />;
+      return <ClientDashboard />;
   }
 };
 
@@ -85,6 +86,7 @@ function App() {
                 <Index />
               </LayoutWithHeader>
             } />
+            <Route path="/auth" element={<Auth />} />
             <Route path="/restaurantes" element={
               <LayoutWithHeader>
                 <RestaurantsPage />

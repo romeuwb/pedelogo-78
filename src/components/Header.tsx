@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,25 +23,12 @@ const Header = () => {
 
   const handleProfileClick = () => {
     console.log('Profile type:', profile?.tipo);
-    
-    if (profile?.tipo === 'cliente') {
-      navigate('/client-dashboard');
-    } else if (profile?.tipo === 'restaurante') {
-      console.log('Redirecting restaurant to dashboard');
-      navigate('/dashboard');
-    } else if (profile?.tipo === 'entregador') {
-      navigate('/delivery-dashboard');
-    } else {
-      // Fallback baseado no usuário logado
-      console.log('Fallback to dashboard for authenticated user');
-      navigate('/dashboard');
-    }
+    navigate('/dashboard');
   };
 
   const handleLogout = async () => {
     try {
       await signOut();
-      navigate('/');
     } catch (error) {
       console.error('Erro no logout:', error);
       // Force navigation even if signOut fails
@@ -100,9 +86,7 @@ const Header = () => {
                       className="flex items-center space-x-2"
                     >
                       <User className="h-4 w-4" />
-                      <span className="hidden sm:inline">
-                        {profile?.tipo === 'restaurante' ? 'Dashboard' : 'Meu Perfil'}
-                      </span>
+                      <span className="hidden sm:inline">Dashboard</span>
                     </Button>
                     <Button
                       variant="outline"
@@ -179,7 +163,7 @@ const Header = () => {
                       className="justify-start"
                     >
                       <User className="h-4 w-4 mr-2" />
-                      {profile?.tipo === 'restaurante' ? 'Dashboard' : 'Meu Perfil'}
+                      Dashboard
                     </Button>
                     <Button
                       variant="outline"

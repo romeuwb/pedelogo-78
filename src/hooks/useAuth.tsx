@@ -38,18 +38,6 @@ const cleanupAuthState = () => {
   }
 };
 
-// Função para redirecionar todos os usuários para dashboard
-const redirectToDashboard = () => {
-  console.log('Redirecionando para dashboard');
-  
-  // Verificar se já está na rota correta
-  const currentPath = window.location.pathname;
-  
-  if (currentPath !== '/dashboard') {
-    window.location.href = '/dashboard';
-  }
-};
-
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -160,10 +148,6 @@ export const useAuth = () => {
             } else {
               console.log('Perfil criado:', createdProfile);
               setProfile(createdProfile);
-              // Redirecionar para dashboard após criar perfil
-              setTimeout(() => {
-                redirectToDashboard();
-              }, 500);
             }
           }
         }
@@ -173,14 +157,6 @@ export const useAuth = () => {
       
       console.log('Perfil carregado:', data);
       setProfile(data);
-      
-      // Redirecionar para dashboard se estiver na página inicial
-      const currentPath = window.location.pathname;
-      if (currentPath === '/') {
-        setTimeout(() => {
-          redirectToDashboard();
-        }, 500);
-      }
       
     } catch (error) {
       console.error('Error fetching profile:', error);
