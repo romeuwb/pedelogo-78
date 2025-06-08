@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -44,13 +43,31 @@ interface RestaurantMenuPanelProps {
   restaurantId: string;
 }
 
+// Add type for product with nutritional information
+interface ProductWithNutritionalInfo {
+  id: string;
+  nome: string;
+  descricao: string;
+  preco: number;
+  disponivel: boolean;
+  favorito: boolean;
+  calorias?: number;
+  imagem_url?: string;
+  informacoes_nutricionais?: any;
+  vegetariano?: boolean;
+  product_categories?: {
+    nome: string;
+  };
+  [key: string]: any;
+}
+
 export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) => {
   const [showProductForm, setShowProductForm] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null);
+  const [editingProduct, setEditingProduct] = useState<ProductWithNutritionalInfo | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showProductDetails, setShowProductDetails] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState<ProductWithNutritionalInfo | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -76,7 +93,7 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      return (data || []) as ProductWithNutritionalInfo[];
     }
   });
 
@@ -126,7 +143,7 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
     }
   });
 
-  const handleEditProduct = (product: any) => {
+  const handleEditProduct = (product: ProductWithNutritionalInfo) => {
     setEditingProduct(product);
     setShowProductForm(true);
   };
@@ -142,7 +159,7 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
     });
   };
 
-  const handleViewDetails = (product: any) => {
+  const handleViewDetails = (product: ProductWithNutritionalInfo) => {
     setSelectedProduct(product);
     setShowProductDetails(true);
   };
@@ -247,7 +264,7 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
                       </div>
 
                       {/* Informações Nutricionais */}
-                      {product.informacoes_nutricionais && (
+                      {product.informacoes_nutricionais && Object.keys(product.informacoes_nutricionais).length > 0 && (
                         <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
                           <div className="font-medium mb-1">Informações Nutricionais:</div>
                           <div className="text-gray-600">
@@ -430,7 +447,7 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
                 )}
               </div>
 
-              {selectedProduct.informacoes_nutricionais && (
+              {selectedProduct.informacoes_nutricionais && Object.keys(selectedProduct.informacoes_nutricionais).length > 0 && (
                 <div>
                   <h4 className="font-semibold mb-2">Informações Nutricionais</h4>
                   <div className="p-3 bg-gray-50 rounded-lg text-sm">

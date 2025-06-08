@@ -2463,6 +2463,7 @@ export type Database = {
           favorito: boolean | null
           id: string
           imagem_url: string | null
+          informacoes_nutricionais: Json | null
           ingredientes: string[] | null
           is_imported_from_admin: boolean | null
           livre_gluten: boolean | null
@@ -2489,6 +2490,7 @@ export type Database = {
           favorito?: boolean | null
           id?: string
           imagem_url?: string | null
+          informacoes_nutricionais?: Json | null
           ingredientes?: string[] | null
           is_imported_from_admin?: boolean | null
           livre_gluten?: boolean | null
@@ -2515,6 +2517,7 @@ export type Database = {
           favorito?: boolean | null
           id?: string
           imagem_url?: string | null
+          informacoes_nutricionais?: Json | null
           ingredientes?: string[] | null
           is_imported_from_admin?: boolean | null
           livre_gluten?: boolean | null
