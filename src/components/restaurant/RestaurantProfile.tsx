@@ -21,10 +21,15 @@ const RestaurantProfile = () => {
   useEffect(() => {
     if (user) {
       fetchUserData();
+    } else {
+      // If no user, reset loading state
+      setLoading(false);
     }
   }, [user]);
 
   const fetchUserData = async () => {
+    if (!user) return;
+    
     try {
       // Fetch profile
       const { data: profileData, error: profileError } = await supabase
@@ -54,6 +59,8 @@ const RestaurantProfile = () => {
   };
 
   const updateProfile = async (updates) => {
+    if (!user) return;
+    
     try {
       const { error } = await supabase
         .from('profiles')
@@ -72,6 +79,8 @@ const RestaurantProfile = () => {
   };
 
   const updateRestaurantDetails = async (updates) => {
+    if (!user) return;
+    
     try {
       const { error } = await supabase
         .from('restaurant_details')
@@ -87,6 +96,17 @@ const RestaurantProfile = () => {
       console.error('Error updating restaurant details:', error);
     }
   };
+
+  // Early return if no user to prevent null reference errors
+  if (!user) {
+    return (
+      <div className="p-4">
+        <div className="text-center">
+          <p>Usuário não encontrado. Faça login novamente.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -159,7 +179,7 @@ const RestaurantProfile = () => {
                       <Label htmlFor="email">E-mail</Label>
                       <Input
                         id="email"
-                        value={user.email}
+                        value={user.email || ''}
                         disabled
                         className="bg-gray-50"
                       />
@@ -192,7 +212,7 @@ const RestaurantProfile = () => {
                   
                   <div>
                     <Label>E-mail</Label>
-                    <p className="text-gray-900">{user.email}</p>
+                    <p className="text-gray-900">{user.email || 'Não informado'}</p>
                   </div>
                   
                   <div>
