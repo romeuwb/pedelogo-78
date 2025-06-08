@@ -27,9 +27,9 @@ serve(async (req) => {
       );
     }
 
-    const { productName, category, price } = await req.json();
+    const { nome, ingredientes, categoria, informacoes_nutricionais } = await req.json();
 
-    if (!productName) {
+    if (!nome) {
       return new Response(
         JSON.stringify({ error: 'Nome do produto é obrigatório' }),
         { 
@@ -39,16 +39,19 @@ serve(async (req) => {
       );
     }
 
-    console.log('Gerando descrição para produto:', productName);
+    console.log('Gerando descrição para produto:', nome);
 
-    const prompt = `Crie uma descrição atrativa e apetitosa para o produto de comida "${productName}" ${category ? `da categoria ${category}` : ''} ${price ? `com preço de R$ ${price}` : ''}. 
+    const prompt = `Crie uma descrição detalhada e apetitosa para o produto de comida "${nome}" ${categoria ? `da categoria ${categoria}` : ''} ${ingredientes && ingredientes.length > 0 ? `com os ingredientes: ${ingredientes.join(', ')}` : ''}.
 
 A descrição deve:
-- Ter entre 80-150 caracteres
+- Ter entre 150-250 caracteres
 - Ser apetitosa e convidativa
-- Destacar ingredientes ou características especiais
+- Destacar ingredientes principais e características especiais
+- Incluir informações sobre textura, sabor e apresentação
 - Ser adequada para um cardápio de delivery
 - Usar linguagem brasileira informal mas profissional
+- Mencionar benefícios nutricionais se relevante
+- Criar desejo no cliente
 
 Retorne apenas a descrição, sem aspas ou formatação adicional.`;
 
@@ -63,11 +66,11 @@ Retorne apenas a descrição, sem aspas ou formatação adicional.`;
         messages: [
           { 
             role: 'system', 
-            content: 'Você é um especialista em criar descrições atrativas para produtos alimentícios em aplicativos de delivery. Suas descrições são sempre apetitosas, concisas e eficazes para aumentar as vendas.'
+            content: 'Você é um especialista em gastronomia e marketing de alimentos. Crie descrições irresistíveis que destacam sabores, texturas e benefícios dos pratos, sempre focando em despertar o apetite e desejo do cliente.'
           },
           { role: 'user', content: prompt }
         ],
-        max_tokens: 200,
+        max_tokens: 300,
         temperature: 0.7,
       }),
     });
