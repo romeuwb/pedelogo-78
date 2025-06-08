@@ -38,37 +38,38 @@ const cleanupAuthState = () => {
   }
 };
 
-// Função para redirecionar baseado no tipo de usuário (apenas quando chamada explicitamente)
+// Função para redirecionar baseado no tipo de usuário
 const redirectBasedOnUserType = (profile: Profile) => {
-  // Não redirecionar automaticamente se já estiver em uma rota específica
+  console.log('Redirecionando usuário para dashboard apropriado:', profile.tipo);
+  
+  // Verificar se já está na rota correta
   const currentPath = window.location.pathname;
   
-  // Se já estiver na rota correta para o tipo de usuário, não redirecionar
-  if ((profile.tipo === 'admin' && currentPath === '/admin') ||
-      (profile.tipo === 'cliente' && currentPath === '/client-dashboard') ||
-      (profile.tipo === 'restaurante' && currentPath === '/dashboard') ||
-      (profile.tipo === 'entregador' && currentPath === '/delivery-dashboard')) {
-    return;
-  }
-
-  // Só redirecionar se estiver na página inicial
-  if (currentPath === '/') {
-    switch (profile.tipo) {
-      case 'cliente':
+  switch (profile.tipo) {
+    case 'cliente':
+      if (currentPath !== '/client-dashboard') {
         window.location.href = '/client-dashboard';
-        break;
-      case 'restaurante':
+      }
+      break;
+    case 'restaurante':
+      if (currentPath !== '/dashboard') {
         window.location.href = '/dashboard';
-        break;
-      case 'entregador':
+      }
+      break;
+    case 'entregador':
+      if (currentPath !== '/delivery-dashboard') {
         window.location.href = '/delivery-dashboard';
-        break;
-      case 'admin':
+      }
+      break;
+    case 'admin':
+      if (currentPath !== '/admin') {
         window.location.href = '/admin';
-        break;
-      default:
-        window.location.href = '/dashboard';
-    }
+      }
+      break;
+    default:
+      if (currentPath !== '/') {
+        window.location.href = '/';
+      }
   }
 };
 
@@ -182,6 +183,10 @@ export const useAuth = () => {
             } else {
               console.log('Perfil criado:', createdProfile);
               setProfile(createdProfile);
+              // Redirecionar após criar perfil
+              setTimeout(() => {
+                redirectBasedOnUserType(createdProfile);
+              }, 500);
             }
           }
         }
@@ -191,6 +196,19 @@ export const useAuth = () => {
       
       console.log('Perfil carregado:', data);
       setProfile(data);
+      
+      // Redirecionar automaticamente se estiver na página inicial ou numa rota incorreta
+      const currentPath = window.location.pathname;
+      if (currentPath === '/' || 
+          (data.tipo === 'cliente' && currentPath !== '/client-dashboard') ||
+          (data.tipo === 'restaurante' && currentPath !== '/dashboard') ||
+          (data.tipo === 'entregador' && currentPath !== '/delivery-dashboard') ||
+          (data.tipo === 'admin' && currentPath !== '/admin')) {
+        setTimeout(() => {
+          redirectBasedOnUserType(data);
+        }, 500);
+      }
+      
     } catch (error) {
       console.error('Error fetching profile:', error);
       toast({

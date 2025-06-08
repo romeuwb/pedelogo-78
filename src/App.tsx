@@ -18,7 +18,7 @@ import NotFound from '@/pages/NotFound';
 const queryClient = new QueryClient();
 
 // Component to handle protected routes
-const ProtectedRoute = ({ children, allowedTypes }: { children: React.ReactNode, allowedTypes: string[] }) => {
+const ProtectedRoute = ({ children, userType }: { children: React.ReactNode, userType: string }) => {
   const { user, profile, loading } = useAuth();
 
   if (loading) {
@@ -34,13 +34,8 @@ const ProtectedRoute = ({ children, allowedTypes }: { children: React.ReactNode,
   }
 
   // Verificar se o usuário tem o tipo correto para a rota
-  if (!allowedTypes.includes(profile.tipo)) {
-    // Se for admin tentando acessar qualquer dashboard, permitir
-    if (profile.tipo === 'admin') {
-      return <>{children}</>;
-    }
-    
-    // Para outros casos, redirecionar para o dashboard apropriado
+  if (profile.tipo !== userType) {
+    // Redirecionar para o dashboard apropriado baseado no tipo do usuário
     switch (profile.tipo) {
       case 'cliente':
         return <Navigate to="/client-dashboard" replace />;
@@ -48,21 +43,14 @@ const ProtectedRoute = ({ children, allowedTypes }: { children: React.ReactNode,
         return <Navigate to="/dashboard" replace />;
       case 'entregador':
         return <Navigate to="/delivery-dashboard" replace />;
+      case 'admin':
+        return <Navigate to="/admin" replace />;
       default:
         return <Navigate to="/" replace />;
     }
   }
 
   return <>{children}</>;
-};
-
-// Component to handle admin routing
-const AdminRoute = () => {
-  return (
-    <ProtectedRoute allowedTypes={['admin']}>
-      <AdminDashboard />
-    </ProtectedRoute>
-  );
 };
 
 function App() {
@@ -75,18 +63,22 @@ function App() {
             <Route path="/restaurantes" element={<RestaurantsPage />} />
             <Route path="/promocoes" element={<PromotionsPage />} />
             <Route path="/dashboard" element={
-              <ProtectedRoute allowedTypes={['restaurante', 'admin']}>
+              <ProtectedRoute userType="restaurante">
                 <Dashboard />
               </ProtectedRoute>
             } />
             <Route path="/client-dashboard" element={
-              <ProtectedRoute allowedTypes={['cliente', 'admin']}>
+              <ProtectedRoute userType="cliente">
                 <ClientDashboard />
               </ProtectedRoute>
             } />
-            <Route path="/admin" element={<AdminRoute />} />
+            <Route path="/admin" element={
+              <ProtectedRoute userType="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
             <Route path="/delivery-dashboard" element={
-              <ProtectedRoute allowedTypes={['entregador', 'admin']}>
+              <ProtectedRoute userType="entregador">
                 <DeliveryDashboard />
               </ProtectedRoute>
             } />
