@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -37,6 +38,7 @@ const DeliveryApp = () => {
   const [dailyEarnings, setDailyEarnings] = useState(0);
   const [deliveryCount, setDeliveryCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [availableOrders, setAvailableOrders] = useState([]);
 
   useEffect(() => {
     if (user) {
@@ -47,8 +49,11 @@ const DeliveryApp = () => {
   useEffect(() => {
     if (deliveryDetails) {
       loadDailyStats();
+      if (isOnline) {
+        loadAvailableOrders();
+      }
     }
-  }, [deliveryDetails]);
+  }, [deliveryDetails, isOnline]);
 
   const loadDeliveryDetails = async () => {
     try {
@@ -99,6 +104,27 @@ const DeliveryApp = () => {
     }
   };
 
+  const loadAvailableOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          restaurant_details:restaurante_id (nome, endereco, telefone),
+          order_items (*)
+        `)
+        .eq('status', 'pronto')
+        .is('entregador_id', null)
+        .order('created_at', { ascending: true })
+        .limit(10);
+
+      if (error) throw error;
+      setAvailableOrders(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar pedidos disponíveis:', error);
+    }
+  };
+
   const toggleOnlineStatus = async () => {
     try {
       const newStatus = !isOnline;
@@ -126,9 +152,49 @@ const DeliveryApp = () => {
 
       setIsOnline(newStatus);
       toast.success(newStatus ? 'Você está online!' : 'Você está offline');
+      
+      if (newStatus) {
+        loadAvailableOrders();
+      } else {
+        setAvailableOrders([]);
+      }
     } catch (error) {
       console.error('Erro ao alterar status:', error);
       toast.error('Erro ao alterar status');
+    }
+  };
+
+  const acceptOrder = async (orderId: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          entregador_id: user.id,
+          status: 'saiu_entrega'
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      // Buscar detalhes do pedido aceito
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          restaurant_details:restaurante_id (nome, endereco, telefone),
+          order_items (*)
+        `)
+        .eq('id', orderId)
+        .single();
+
+      if (orderError) throw orderError;
+
+      setCurrentOrder(orderData);
+      toast.success('Pedido aceito com sucesso!');
+      loadAvailableOrders(); // Recarregar lista
+    } catch (error) {
+      console.error('Erro ao aceitar pedido:', error);
+      toast.error('Erro ao aceitar pedido');
     }
   };
 
@@ -163,7 +229,7 @@ const DeliveryApp = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header com Status Online */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
+      <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="relative">
@@ -222,6 +288,27 @@ const DeliveryApp = () => {
         </div>
       )}
 
+      {/* Alerta de Pedidos Disponíveis */}
+      {isOnline && availableOrders.length > 0 && !currentOrder && (
+        <div className="bg-blue-500 text-white px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="h-5 w-5" />
+              <span className="font-medium">
+                {availableOrders.length} pedido(s) disponível(is)
+              </span>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setActiveTab('dashboard')}
+            >
+              Ver Pedidos
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Navigation Tabs */}
       <div className="bg-white border-b border-gray-200">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -270,6 +357,8 @@ const DeliveryApp = () => {
                 isOnline={isOnline}
                 currentOrder={currentOrder}
                 setCurrentOrder={setCurrentOrder}
+                availableOrders={availableOrders}
+                onAcceptOrder={acceptOrder}
               />
             </TabsContent>
 

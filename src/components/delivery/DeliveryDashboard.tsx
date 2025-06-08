@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,13 +13,20 @@ import {
   CheckCircle,
   AlertCircle,
   Navigation,
-  Phone
+  Phone,
+  XCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { DeliveryEarningsData } from '@/types/delivery';
 
-const DeliveryDashboard = ({ deliveryDetails, isOnline, currentOrder, setCurrentOrder }) => {
-  const [availableOrders, setAvailableOrders] = useState([]);
+const DeliveryDashboard = ({ 
+  deliveryDetails, 
+  isOnline, 
+  currentOrder, 
+  setCurrentOrder,
+  availableOrders = [],
+  onAcceptOrder
+}) => {
   const [notifications, setNotifications] = useState([]);
   const [todayStats, setTodayStats] = useState({
     entregas: 0,
@@ -28,34 +36,11 @@ const DeliveryDashboard = ({ deliveryDetails, isOnline, currentOrder, setCurrent
   });
 
   useEffect(() => {
-    if (isOnline && deliveryDetails) {
-      loadAvailableOrders();
+    if (deliveryDetails) {
       loadNotifications();
       loadTodayStats();
     }
-  }, [isOnline, deliveryDetails]);
-
-  const loadAvailableOrders = async () => {
-    try {
-      // Buscar pedidos disponíveis para aceite
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          restaurant_details:restaurante_id (nome, endereco, telefone),
-          order_items (*)
-        `)
-        .eq('status', 'confirmado')
-        .is('entregador_id', null)
-        .order('created_at', { ascending: true })
-        .limit(5);
-
-      if (error) throw error;
-      setAvailableOrders(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar pedidos disponíveis:', error);
-    }
-  };
+  }, [deliveryDetails]);
 
   const loadNotifications = async () => {
     try {
@@ -101,47 +86,45 @@ const DeliveryDashboard = ({ deliveryDetails, isOnline, currentOrder, setCurrent
     }
   };
 
-  const acceptOrder = async (orderId) => {
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          entregador_id: deliveryDetails.user_id,
-          status: 'aceito_entregador'
-        })
-        .eq('id', orderId);
-
-      if (error) throw error;
-
-      // Buscar detalhes do pedido aceito
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          restaurant_details:restaurante_id (nome, endereco, telefone),
-          order_items (*)
-        `)
-        .eq('id', orderId)
-        .single();
-
-      if (orderError) throw orderError;
-
-      setCurrentOrder(orderData);
-      toast.success('Pedido aceito com sucesso!');
-      loadAvailableOrders(); // Recarregar lista
-    } catch (error) {
-      console.error('Erro ao aceitar pedido:', error);
-      toast.error('Erro ao aceitar pedido');
-    }
-  };
-
   const rejectOrder = async (orderId) => {
     try {
-      // Remover da lista local (o pedido fica disponível para outros entregadores)
-      setAvailableOrders(prev => prev.filter(order => order.id !== orderId));
       toast.info('Pedido recusado');
     } catch (error) {
       console.error('Erro ao recusar pedido:', error);
+    }
+  };
+
+  const completeDelivery = async () => {
+    if (!currentOrder) return;
+
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'entregue' })
+        .eq('id', currentOrder.id);
+
+      if (error) throw error;
+
+      // Registrar ganhos da entrega
+      await supabase
+        .from('delivery_earnings')
+        .insert({
+          delivery_detail_id: deliveryDetails.id,
+          order_id: currentOrder.id,
+          valor_base: 8.50, // Valor base da entrega
+          gorjeta: 0,
+          bonus: 0,
+          desconto: 0,
+          valor_total: 8.50,
+          distancia_km: 2.5
+        });
+
+      setCurrentOrder(null);
+      toast.success('Entrega concluída com sucesso!');
+      loadTodayStats();
+    } catch (error) {
+      console.error('Erro ao finalizar entrega:', error);
+      toast.error('Erro ao finalizar entrega');
     }
   };
 
@@ -187,11 +170,65 @@ const DeliveryDashboard = ({ deliveryDetails, isOnline, currentOrder, setCurrent
 
   return (
     <div className="space-y-6">
+      {/* Status da Entrega Atual */}
+      {currentOrder && (
+        <Card className="border-green-200 bg-green-50">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-green-800">
+              <Package className="h-5 w-5" />
+              <span>Entrega em Andamento</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div>
+                <h4 className="font-semibold">{currentOrder.restaurant_details?.nome}</h4>
+                <p className="text-sm text-gray-600">{currentOrder.restaurant_details?.endereco}</p>
+              </div>
+              
+              <div className="flex items-center space-x-4 text-sm">
+                <span className="flex items-center">
+                  <DollarSign className="h-4 w-4 mr-1" />
+                  R$ {currentOrder.total.toFixed(2)}
+                </span>
+                <span className="flex items-center">
+                  <MapPin className="h-4 w-4 mr-1" />
+                  2.5 km
+                </span>
+                <span className="flex items-center">
+                  <Clock className="h-4 w-4 mr-1" />
+                  15 min
+                </span>
+              </div>
+              
+              <div className="flex space-x-2">
+                <Button size="sm" variant="outline">
+                  <Phone className="h-4 w-4 mr-1" />
+                  Ligar
+                </Button>
+                <Button size="sm" variant="outline">
+                  <Navigation className="h-4 w-4 mr-1" />
+                  Navegar
+                </Button>
+                <Button 
+                  size="sm" 
+                  onClick={completeDelivery}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Finalizar
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Pedidos Disponíveis */}
-      {availableOrders.length > 0 && (
+      {!currentOrder && availableOrders.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Pedidos Disponíveis
+            Pedidos Disponíveis ({availableOrders.length})
           </h2>
           <div className="space-y-3">
             {availableOrders.map((order) => (
@@ -228,7 +265,7 @@ const DeliveryDashboard = ({ deliveryDetails, isOnline, currentOrder, setCurrent
 
                   <div className="flex space-x-2">
                     <Button
-                      onClick={() => acceptOrder(order.id)}
+                      onClick={() => onAcceptOrder(order.id)}
                       className="flex-1 bg-green-600 hover:bg-green-700"
                       size="sm"
                     >
@@ -240,6 +277,7 @@ const DeliveryDashboard = ({ deliveryDetails, isOnline, currentOrder, setCurrent
                       variant="outline"
                       size="sm"
                     >
+                      <XCircle className="h-4 w-4 mr-1" />
                       Recusar
                     </Button>
                   </div>
@@ -248,37 +286,6 @@ const DeliveryDashboard = ({ deliveryDetails, isOnline, currentOrder, setCurrent
             ))}
           </div>
         </div>
-      )}
-
-      {/* Status da Entrega Atual */}
-      {currentOrder && (
-        <Card className="border-green-200 bg-green-50">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-green-800">
-              <Package className="h-5 w-5" />
-              <span>Entrega em Andamento</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div>
-                <h4 className="font-semibold">{currentOrder.restaurant_details?.nome}</h4>
-                <p className="text-sm text-gray-600">{currentOrder.restaurant_details?.endereco}</p>
-              </div>
-              
-              <div className="flex space-x-2">
-                <Button size="sm" variant="outline">
-                  <Phone className="h-4 w-4 mr-1" />
-                  Ligar
-                </Button>
-                <Button size="sm" variant="outline">
-                  <Navigation className="h-4 w-4 mr-1" />
-                  Navegar
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       )}
 
       {/* Resumo do Dia */}
@@ -347,7 +354,7 @@ const DeliveryDashboard = ({ deliveryDetails, isOnline, currentOrder, setCurrent
       )}
 
       {/* Estado Vazio */}
-      {availableOrders.length === 0 && !currentOrder && (
+      {!currentOrder && availableOrders.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">

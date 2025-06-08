@@ -12,7 +12,7 @@ export const useGoogleMaps = (apiKey?: string): UseGoogleMapsReturn => {
 
   useEffect(() => {
     // Se o Google Maps já está carregado
-    if (window.google && window.google.maps && window.google.maps.drawing) {
+    if (typeof window !== 'undefined' && window.google && window.google.maps) {
       setIsLoaded(true);
       return;
     }
@@ -21,15 +21,15 @@ export const useGoogleMaps = (apiKey?: string): UseGoogleMapsReturn => {
     const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
     if (existingScript) {
       const handleLoad = () => {
-        if (window.google && window.google.maps && window.google.maps.drawing) {
+        if (window.google && window.google.maps) {
           setIsLoaded(true);
         } else {
-          setLoadError(new Error('Google Maps drawing library not loaded'));
+          setLoadError(new Error('Google Maps não carregou corretamente'));
         }
       };
 
       const handleError = () => {
-        setLoadError(new Error('Failed to load Google Maps'));
+        setLoadError(new Error('Falha ao carregar Google Maps'));
       };
 
       if (existingScript.getAttribute('data-loaded') === 'true') {
@@ -48,36 +48,35 @@ export const useGoogleMaps = (apiKey?: string): UseGoogleMapsReturn => {
     // Carregar o script do Google Maps
     const script = document.createElement('script');
     const key = apiKey || 'AIzaSyBCXkPLxm6DGcNJvAG6_oVXKKY9-YGZ5kA';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=drawing&callback=initGoogleMaps`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=drawing,geometry&callback=initGoogleMaps`;
     script.async = true;
     script.defer = true;
 
     // Callback global para o Google Maps
-    window.initGoogleMaps = () => {
-      // Aguardar um pouco para garantir que tudo está carregado
+    (window as any).initGoogleMaps = () => {
       setTimeout(() => {
-        if (window.google && window.google.maps && window.google.maps.drawing) {
+        if (window.google && window.google.maps) {
           setIsLoaded(true);
           script.setAttribute('data-loaded', 'true');
+          console.log('Google Maps carregado com sucesso');
         } else {
-          setLoadError(new Error('Google Maps drawing library not loaded properly'));
+          setLoadError(new Error('Google Maps não carregou corretamente'));
         }
       }, 100);
     };
 
     script.onerror = () => {
-      setLoadError(new Error('Failed to load Google Maps API'));
+      setLoadError(new Error('Falha ao carregar Google Maps API'));
     };
 
     document.head.appendChild(script);
 
     return () => {
-      // Cleanup
       if (script.parentNode) {
         script.parentNode.removeChild(script);
       }
-      if (window.initGoogleMaps) {
-        delete window.initGoogleMaps;
+      if ((window as any).initGoogleMaps) {
+        delete (window as any).initGoogleMaps;
       }
     };
   }, [apiKey]);

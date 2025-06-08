@@ -1,44 +1,56 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
+import EnhancedProductForm from './EnhancedProductForm';
+import ProductCategoryManager from './ProductCategoryManager';
 import { 
+  Plus, 
+  Search, 
+  Edit, 
+  Trash2, 
+  Package, 
+  DollarSign,
+  Eye,
+  EyeOff,
+  Utensils,
+  Info
+} from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
-import { 
-  Plus, 
-  Edit, 
-  Eye, 
-  EyeOff, 
-  Search,
-  Package,
-  DollarSign,
-  Settings,
-  Clock,
-  Zap
-} from 'lucide-react';
-import { ProductCategoryManager } from './ProductCategoryManager';
-import { EnhancedProductForm } from './EnhancedProductForm';
 
 interface RestaurantMenuPanelProps {
   restaurantId: string;
 }
 
 export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) => {
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [isAddingProduct, setIsAddingProduct] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState('products');
+  const [showProductDetails, setShowProductDetails] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -49,13 +61,13 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
         .from('restaurant_products')
         .select(`
           *,
-          category:product_categories(nome, cor)
+          product_categories (nome)
         `)
         .eq('restaurant_id', restaurantId)
-        .order('nome');
+        .order('created_at', { ascending: false });
 
       if (searchTerm) {
-        query = query.ilike('nome', `%${searchTerm}%`);
+        query = query.or(`nome.ilike.%${searchTerm}%,descricao.ilike.%${searchTerm}%`);
       }
 
       if (selectedCategory !== 'all') {
@@ -75,18 +87,18 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
         .from('product_categories')
         .select('*')
         .eq('restaurant_id', restaurantId)
-        .order('posicao');
-
+        .order('nome');
+      
       if (error) throw error;
       return data || [];
     }
   });
 
-  const toggleProductAvailability = useMutation({
-    mutationFn: async ({ productId, available }: { productId: string; available: boolean }) => {
+  const deleteProductMutation = useMutation({
+    mutationFn: async (productId: string) => {
       const { error } = await supabase
         .from('restaurant_products')
-        .update({ disponivel: available })
+        .delete()
         .eq('id', productId);
       
       if (error) throw error;
@@ -94,186 +106,48 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['restaurant-products'] });
       toast({
-        title: "Produto atualizado",
-        description: "Disponibilidade do produto foi atualizada.",
+        title: "Produto excluído",
+        description: "O produto foi removido do cardápio.",
       });
     }
   });
 
-  const saveProduct = useMutation({
-    mutationFn: async (data: any) => {
-      const productData = {
-        ...data,
-        restaurant_id: restaurantId,
-        preco: parseFloat(data.preco)
-      };
-
-      if (editingProduct) {
-        const { error } = await supabase
-          .from('restaurant_products')
-          .update(productData)
-          .eq('id', editingProduct.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('restaurant_products')
-          .insert(productData);
-        if (error) throw error;
-      }
+  const toggleProductVisibility = useMutation({
+    mutationFn: async ({ productId, visible }: { productId: string; visible: boolean }) => {
+      const { error } = await supabase
+        .from('restaurant_products')
+        .update({ disponivel: visible })
+        .eq('id', productId);
+      
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['restaurant-products'] });
-      queryClient.invalidateQueries({ queryKey: ['product-categories'] });
-      toast({
-        title: editingProduct ? "Produto atualizado" : "Produto criado",
-        description: `Produto ${editingProduct ? 'atualizado' : 'criado'} com sucesso.`,
-      });
-      setIsAddingProduct(false);
-      setEditingProduct(null);
     }
   });
 
-  const ProductCard = ({ product }: { product: any }) => (
-    <Card key={product.id}>
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start">
-          <div className="flex-1">
-            <div className="flex items-center space-x-2 mb-2">
-              <h3 className="font-semibold text-lg">{product.nome}</h3>
-              {product.category && (
-                <Badge 
-                  variant="secondary"
-                  style={{ backgroundColor: product.category.cor }}
-                >
-                  {product.category.nome}
-                </Badge>
-              )}
-              {product.favorito && (
-                <Badge variant="outline">⭐ Popular</Badge>
-              )}
-            </div>
-            
-            {product.descricao && (
-              <p className="text-gray-600 mb-2">{product.descricao}</p>
-            )}
-            
-            <div className="flex items-center space-x-4 text-sm text-gray-500 mb-2">
-              <span className="flex items-center">
-                <DollarSign className="h-4 w-4 mr-1" />
-                R$ {product.preco?.toFixed(2)}
-              </span>
-              {product.tempo_preparo && (
-                <span className="flex items-center">
-                  <Clock className="h-4 w-4 mr-1" />
-                  {product.tempo_preparo} min
-                </span>
-              )}
-              {product.peso_volume && (
-                <span>{product.peso_volume}</span>
-              )}
-              {product.calorias && (
-                <span className="flex items-center">
-                  <Zap className="h-4 w-4 mr-1" />
-                  {product.calorias} kcal
-                </span>
-              )}
-            </div>
+  const handleEditProduct = (product: any) => {
+    setEditingProduct(product);
+    setShowProductForm(true);
+  };
 
-            {/* Informações Nutricionais */}
-            {product.informacoes_nutricionais && Object.keys(product.informacoes_nutricionais).length > 0 && (
-              <div className="mb-2">
-                <div className="text-xs text-gray-500 mb-1">Informações Nutricionais:</div>
-                <div className="flex flex-wrap gap-1 text-xs">
-                  {product.informacoes_nutricionais.proteinas && (
-                    <Badge variant="outline" className="text-xs">
-                      Proteínas: {product.informacoes_nutricionais.proteinas}g
-                    </Badge>
-                  )}
-                  {product.informacoes_nutricionais.carboidratos && (
-                    <Badge variant="outline" className="text-xs">
-                      Carb: {product.informacoes_nutricionais.carboidratos}g
-                    </Badge>
-                  )}
-                  {product.informacoes_nutricionais.gorduras && (
-                    <Badge variant="outline" className="text-xs">
-                      Gorduras: {product.informacoes_nutricionais.gorduras}g
-                    </Badge>
-                  )}
-                  {product.informacoes_nutricionais.fibras && (
-                    <Badge variant="outline" className="text-xs">
-                      Fibras: {product.informacoes_nutricionais.fibras}g
-                    </Badge>
-                  )}
-                  {product.informacoes_nutricionais.sodio && (
-                    <Badge variant="outline" className="text-xs">
-                      Sódio: {product.informacoes_nutricionais.sodio}mg
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            )}
+  const handleDeleteProduct = (productId: string) => {
+    deleteProductMutation.mutate(productId);
+  };
 
-            <div className="flex items-center space-x-2 text-sm">
-              {product.vegetariano && <Badge variant="outline">🌱 Vegetariano</Badge>}
-              {product.vegano && <Badge variant="outline">🌿 Vegano</Badge>}
-              {product.livre_gluten && <Badge variant="outline">🚫 Sem Glúten</Badge>}
-              {product.livre_lactose && <Badge variant="outline">🥛 Sem Lactose</Badge>}
-            </div>
-          </div>
+  const handleToggleVisibility = (productId: string, currentVisibility: boolean) => {
+    toggleProductVisibility.mutate({ 
+      productId, 
+      visible: !currentVisibility 
+    });
+  };
 
-          <div className="flex items-center space-x-2">
-            <Button
-              size="sm"
-              variant={product.disponivel ? "default" : "secondary"}
-              onClick={() => toggleProductAvailability.mutate({
-                productId: product.id,
-                available: !product.disponivel
-              })}
-            >
-              {product.disponivel ? (
-                <>
-                  <Eye className="h-4 w-4 mr-1" />
-                  Disponível
-                </>
-              ) : (
-                <>
-                  <EyeOff className="h-4 w-4 mr-1" />
-                  Indisponível
-                </>
-              )}
-            </Button>
+  const handleViewDetails = (product: any) => {
+    setSelectedProduct(product);
+    setShowProductDetails(true);
+  };
 
-            <Dialog 
-              open={editingProduct?.id === product.id} 
-              onOpenChange={(open) => !open && setEditingProduct(null)}
-            >
-              <DialogTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setEditingProduct(product)}
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Editar Produto</DialogTitle>
-                </DialogHeader>
-                <EnhancedProductForm
-                  restaurantId={restaurantId}
-                  productId={editingProduct?.id}
-                  onSave={(data) => saveProduct.mutate(data)}
-                  onCancel={() => setEditingProduct(null)}
-                  isLoading={saveProduct.isPending}
-                />
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  const filteredProducts = products || [];
 
   if (isLoading) {
     return <div className="p-6">Carregando cardápio...</div>;
@@ -282,79 +156,206 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Gerenciamento de Cardápio</h2>
-        <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Produto
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Adicionar Novo Produto</DialogTitle>
-            </DialogHeader>
-            <EnhancedProductForm
-              restaurantId={restaurantId}
-              onSave={(data) => saveProduct.mutate(data)}
-              onCancel={() => setIsAddingProduct(false)}
-              isLoading={saveProduct.isPending}
-            />
-          </DialogContent>
-        </Dialog>
+        <h2 className="text-2xl font-bold">Gerenciamento do Cardápio</h2>
+        <Button 
+          onClick={() => {
+            setEditingProduct(null);
+            setShowProductForm(true);
+          }}
+          className="bg-orange-500 hover:bg-orange-600"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Novo Produto
+        </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs defaultValue="products" className="w-full">
         <TabsList>
           <TabsTrigger value="products">Produtos</TabsTrigger>
           <TabsTrigger value="categories">Categorias</TabsTrigger>
-          <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="products" className="space-y-6">
+        <TabsContent value="products" className="space-y-4">
           {/* Filtros */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Buscar produtos..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-3 py-2 border rounded-md md:w-48"
-                >
-                  <option value="all">Todas as categorias</option>
-                  {categories?.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.nome}</option>
-                  ))}
-                </select>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Buscar produtos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              <option value="all">Todas as Categorias</option>
+              {categories?.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.nome}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          {/* Lista de produtos */}
+          {/* Lista de Produtos */}
           <div className="grid gap-4">
-            {products?.map((product) => (
-              <ProductCard key={product.id} product={product} />
+            {filteredProducts.map((product) => (
+              <Card key={product.id} className="overflow-hidden">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <h3 className="font-semibold text-lg">{product.nome}</h3>
+                        {!product.disponivel && (
+                          <Badge variant="secondary">Indisponível</Badge>
+                        )}
+                        {product.favorito && (
+                          <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+                            ⭐ Favorito
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      <p className="text-gray-600 text-sm mb-2 line-clamp-2">
+                        {product.descricao}
+                      </p>
+                      
+                      <div className="flex items-center space-x-4 text-sm text-gray-500">
+                        <span className="flex items-center">
+                          <DollarSign className="h-4 w-4 mr-1" />
+                          R$ {product.preco.toFixed(2)}
+                        </span>
+                        
+                        {product.product_categories && (
+                          <span className="flex items-center">
+                            <Package className="h-4 w-4 mr-1" />
+                            {product.product_categories.nome}
+                          </span>
+                        )}
+                        
+                        {product.calorias && (
+                          <span className="flex items-center">
+                            <Utensils className="h-4 w-4 mr-1" />
+                            {product.calorias} cal
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Informações Nutricionais */}
+                      {product.informacoes_nutricionais && (
+                        <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+                          <div className="font-medium mb-1">Informações Nutricionais:</div>
+                          <div className="text-gray-600">
+                            {typeof product.informacoes_nutricionais === 'string' 
+                              ? product.informacoes_nutricionais 
+                              : JSON.stringify(product.informacoes_nutricionais)
+                            }
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {product.imagem_url && (
+                      <div className="ml-4">
+                        <img
+                          src={product.imagem_url}
+                          alt={product.nome}
+                          className="w-20 h-20 object-cover rounded-lg"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-end space-x-2 mt-4 pt-4 border-t">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleViewDetails(product)}
+                    >
+                      <Info className="h-4 w-4 mr-1" />
+                      Detalhes
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleToggleVisibility(product.id, product.disponivel)}
+                    >
+                      {product.disponivel ? (
+                        <EyeOff className="h-4 w-4 mr-1" />
+                      ) : (
+                        <Eye className="h-4 w-4 mr-1" />
+                      )}
+                      {product.disponivel ? 'Ocultar' : 'Mostrar'}
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleEditProduct(product)}
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Editar
+                    </Button>
+                    
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="destructive">
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Excluir
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tem certeza que deseja excluir o produto "{product.nome}"? 
+                            Esta ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteProduct(product.id)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Excluir
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
 
-          {!products?.length && (
+          {filteredProducts.length === 0 && (
             <div className="text-center py-12">
               <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-600 mb-2">
                 Nenhum produto encontrado
               </h3>
-              <p className="text-gray-500">
-                Comece adicionando produtos ao seu cardápio.
+              <p className="text-gray-500 mb-4">
+                {searchTerm || selectedCategory !== 'all' 
+                  ? 'Tente ajustar os filtros de busca.' 
+                  : 'Comece adicionando produtos ao seu cardápio.'}
               </p>
+              <Button 
+                onClick={() => {
+                  setEditingProduct(null);
+                  setShowProductForm(true);
+                }}
+                className="bg-orange-500 hover:bg-orange-600"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Primeiro Produto
+              </Button>
             </div>
           )}
         </TabsContent>
@@ -362,40 +363,104 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
         <TabsContent value="categories">
           <ProductCategoryManager restaurantId={restaurantId} />
         </TabsContent>
+      </Tabs>
 
-        <TabsContent value="settings">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Settings className="h-5 w-5 mr-2" />
-                Configurações do Cardápio
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="font-medium text-blue-900 mb-2">Funcionalidades Avançadas</h4>
-                <ul className="text-sm text-blue-800 space-y-2">
-                  <li>• <strong>Combos:</strong> Crie ofertas especiais combinando produtos</li>
-                  <li>• <strong>Importação em massa:</strong> Importe produtos via planilha CSV</li>
-                  <li>• <strong>Horários especiais:</strong> Configure disponibilidade por horário</li>
-                  <li>• <strong>Preços dinâmicos:</strong> Ajuste preços automaticamente</li>
-                </ul>
+      {/* Modal do Formulário de Produto */}
+      {showProductForm && (
+        <Dialog open={showProductForm} onOpenChange={setShowProductForm}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {editingProduct ? 'Editar Produto' : 'Novo Produto'}
+              </DialogTitle>
+            </DialogHeader>
+            <EnhancedProductForm
+              restaurantId={restaurantId}
+              product={editingProduct}
+              onSuccess={() => {
+                setShowProductForm(false);
+                setEditingProduct(null);
+                queryClient.invalidateQueries({ queryKey: ['restaurant-products'] });
+              }}
+              onCancel={() => {
+                setShowProductForm(false);
+                setEditingProduct(null);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Modal de Detalhes do Produto */}
+      {showProductDetails && selectedProduct && (
+        <Dialog open={showProductDetails} onOpenChange={setShowProductDetails}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{selectedProduct.nome}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {selectedProduct.imagem_url && (
+                <img
+                  src={selectedProduct.imagem_url}
+                  alt={selectedProduct.nome}
+                  className="w-full h-48 object-cover rounded-lg"
+                />
+              )}
+              
+              <div>
+                <h4 className="font-semibold mb-2">Descrição</h4>
+                <p className="text-gray-600">{selectedProduct.descricao}</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
-                <Button variant="outline" className="h-20 flex-col">
-                  <Package className="h-6 w-6 mb-2" />
-                  Importar Produtos
-                </Button>
-                <Button variant="outline" className="h-20 flex-col">
-                  <Settings className="h-6 w-6 mb-2" />
-                  Configurar Combos
-                </Button>
+                <div>
+                  <h4 className="font-semibold mb-1">Preço</h4>
+                  <p className="text-lg text-green-600 font-bold">
+                    R$ {selectedProduct.preco.toFixed(2)}
+                  </p>
+                </div>
+                
+                {selectedProduct.calorias && (
+                  <div>
+                    <h4 className="font-semibold mb-1">Calorias</h4>
+                    <p>{selectedProduct.calorias} cal</p>
+                  </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+
+              {selectedProduct.informacoes_nutricionais && (
+                <div>
+                  <h4 className="font-semibold mb-2">Informações Nutricionais</h4>
+                  <div className="p-3 bg-gray-50 rounded-lg text-sm">
+                    {typeof selectedProduct.informacoes_nutricionais === 'string' 
+                      ? selectedProduct.informacoes_nutricionais 
+                      : JSON.stringify(selectedProduct.informacoes_nutricionais, null, 2)
+                    }
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex items-center space-x-4">
+                <Badge variant={selectedProduct.disponivel ? "default" : "secondary"}>
+                  {selectedProduct.disponivel ? 'Disponível' : 'Indisponível'}
+                </Badge>
+                
+                {selectedProduct.favorito && (
+                  <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+                    ⭐ Produto em Destaque
+                  </Badge>
+                )}
+                
+                {selectedProduct.vegetariano && (
+                  <Badge variant="outline" className="text-green-600 border-green-600">
+                    🌱 Vegetariano
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };
