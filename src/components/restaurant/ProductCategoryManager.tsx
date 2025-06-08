@@ -39,6 +39,7 @@ interface Category {
   cor?: string;
   posicao?: number;
   ativo: boolean;
+  restaurant_id: string;
 }
 
 export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerProps) => {
@@ -84,6 +85,7 @@ export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerP
   const saveCategoryMutation = useMutation({
     mutationFn: async (categoryData: any) => {
       console.log('Salvando categoria:', categoryData);
+      console.log('Restaurant ID:', restaurantId);
       
       if (editingCategory) {
         const { error } = await supabase
@@ -96,18 +98,26 @@ export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerP
           throw error;
         }
       } else {
+        // Garantir que o restaurant_id está sendo incluído
+        const insertData = {
+          ...categoryData,
+          restaurant_id: restaurantId,
+          posicao: categories?.length || 0,
+          ativo: true
+        };
+        
+        console.log('Dados para inserção:', insertData);
+        
         const { data, error } = await supabase
           .from('product_categories')
-          .insert([{
-            ...categoryData,
-            restaurant_id: restaurantId,
-            posicao: categories?.length || 0
-          }])
+          .insert([insertData])
           .select()
           .single();
         
         if (error) {
           console.error('Erro ao criar categoria:', error);
+          console.error('Detalhes do erro:', error.details);
+          console.error('Código do erro:', error.code);
           throw error;
         }
         
@@ -126,7 +136,7 @@ export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerP
       console.error('Erro ao salvar categoria:', error);
       toast({
         title: "Erro ao salvar categoria",
-        description: error.message,
+        description: error.message || "Erro desconhecido ao salvar categoria",
         variant: "destructive"
       });
     }
@@ -195,7 +205,11 @@ export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerP
   };
 
   if (isLoading) {
-    return <div>Carregando categorias...</div>;
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      </div>
+    );
   }
 
   if (error) {

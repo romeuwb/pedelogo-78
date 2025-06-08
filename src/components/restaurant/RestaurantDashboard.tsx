@@ -97,7 +97,7 @@ const RestaurantDashboard = ({ restaurantId: propRestaurantId }: RestaurantDashb
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Visão Geral
@@ -109,6 +109,10 @@ const RestaurantDashboard = ({ restaurantId: propRestaurantId }: RestaurantDashb
           <TabsTrigger value="pos" className="flex items-center gap-2">
             <Calculator className="h-4 w-4" />
             POS
+          </TabsTrigger>
+          <TabsTrigger value="tables" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Mesas
           </TabsTrigger>
           <TabsTrigger value="routes" className="flex items-center gap-2">
             <MapPin className="h-4 w-4" />
@@ -191,6 +195,10 @@ const RestaurantDashboard = ({ restaurantId: propRestaurantId }: RestaurantDashb
 
         <TabsContent value="pos" className="mt-6">
           <POSSystemPage restaurantId={finalRestaurantId} />
+        </TabsContent>
+
+        <TabsContent value="tables" className="mt-6">
+          <TableManagementPage restaurantId={finalRestaurantId} />
         </TabsContent>
 
         <TabsContent value="routes" className="mt-6">
