@@ -17,8 +17,8 @@ import NotFound from '@/pages/NotFound';
 
 const queryClient = new QueryClient();
 
-// Component to handle admin routing
-const AdminRoute = () => {
+// Component to handle protected routes
+const ProtectedRoute = ({ children, allowedTypes }: { children: React.ReactNode, allowedTypes: string[] }) => {
   const { user, profile, loading } = useAuth();
 
   if (loading) {
@@ -29,12 +29,36 @@ const AdminRoute = () => {
     );
   }
 
-  if (!user) {
+  if (!user || !profile) {
     return <Navigate to="/" replace />;
   }
 
-  // Check if user is admin by querying admin_users table
-  return <AdminDashboard />;
+  if (!allowedTypes.includes(profile.tipo)) {
+    // Redirect to appropriate dashboard based on user type
+    switch (profile.tipo) {
+      case 'cliente':
+        return <Navigate to="/client-dashboard" replace />;
+      case 'restaurante':
+        return <Navigate to="/dashboard" replace />;
+      case 'entregador':
+        return <Navigate to="/delivery-dashboard" replace />;
+      case 'admin':
+        return <Navigate to="/admin" replace />;
+      default:
+        return <Navigate to="/" replace />;
+    }
+  }
+
+  return <>{children}</>;
+};
+
+// Component to handle admin routing
+const AdminRoute = () => {
+  return (
+    <ProtectedRoute allowedTypes={['admin']}>
+      <AdminDashboard />
+    </ProtectedRoute>
+  );
 };
 
 function App() {
@@ -46,10 +70,22 @@ function App() {
             <Route path="/" element={<Index />} />
             <Route path="/restaurantes" element={<RestaurantsPage />} />
             <Route path="/promocoes" element={<PromotionsPage />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/client-dashboard" element={<ClientDashboard />} />
+            <Route path="/dashboard" element={
+              <ProtectedRoute allowedTypes={['restaurante']}>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/client-dashboard" element={
+              <ProtectedRoute allowedTypes={['cliente']}>
+                <ClientDashboard />
+              </ProtectedRoute>
+            } />
             <Route path="/admin" element={<AdminRoute />} />
-            <Route path="/delivery-dashboard" element={<DeliveryDashboard />} />
+            <Route path="/delivery-dashboard" element={
+              <ProtectedRoute allowedTypes={['entregador']}>
+                <DeliveryDashboard />
+              </ProtectedRoute>
+            } />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

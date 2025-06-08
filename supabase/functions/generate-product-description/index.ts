@@ -10,31 +10,47 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { productName, category, ingredients } = await req.json();
-
     if (!openAIApiKey) {
-      throw new Error('OpenAI API key não configurada');
+      console.error('OPENAI_API_KEY não configurada');
+      return new Response(
+        JSON.stringify({ error: 'Configuração da API do OpenAI não encontrada' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
-    const prompt = `Gere uma descrição atrativa e apetitosa para um produto de restaurante com as seguintes informações:
-    
-Nome: ${productName}
-Categoria: ${category || 'Não especificada'}
-Ingredientes: ${ingredients && ingredients.length > 0 ? ingredients.join(', ') : 'Não especificados'}
+    const { productName, category, price } = await req.json();
 
-A descrição deve ser:
-- Máximo 150 caracteres
-- Atrativa para o cliente
-- Focada no sabor e qualidade
-- Em português brasileiro
-- Sem usar aspas ou caracteres especiais
+    if (!productName) {
+      return new Response(
+        JSON.stringify({ error: 'Nome do produto é obrigatório' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
 
-Retorne apenas a descrição, sem texto adicional.`;
+    console.log('Gerando descrição para produto:', productName);
+
+    const prompt = `Crie uma descrição atrativa e apetitosa para o produto de comida "${productName}" ${category ? `da categoria ${category}` : ''} ${price ? `com preço de R$ ${price}` : ''}. 
+
+A descrição deve:
+- Ter entre 80-150 caracteres
+- Ser apetitosa e convidativa
+- Destacar ingredientes ou características especiais
+- Ser adequada para um cardápio de delivery
+- Usar linguagem brasileira informal mas profissional
+
+Retorne apenas a descrição, sem aspas ou formatação adicional.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -45,32 +61,55 @@ Retorne apenas a descrição, sem texto adicional.`;
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'Você é um especialista em marketing gastronômico que cria descrições atrativas para produtos de restaurantes.' },
+          { 
+            role: 'system', 
+            content: 'Você é um especialista em criar descrições atrativas para produtos alimentícios em aplicativos de delivery. Suas descrições são sempre apetitosas, concisas e eficazes para aumentar as vendas.'
+          },
           { role: 'user', content: prompt }
         ],
-        max_tokens: 100,
+        max_tokens: 200,
         temperature: 0.7,
       }),
     });
 
-    const data = await response.json();
-    
     if (!response.ok) {
-      throw new Error(data.error?.message || 'Erro na API da OpenAI');
+      const errorData = await response.text();
+      console.error('Erro da API OpenAI:', response.status, errorData);
+      throw new Error(`Erro da API OpenAI: ${response.status}`);
     }
 
-    const description = data.choices[0].message.content.trim();
+    const data = await response.json();
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('Resposta inválida da API OpenAI:', data);
+      throw new Error('Resposta inválida da API OpenAI');
+    }
 
-    return new Response(JSON.stringify({ description }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    const generatedDescription = data.choices[0].message.content.trim();
+
+    console.log('Descrição gerada com sucesso:', generatedDescription);
+
+    return new Response(
+      JSON.stringify({ 
+        description: generatedDescription,
+        success: true 
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+
   } catch (error) {
-    console.error('Erro ao gerar descrição:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message || 'Erro interno do servidor' 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error('Erro na função generate-product-description:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: 'Erro interno do servidor ao gerar descrição',
+        details: error.message 
+      }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
   }
 });

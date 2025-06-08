@@ -38,6 +38,26 @@ const cleanupAuthState = () => {
   }
 };
 
+// Função para redirecionar baseado no tipo de usuário
+const redirectBasedOnUserType = (profile: Profile) => {
+  switch (profile.tipo) {
+    case 'cliente':
+      window.location.href = '/client-dashboard';
+      break;
+    case 'restaurante':
+      window.location.href = '/dashboard';
+      break;
+    case 'entregador':
+      window.location.href = '/delivery-dashboard';
+      break;
+    case 'admin':
+      window.location.href = '/admin';
+      break;
+    default:
+      window.location.href = '/dashboard';
+  }
+};
+
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -237,6 +257,19 @@ export const useAuth = () => {
         description: "Bem-vindo de volta!",
       });
 
+      // Aguardar um pouco antes de redirecionar para garantir que o perfil seja carregado
+      setTimeout(() => {
+        if (data.session?.user) {
+          fetchProfile(data.session.user.id).then(() => {
+            // Redirecionar após carregar o perfil
+            const profile = JSON.parse(localStorage.getItem('userProfile') || 'null');
+            if (profile) {
+              redirectBasedOnUserType(profile);
+            }
+          });
+        }
+      }, 500);
+
       return { data, error: null };
     } catch (error: any) {
       console.error('Erro no login:', error);
@@ -298,6 +331,15 @@ export const useAuth = () => {
       setLoading(false);
     }
   };
+
+  // Armazenar perfil no localStorage para acesso rápido
+  useEffect(() => {
+    if (profile) {
+      localStorage.setItem('userProfile', JSON.stringify(profile));
+    } else {
+      localStorage.removeItem('userProfile');
+    }
+  }, [profile]);
 
   return {
     user,

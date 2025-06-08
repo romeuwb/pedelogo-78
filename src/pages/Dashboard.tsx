@@ -87,6 +87,37 @@ const Dashboard = () => {
     retry: 1
   });
 
+  // Redirecionamento automático baseado no tipo de usuário
+  useEffect(() => {
+    if (!loading && user && profile) {
+      const currentPath = window.location.pathname;
+      
+      // Se já está na rota correta, não redirecionar
+      if (currentPath !== '/dashboard') return;
+      
+      switch (profile.tipo) {
+        case 'entregador':
+          if (deliveryDetails && currentPath === '/dashboard') {
+            window.location.href = '/delivery-dashboard';
+            return;
+          }
+          break;
+        case 'cliente':
+          if (currentPath === '/dashboard') {
+            window.location.href = '/client-dashboard';
+            return;
+          }
+          break;
+        case 'admin':
+          if (isAdmin && currentPath === '/dashboard') {
+            window.location.href = '/admin';
+            return;
+          }
+          break;
+      }
+    }
+  }, [user, profile, loading, deliveryDetails, isAdmin]);
+
   useEffect(() => {
     if (restaurantError) {
       setError('Erro ao carregar dados do restaurante');
@@ -182,68 +213,41 @@ const Dashboard = () => {
           );
 
         case 'entregador':
-          if (!deliveryDetails) {
-            return (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Configuração Necessária</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-600 mb-4">
-                    Você precisa completar o cadastro de entregador para acessar o dashboard.
-                  </p>
-                  <Button 
-                    onClick={() => setShowRegistrationModal(true)}
-                    className="bg-orange-500 hover:bg-orange-600 text-white"
-                  >
-                    Completar Cadastro
-                  </Button>
-                </CardContent>
-              </Card>
-            );
+          // Redirecionar para o painel específico do entregador
+          if (deliveryDetails) {
+            window.location.href = '/delivery-dashboard';
+            return <div>Redirecionando...</div>;
           }
+          
           return (
-            <div className="space-y-6">
-              <h1 className="text-3xl font-bold">Dashboard do Entregador</h1>
-              <Card>
-                <CardContent className="p-6">
-                  <p className="text-gray-600">
-                    Painel do entregador será implementado em breve.
-                  </p>
-                  {deliveryDetails && (
-                    <div className="mt-4">
-                      <p className="text-sm text-gray-500">
-                        Status: {deliveryDetails.status_aprovacao}
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Configuração Necessária</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600 mb-4">
+                  Você precisa completar o cadastro de entregador para acessar o dashboard.
+                </p>
+                <Button 
+                  onClick={() => setShowRegistrationModal(true)}
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                  Completar Cadastro
+                </Button>
+              </CardContent>
+            </Card>
           );
 
         case 'cliente':
-          return (
-            <div className="space-y-6">
-              <h1 className="text-3xl font-bold">Meus Pedidos</h1>
-              <OrderManagement userType="customer" userId={user.id} />
-            </div>
-          );
+          // Redirecionar para o painel do cliente
+          window.location.href = '/client-dashboard';
+          return <div>Redirecionando...</div>;
 
         case 'admin':
           // Para admins, verificar se realmente tem permissão
           if (isAdmin) {
-            return (
-              <div className="space-y-6">
-                <h1 className="text-3xl font-bold">Painel Administrativo</h1>
-                <AdminOverview />
-                <div className="mt-4">
-                  <Button onClick={() => window.location.href = '/admin'}>
-                    Ir para Painel Admin Completo
-                  </Button>
-                </div>
-              </div>
-            );
+            window.location.href = '/admin';
+            return <div>Redirecionando...</div>;
           } else {
             return (
               <Card>
