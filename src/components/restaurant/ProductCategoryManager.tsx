@@ -54,6 +54,8 @@ export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerP
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  console.log('ProductCategoryManager - restaurantId:', restaurantId);
+
   const { data: categories, isLoading, error } = useQuery({
     queryKey: ['product-categories', restaurantId],
     queryFn: async () => {
@@ -306,6 +308,14 @@ export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerP
             </form>
           </DialogContent>
         </Dialog>
+      </div>
+
+      {/* Debug Info */}
+      <div className="p-4 bg-gray-100 rounded text-sm">
+        <p><strong>Restaurant ID:</strong> {restaurantId}</p>
+        <p><strong>Categorias encontradas:</strong> {categories?.length || 0}</p>
+        <p><strong>Estado do carregamento:</strong> {isLoading ? 'Carregando...' : 'Concluído'}</p>
+        {error && <p className="text-red-600"><strong>Erro:</strong> {error.message}</p>}
       </div>
 
       <div className="grid gap-4">
