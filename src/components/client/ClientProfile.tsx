@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +23,17 @@ const ClientProfile = () => {
       fetchUserData();
     }
   }, [user]);
+
+  // Add early return if user is null
+  if (!user) {
+    return (
+      <div className="p-4">
+        <div className="text-center py-6 text-gray-500">
+          <p>Usuário não encontrado. Faça login novamente.</p>
+        </div>
+      </div>
+    );
+  }
 
   const fetchUserData = async () => {
     try {
@@ -183,7 +193,7 @@ const ClientProfile = () => {
                       <Label htmlFor="email">E-mail</Label>
                       <Input
                         id="email"
-                        value={user.email}
+                        value={user?.email || ''}
                         disabled
                         className="bg-gray-50"
                       />
@@ -216,7 +226,7 @@ const ClientProfile = () => {
                   
                   <div>
                     <Label>E-mail</Label>
-                    <p className="text-gray-900">{user.email}</p>
+                    <p className="text-gray-900">{user?.email || 'Não informado'}</p>
                   </div>
                   
                   <div>
@@ -227,7 +237,7 @@ const ClientProfile = () => {
                   <div>
                     <Label>Membro desde</Label>
                     <p className="text-gray-500">
-                      {new Date(profile?.created_at || user.created_at).toLocaleDateString('pt-BR')}
+                      {new Date(profile?.created_at || user?.created_at || new Date()).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
                 </div>
