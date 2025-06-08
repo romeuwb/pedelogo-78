@@ -19,7 +19,10 @@ serve(async (req) => {
     if (!openAIApiKey) {
       console.error('OPENAI_API_KEY não configurada');
       return new Response(
-        JSON.stringify({ error: 'Configuração da API do OpenAI não encontrada' }),
+        JSON.stringify({ 
+          error: 'Configuração da API do OpenAI não encontrada',
+          success: false 
+        }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -27,11 +30,18 @@ serve(async (req) => {
       );
     }
 
-    const { nome, ingredientes, categoria, informacoes_nutricionais } = await req.json();
+    const requestData = await req.json();
+    const { nome, ingredientes = [], categoria = '', informacoes_nutricionais = {} } = requestData;
 
-    if (!nome) {
+    console.log('Dados recebidos:', { nome, ingredientes, categoria, informacoes_nutricionais });
+
+    if (!nome || nome.trim().length === 0) {
+      console.error('Nome do produto não fornecido');
       return new Response(
-        JSON.stringify({ error: 'Nome do produto é obrigatório' }),
+        JSON.stringify({ 
+          error: 'Nome do produto é obrigatório',
+          success: false 
+        }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -41,10 +51,35 @@ serve(async (req) => {
 
     console.log('Gerando descrição para produto:', nome);
 
-    const prompt = `Crie uma descrição detalhada e apetitosa para o produto de comida "${nome}" ${categoria ? `da categoria ${categoria}` : ''} ${ingredientes && ingredientes.length > 0 ? `com os ingredientes: ${ingredientes.join(', ')}` : ''}.
+    // Construir contexto mais rico para a IA
+    let contextoIngredientes = '';
+    if (ingredientes && ingredientes.length > 0) {
+      contextoIngredientes = `\nIngredientes principais: ${ingredientes.join(', ')}`;
+    }
+
+    let contextoCategoria = '';
+    if (categoria) {
+      contextoCategoria = `\nCategoria: ${categoria}`;
+    }
+
+    let contextoNutricional = '';
+    if (informacoes_nutricionais && Object.keys(informacoes_nutricionais).length > 0) {
+      const nutricoes = [];
+      if (informacoes_nutricionais.proteinas) nutricoes.push(`${informacoes_nutricionais.proteinas}g de proteína`);
+      if (informacoes_nutricionais.carboidratos) nutricoes.push(`${informacoes_nutricionais.carboidratos}g de carboidratos`);
+      if (informacoes_nutricionais.gorduras) nutricoes.push(`${informacoes_nutricionais.gorduras}g de gorduras`);
+      if (informacoes_nutricionais.fibras) nutricoes.push(`${informacoes_nutricionais.fibras}g de fibras`);
+      
+      if (nutricoes.length > 0) {
+        contextoNutricional = `\nInformações nutricionais: ${nutricoes.join(', ')}`;
+      }
+    }
+
+    const prompt = `Crie uma descrição detalhada e apetitosa para o produto "${nome}".
+${contextoCategoria}${contextoIngredientes}${contextoNutricional}
 
 A descrição deve:
-- Ter entre 150-250 caracteres
+- Ter entre 120-200 palavras
 - Ser apetitosa e convidativa
 - Destacar ingredientes principais e características especiais
 - Incluir informações sobre textura, sabor e apresentação
@@ -52,8 +87,12 @@ A descrição deve:
 - Usar linguagem brasileira informal mas profissional
 - Mencionar benefícios nutricionais se relevante
 - Criar desejo no cliente
+- Incluir aspectos sensoriais (aroma, sabor, textura)
+- Sugerir ocasiões de consumo apropriadas
 
 Retorne apenas a descrição, sem aspas ou formatação adicional.`;
+
+    console.log('Enviando prompt para OpenAI...');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -66,36 +105,81 @@ Retorne apenas a descrição, sem aspas ou formatação adicional.`;
         messages: [
           { 
             role: 'system', 
-            content: 'Você é um especialista em gastronomia e marketing de alimentos. Crie descrições irresistíveis que destacam sabores, texturas e benefícios dos pratos, sempre focando em despertar o apetite e desejo do cliente.'
+            content: 'Você é um especialista em gastronomia e marketing de alimentos brasileiro. Crie descrições irresistíveis que destacam sabores, texturas e benefícios dos pratos, sempre focando em despertar o apetite e desejo do cliente. Use linguagem brasileira natural e atrativa.'
           },
           { role: 'user', content: prompt }
         ],
-        max_tokens: 300,
-        temperature: 0.7,
+        max_tokens: 400,
+        temperature: 0.8,
       }),
     });
+
+    console.log('Status da resposta OpenAI:', response.status);
 
     if (!response.ok) {
       const errorData = await response.text();
       console.error('Erro da API OpenAI:', response.status, errorData);
-      throw new Error(`Erro da API OpenAI: ${response.status}`);
+      
+      return new Response(
+        JSON.stringify({ 
+          error: `Erro da API OpenAI: ${response.status}`,
+          details: errorData,
+          success: false 
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     const data = await response.json();
+    console.log('Resposta completa da OpenAI:', JSON.stringify(data, null, 2));
     
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+    if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
       console.error('Resposta inválida da API OpenAI:', data);
-      throw new Error('Resposta inválida da API OpenAI');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Resposta inválida da API OpenAI',
+          details: 'Estrutura de resposta inesperada',
+          success: false 
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     const generatedDescription = data.choices[0].message.content.trim();
+
+    // Validar se a descrição foi gerada corretamente
+    if (!generatedDescription || generatedDescription.length < 50) {
+      console.error('Descrição gerada muito curta:', generatedDescription);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Descrição gerada inadequada',
+          success: false 
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
 
     console.log('Descrição gerada com sucesso:', generatedDescription);
 
     return new Response(
       JSON.stringify({ 
         description: generatedDescription,
-        success: true 
+        success: true,
+        metadata: {
+          produto: nome,
+          categoria: categoria,
+          ingredientes_count: ingredientes ? ingredientes.length : 0,
+          tem_info_nutricional: Object.keys(informacoes_nutricionais).length > 0
+        }
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -107,7 +191,8 @@ Retorne apenas a descrição, sem aspas ou formatação adicional.`;
     return new Response(
       JSON.stringify({ 
         error: 'Erro interno do servidor ao gerar descrição',
-        details: error.message 
+        details: error.message,
+        success: false
       }),
       { 
         status: 500, 

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Clock, Star, MapPin, Utensils } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 interface Restaurant {
   id: string;
@@ -58,6 +58,18 @@ const RestaurantList = ({ selectedCategory }: RestaurantListProps) => {
       'brazilian': '🇧🇷'
     };
     return emojiMap[category] || '🍽️';
+  };
+
+  const handleViewMenu = (restaurantId: string, restaurantName: string) => {
+    console.log(`Abrindo cardápio do restaurante: ${restaurantName} (ID: ${restaurantId})`);
+    // Aqui você pode implementar a navegação para o cardápio
+    // Por exemplo: navigate(`/restaurant/${restaurantId}/menu`);
+    
+    // Por enquanto, vamos mostrar um toast informativo
+    toast({
+      title: "Cardápio",
+      description: `Abrindo cardápio de ${restaurantName}`,
+    });
   };
 
   if (isLoading) {
@@ -172,7 +184,10 @@ const RestaurantList = ({ selectedCategory }: RestaurantListProps) => {
               )}
             </div>
             
-            <Button className="w-full mt-4 gradient-delivery text-white hover:opacity-90">
+            <Button 
+              className="w-full mt-4 gradient-delivery text-white hover:opacity-90"
+              onClick={() => handleViewMenu(restaurant.id, restaurant.nome_fantasia)}
+            >
               Ver Cardápio
             </Button>
           </CardContent>

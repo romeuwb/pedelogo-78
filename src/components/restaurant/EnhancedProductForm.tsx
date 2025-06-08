@@ -230,6 +230,12 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
     
     try {
       console.log('Iniciando geração de descrição para:', formData.nome);
+      console.log('Dados do produto:', {
+        nome: formData.nome,
+        ingredientes: formData.ingredientes,
+        categoria: categories?.find(c => c.id === formData.category_id)?.nome || '',
+        informacoes_nutricionais: formData.informacoes_nutricionais
+      });
       
       const { data, error } = await supabase.functions.invoke('generate-product-description', {
         body: {
@@ -244,27 +250,38 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
 
       if (error) {
         console.error('Erro na edge function:', error);
-        throw error;
+        throw new Error(error.message || 'Erro na comunicação com o servidor');
       }
 
-      if (data?.description) {
+      if (data?.success && data?.description) {
         setFormData({
           ...formData,
           descricao: data.description
         });
 
         toast({
-          title: "Sucesso",
-          description: "Descrição gerada com IA!",
+          title: "Sucesso!",
+          description: `Descrição gerada com IA! (${data.metadata?.ingredientes_count || 0} ingredientes considerados)`,
         });
       } else {
-        throw new Error('Resposta inválida da função');
+        throw new Error(data?.error || 'Resposta inválida da função de geração');
       }
     } catch (error: any) {
       console.error('Erro ao gerar descrição:', error);
+      
+      let errorMessage = 'Erro desconhecido ao gerar descrição';
+      
+      if (error.message?.includes('OPENAI_API_KEY')) {
+        errorMessage = 'Chave da API OpenAI não configurada. Contate o administrador.';
+      } else if (error.message?.includes('Nome do produto')) {
+        errorMessage = 'Nome do produto é obrigatório para gerar descrição.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
-        title: "Erro",
-        description: "Erro ao gerar descrição: " + (error.message || 'Erro desconhecido'),
+        title: "Erro ao gerar descrição",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -454,8 +471,9 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
                 size="sm"
                 onClick={generateDescriptionWithAI}
                 disabled={isGeneratingDescription || !formData.nome.trim()}
+                className="flex items-center gap-2"
               >
-                <Sparkles className="h-4 w-4 mr-2" />
+                <Sparkles className={`h-4 w-4 ${isGeneratingDescription ? 'animate-spin' : ''}`} />
                 {isGeneratingDescription ? 'Gerando...' : 'Gerar com IA'}
               </Button>
             </div>
@@ -463,11 +481,18 @@ export const EnhancedProductForm = ({ restaurantId, productId, onSave, onCancel,
               value={formData.descricao}
               onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
               placeholder="Descreva o produto... (clique em 'Gerar com IA' para criar automaticamente)"
-              rows={3}
+              rows={4}
+              className={isGeneratingDescription ? 'opacity-50' : ''}
             />
             {!formData.nome.trim() && (
               <p className="text-sm text-gray-500 mt-1">
                 Digite o nome do produto para usar a geração automática com IA
+              </p>
+            )}
+            {isGeneratingDescription && (
+              <p className="text-sm text-blue-600 mt-1 flex items-center gap-1">
+                <Sparkles className="h-3 w-3 animate-spin" />
+                Gerando descrição inteligente baseada no produto...
               </p>
             )}
           </div>
