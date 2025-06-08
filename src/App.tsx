@@ -21,6 +21,8 @@ const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, profile, loading } = useAuth();
 
+  console.log('ProtectedRoute - user:', !!user, 'profile:', !!profile, 'loading:', loading);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -30,6 +32,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user || !profile) {
+    console.log('Redirecting to home - no user or profile');
     return <Navigate to="/" replace />;
   }
 
@@ -39,6 +42,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // Component to render the correct dashboard based on user type
 const DashboardRouter = () => {
   const { profile } = useAuth();
+
+  console.log('DashboardRouter - profile:', profile);
 
   if (!profile) {
     return (
@@ -64,13 +69,14 @@ const DashboardRouter = () => {
 };
 
 function App() {
+  console.log('App component rendered');
+
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
         <div className="min-h-screen bg-gray-100">
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Navigate to="/" replace />} />
             <Route path="/restaurantes" element={<RestaurantsPage />} />
             <Route path="/promocoes" element={<PromotionsPage />} />
             <Route path="/dashboard" element={

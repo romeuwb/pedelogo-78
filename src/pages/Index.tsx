@@ -11,6 +11,8 @@ const Index = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
 
+  console.log('Index component rendered');
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -106,7 +108,12 @@ const Index = () => {
         </div>
       </section>
 
-      <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
+      {showLogin && (
+        <LoginModal 
+          isOpen={showLogin} 
+          onClose={() => setShowLogin(false)} 
+        />
+      )}
     </div>
   );
 };
