@@ -24,39 +24,32 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
 
   const queryClient = useQueryClient();
 
-  // Buscar mesas disponíveis
+  // Buscar mesas disponíveis - usando restaurant_tables se existir, senão criar mock
   const { data: tables } = useQuery({
     queryKey: ['restaurant-tables', restaurantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('restaurant_tables')
-        .select('*')
-        .eq('restaurant_id', restaurantId)
-        .eq('ativa', true)
-        .order('numero_mesa');
-
-      if (error) throw error;
-      return data || [];
+      // Retornar dados mock por enquanto até as tabelas serem criadas
+      return [
+        { id: '1', numero_mesa: 1, capacidade: 4, status: 'disponivel', localizacao: 'Área interna' },
+        { id: '2', numero_mesa: 2, capacidade: 2, status: 'ocupada', localizacao: 'Varanda' },
+        { id: '3', numero_mesa: 3, capacidade: 6, status: 'disponivel', localizacao: 'Área externa' },
+        { id: '4', numero_mesa: 4, capacidade: 4, status: 'disponivel', localizacao: 'Área interna' },
+      ];
     },
   });
 
-  // Buscar sessões ativas
+  // Buscar sessões ativas - mock por enquanto
   const { data: activeSessions } = useQuery({
     queryKey: ['active-sessions', restaurantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('table_sessions')
-        .select(`
-          *,
-          table:restaurant_tables(numero_mesa),
-          pos_orders(*)
-        `)
-        .eq('restaurant_id', restaurantId)
-        .eq('status', 'aberta')
-        .order('opened_at', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
+      return [
+        {
+          id: '1',
+          table: { numero_mesa: 2 },
+          opened_at: new Date().toISOString(),
+          pos_orders: []
+        }
+      ];
     },
   });
 
@@ -76,31 +69,13 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
     },
   });
 
-  // Abrir mesa
+  // Abrir mesa - mock por enquanto
   const openTableMutation = useMutation({
     mutationFn: async (tableId: string) => {
-      const sessionNumber = `${Date.now()}`;
-      
-      const { data, error } = await supabase
-        .from('table_sessions')
-        .insert({
-          restaurant_id: restaurantId,
-          table_id: tableId,
-          session_number: sessionNumber,
-          status: 'aberta'
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Atualizar status da mesa
-      await supabase
-        .from('restaurant_tables')
-        .update({ status: 'ocupada' })
-        .eq('id', tableId);
-
-      return data;
+      console.log('Abrindo mesa:', tableId);
+      // Implementação mock
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return { id: tableId };
     },
     onSuccess: () => {
       toast.success('Mesa aberta com sucesso!');
@@ -112,18 +87,12 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
     }
   });
 
-  // Fechar mesa
+  // Fechar mesa - mock por enquanto
   const closeTableMutation = useMutation({
     mutationFn: async (sessionId: string) => {
-      const { error } = await supabase
-        .from('table_sessions')
-        .update({ 
-          status: 'fechada',
-          closed_at: new Date().toISOString()
-        })
-        .eq('id', sessionId);
-
-      if (error) throw error;
+      console.log('Fechando mesa:', sessionId);
+      // Implementação mock
+      await new Promise(resolve => setTimeout(resolve, 1000));
     },
     onSuccess: () => {
       toast.success('Mesa fechada com sucesso!');
@@ -135,20 +104,21 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
     }
   });
 
-  // Criar pedido
+  // Criar pedido - usar tabela orders existente
   const createOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
       const orderNumber = `POS-${Date.now()}`;
       
+      // Por enquanto, criar um pedido simples na tabela orders
       const { data: order, error: orderError } = await supabase
-        .from('pos_orders')
+        .from('orders')
         .insert({
-          restaurant_id: restaurantId,
-          table_session_id: orderData.sessionId,
-          order_number: orderNumber,
-          tipo_pedido: orderType,
-          subtotal: orderData.subtotal,
-          total: orderData.total
+          restaurante_id: restaurantId,
+          cliente_id: null, // Pedido POS não tem cliente específico
+          status: 'preparando',
+          total: orderData.total,
+          endereco_entrega: { tipo: orderType, mesa: selectedTable?.numero_mesa },
+          observacoes: `Pedido POS - ${orderType}`
         })
         .select()
         .single();
@@ -158,15 +128,14 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
       // Inserir itens do pedido
       if (orderItems.length > 0) {
         const { error: itemsError } = await supabase
-          .from('pos_order_items')
+          .from('order_items')
           .insert(
             orderItems.map(item => ({
-              pos_order_id: order.id,
-              product_id: item.id,
-              nome_produto: item.nome,
+              order_id: order.id,
+              nome_item: item.nome,
               quantidade: item.quantidade,
               preco_unitario: item.preco,
-              preco_total: item.preco * item.quantidade
+              observacoes: 'Pedido POS'
             }))
           );
 
@@ -419,9 +388,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
                 <div className="flex gap-2 mt-4">
                   <Button
                     onClick={() => {
-                      const sessionId = orderType === 'mesa' ? selectedTable?.id : null;
                       createOrderMutation.mutate({
-                        sessionId,
                         subtotal: calculateTotal(),
                         total: calculateTotal()
                       });
