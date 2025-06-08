@@ -3586,7 +3586,7 @@ export type Database = {
         | "aprovado"
         | "rejeitado"
         | "expirado"
-      user_type: "cliente" | "restaurante" | "entregador"
+      user_type: "cliente" | "restaurante" | "entregador" | "admin"
       vehicle_type: "moto" | "carro" | "bicicleta" | "patinete" | "a_pe"
     }
     CompositeTypes: {
@@ -3713,7 +3713,7 @@ export const Constants = {
         "rejeitado",
         "expirado",
       ],
-      user_type: ["cliente", "restaurante", "entregador"],
+      user_type: ["cliente", "restaurante", "entregador", "admin"],
       vehicle_type: ["moto", "carro", "bicicleta", "patinete", "a_pe"],
     },
   },

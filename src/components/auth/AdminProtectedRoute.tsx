@@ -22,9 +22,18 @@ export const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
     );
   }
 
-  if (!user || !profile) {
-    console.log('AdminProtectedRoute - Redirecting to auth (no user or profile)');
+  if (!user) {
+    console.log('AdminProtectedRoute - Redirecting to auth (no user)');
     return <Navigate to="/auth" replace />;
+  }
+
+  if (!profile) {
+    console.log('AdminProtectedRoute - No profile found, waiting...');
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
   }
 
   if (profile.tipo !== 'admin') {

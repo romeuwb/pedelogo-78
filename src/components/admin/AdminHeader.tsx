@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AdminHeaderProps {
   sidebarOpen: boolean;
@@ -17,21 +18,7 @@ interface AdminHeaderProps {
 }
 
 export const AdminHeader = ({ sidebarOpen, setSidebarOpen }: AdminHeaderProps) => {
-  const { data: adminUser } = useQuery({
-    queryKey: ['adminUser'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-
-      const { data } = await supabase
-        .from('admin_users')
-        .select('nome, role')
-        .eq('user_id', user.id)
-        .single();
-
-      return data;
-    }
-  });
+  const { user, profile, signOut } = useAuth();
 
   const { data: pendingTickets } = useQuery({
     queryKey: ['pendingTickets'],
@@ -41,14 +28,21 @@ export const AdminHeader = ({ sidebarOpen, setSidebarOpen }: AdminHeaderProps) =
         .select('id')
         .eq('status', 'aberto');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching pending tickets:', error);
+        return 0;
+      }
       return data?.length || 0;
-    }
+    },
+    enabled: !!user
   });
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = '/';
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Erro no logout:', error);
+    }
   };
 
   return (
@@ -85,7 +79,7 @@ export const AdminHeader = ({ sidebarOpen, setSidebarOpen }: AdminHeaderProps) =
               <Button variant="ghost" size="sm" className="flex items-center space-x-2">
                 <User className="h-5 w-5" />
                 <span className="hidden md:block">
-                  {adminUser?.nome || 'Admin'}
+                  {profile?.nome || 'Admin'}
                 </span>
               </Button>
             </DropdownMenuTrigger>
