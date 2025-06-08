@@ -38,7 +38,7 @@ const Dashboard = () => {
             <h1 className="text-3xl font-bold text-gray-900">Meus Pedidos</h1>
             <UserProfile />
           </div>
-          <OrderManagement userType="customer" />
+          <OrderManagement userType="customer" userId={user.id} />
         </div>
       </div>
     );
@@ -52,7 +52,7 @@ const Dashboard = () => {
             <h1 className="text-3xl font-bold text-gray-900">Painel do Entregador</h1>
             <UserProfile />
           </div>
-          <OrderManagement userType="delivery" />
+          <OrderManagement userType="delivery" userId={user.id} />
         </div>
       </div>
     );

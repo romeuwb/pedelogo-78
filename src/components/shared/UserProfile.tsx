@@ -56,7 +56,7 @@ export const UserProfile = () => {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={profile.avatar_url || ''} alt={profile.nome} />
+            <AvatarImage src={''} alt={profile.nome} />
             <AvatarFallback className="bg-orange-500 text-white">
               {getInitials(profile.nome)}
             </AvatarFallback>
