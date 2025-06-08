@@ -17,7 +17,12 @@ import {
   Users,
   X,
   ShoppingCart,
-  Check
+  Check,
+  Search,
+  Grid,
+  List,
+  DollarSign,
+  Clock
 } from 'lucide-react';
 import {
   Dialog,
@@ -26,6 +31,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface POSSystemPageProps {
   restaurantId: string;
@@ -63,6 +75,9 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
   const [orderType, setOrderType] = useState<'mesa' | 'balcao'>('mesa');
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [showTableOrders, setShowTableOrders] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -74,7 +89,7 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
         .from('restaurant_products')
         .select(`
           *,
-          product_categories (nome)
+          product_categories (nome, icone)
         `)
         .eq('restaurant_id', restaurantId)
         .eq('ativo', true)
@@ -121,6 +136,13 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
       return (data || []) as TableOrder[];
     },
     enabled: showTableOrders
+  });
+
+  // Filtrar produtos
+  const filteredProducts = products?.filter(product => {
+    const matchesSearch = product.nome.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || product.category_id === selectedCategory;
+    return matchesSearch && matchesCategory;
   });
 
   // Mutation para criar pedido
@@ -311,19 +333,28 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
+    <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
       {/* Produtos */}
-      <div className="lg:col-span-2 space-y-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold">Sistema POS</h2>
+      <div className="xl:col-span-3 space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold flex items-center">
+              <Calculator className="h-6 w-6 mr-2 text-orange-500" />
+              Sistema POS Profissional
+            </h2>
+            <p className="text-gray-600">Gerencie vendas e pedidos em tempo real</p>
+          </div>
           <Dialog open={showTableOrders} onOpenChange={setShowTableOrders}>
             <DialogTrigger asChild>
-              <Button variant="outline">
+              <Button variant="outline" className="flex items-center">
                 <Users className="h-4 w-4 mr-2" />
                 Mesas Fechadas
+                {tableOrders?.length ? (
+                  <Badge variant="destructive" className="ml-2">{tableOrders.length}</Badge>
+                ) : null}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Pedidos de Mesa Aguardando Pagamento</DialogTitle>
               </DialogHeader>
@@ -333,17 +364,22 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
                     <CardHeader className="pb-3">
                       <div className="flex justify-between items-start">
                         <div>
-                          <CardTitle className="text-lg">Mesa {order.numero_mesa}</CardTitle>
+                          <CardTitle className="text-lg flex items-center">
+                            <Users className="h-5 w-5 mr-2" />
+                            Mesa {order.numero_mesa}
+                          </CardTitle>
                           {order.cliente_nome && (
                             <p className="text-sm text-gray-600">{order.cliente_nome}</p>
                           )}
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-500 flex items-center">
+                            <Clock className="h-3 w-3 mr-1" />
                             {new Date(order.created_at).toLocaleString()}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-xl font-bold text-green-600">
-                            R$ {order.total.toFixed(2)}
+                          <p className="text-2xl font-bold text-green-600 flex items-center">
+                            <DollarSign className="h-5 w-5" />
+                            {order.total.toFixed(2)}
                           </p>
                           <Badge variant="secondary">{order.status}</Badge>
                         </div>
@@ -352,18 +388,21 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
                     <CardContent>
                       <div className="space-y-2 mb-4">
                         <h4 className="font-medium">Itens do Pedido:</h4>
-                        {order.pos_order_items.map((item) => (
-                          <div key={item.id} className="flex justify-between text-sm">
-                            <span>{item.quantidade}x {item.nome_produto}</span>
-                            <span>R$ {item.preco_total.toFixed(2)}</span>
-                          </div>
-                        ))}
+                        <div className="max-h-32 overflow-y-auto">
+                          {order.pos_order_items.map((item) => (
+                            <div key={item.id} className="flex justify-between text-sm py-1">
+                              <span>{item.quantidade}x {item.nome_produto}</span>
+                              <span className="font-medium">R$ {item.preco_total.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleImportTableOrder(order)}
+                          className="flex-1"
                         >
                           <ShoppingCart className="h-4 w-4 mr-1" />
                           Importar para POS
@@ -372,18 +411,20 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
                           size="sm"
                           onClick={() => handleFinalizeTablePayment(order.id, 'dinheiro')}
                           disabled={finalizeTableOrderMutation.isPending}
+                          className="flex-1 bg-green-600 hover:bg-green-700"
                         >
                           <Check className="h-4 w-4 mr-1" />
-                          Receber Dinheiro
+                          Dinheiro
                         </Button>
                         <Button
                           size="sm"
                           variant="secondary"
                           onClick={() => handleFinalizeTablePayment(order.id, 'cartao')}
                           disabled={finalizeTableOrderMutation.isPending}
+                          className="flex-1"
                         >
                           <CreditCard className="h-4 w-4 mr-1" />
-                          Receber Cartão
+                          Cartão
                         </Button>
                       </div>
                     </CardContent>
@@ -400,49 +441,134 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
           </Dialog>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto max-h-[500px]">
-          {products?.map((product) => (
-            <Card 
-              key={product.id} 
-              className="cursor-pointer hover:bg-gray-50 transition-colors"
-              onClick={() => addToCart(product)}
+        {/* Filtros e Busca */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Buscar produtos..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filtrar categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as categorias</SelectItem>
+              {categories?.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.icone} {category.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex border rounded-md">
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('grid')}
             >
-              <CardContent className="p-4">
-                <div className="text-center">
-                  {product.imagem_url && (
-                    <img 
-                      src={product.imagem_url} 
-                      alt={product.nome}
-                      className="w-full h-20 object-cover rounded mb-2"
-                    />
-                  )}
-                  <h3 className="font-medium text-sm">{product.nome}</h3>
-                  <p className="text-green-600 font-bold">
-                    R$ {product.preco.toFixed(2)}
-                  </p>
-                  {product.product_categories && (
-                    <p className="text-xs text-gray-500">
-                      {product.product_categories.nome}
+              <Grid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Lista de Produtos */}
+        <div className={`overflow-y-auto max-h-[500px] ${
+          viewMode === 'grid' 
+            ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3' 
+            : 'space-y-2'
+        }`}>
+          {filteredProducts?.map((product) => (
+            viewMode === 'grid' ? (
+              <Card 
+                key={product.id} 
+                className="cursor-pointer hover:bg-gray-50 transition-all hover:shadow-md border-2 hover:border-orange-200"
+                onClick={() => addToCart(product)}
+              >
+                <CardContent className="p-3">
+                  <div className="text-center">
+                    {product.imagem_url && (
+                      <img 
+                        src={product.imagem_url} 
+                        alt={product.nome}
+                        className="w-full h-16 object-cover rounded mb-2"
+                      />
+                    )}
+                    <h3 className="font-medium text-sm leading-tight">{product.nome}</h3>
+                    <p className="text-green-600 font-bold text-lg">
+                      R$ {product.preco.toFixed(2)}
                     </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    {product.product_categories && (
+                      <p className="text-xs text-gray-500">
+                        {product.product_categories.icone} {product.product_categories.nome}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card 
+                key={product.id} 
+                className="cursor-pointer hover:bg-gray-50 transition-all hover:shadow-md"
+                onClick={() => addToCart(product)}
+              >
+                <CardContent className="p-3">
+                  <div className="flex items-center space-x-3">
+                    {product.imagem_url && (
+                      <img 
+                        src={product.imagem_url} 
+                        alt={product.nome}
+                        className="w-12 h-12 object-cover rounded"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <h3 className="font-medium">{product.nome}</h3>
+                      <p className="text-sm text-gray-600">{product.descricao}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-green-600 font-bold text-lg">
+                        R$ {product.preco.toFixed(2)}
+                      </p>
+                      {product.product_categories && (
+                        <p className="text-xs text-gray-500">
+                          {product.product_categories.nome}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
           ))}
         </div>
       </div>
 
       {/* Carrinho e Checkout */}
       <div className="space-y-4">
-        <Card>
-          <CardHeader>
+        <Card className="shadow-lg">
+          <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between">
-              <span>Pedido Atual</span>
+              <span className="flex items-center">
+                <ShoppingCart className="h-5 w-5 mr-2" />
+                Pedido Atual
+              </span>
               {cart.length > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setCart([])}
+                  className="text-red-500 hover:text-red-700"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -453,19 +579,23 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
             {/* Tipo de Pedido */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Tipo de Pedido</label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant={orderType === 'mesa' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setOrderType('mesa')}
+                  className="flex items-center"
                 >
+                  <Utensils className="h-4 w-4 mr-1" />
                   Mesa
                 </Button>
                 <Button
                   variant={orderType === 'balcao' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setOrderType('balcao')}
+                  className="flex items-center"
                 >
+                  <ShoppingCart className="h-4 w-4 mr-1" />
                   Balcão
                 </Button>
               </div>
@@ -497,7 +627,7 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
             {/* Itens do Carrinho */}
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {cart.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex-1">
                     <p className="font-medium text-sm">{item.nome}</p>
                     <p className="text-xs text-gray-600">
@@ -512,7 +642,7 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
                     >
                       <Minus className="h-3 w-3" />
                     </Button>
-                    <span className="w-8 text-center text-sm">{item.quantidade}</span>
+                    <span className="w-8 text-center text-sm font-medium">{item.quantidade}</span>
                     <Button
                       variant="outline"
                       size="sm"
@@ -541,9 +671,9 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
                     <span>Subtotal:</span>
                     <span>R$ {getSubtotal().toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between font-bold">
+                  <div className="flex justify-between font-bold text-lg">
                     <span>Total:</span>
-                    <span>R$ {getTotal().toFixed(2)}</span>
+                    <span className="text-green-600">R$ {getTotal().toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -558,7 +688,7 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
                     placeholder="Valor recebido"
                   />
                   {paymentAmount && parseFloat(paymentAmount) > getTotal() && (
-                    <div className="p-2 bg-green-50 rounded">
+                    <div className="p-2 bg-green-50 border border-green-200 rounded">
                       <p className="text-sm font-medium text-green-800">
                         Troco: R$ {getChange().toFixed(2)}
                       </p>
@@ -569,7 +699,8 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
                 <Button 
                   onClick={handleFinishOrder}
                   disabled={createOrderMutation.isPending}
-                  className="w-full"
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-3"
+                  size="lg"
                 >
                   <Calculator className="h-4 w-4 mr-2" />
                   {createOrderMutation.isPending ? 'Processando...' : 'Finalizar Pedido'}
@@ -580,7 +711,7 @@ export const POSSystemPage = ({ restaurantId }: POSSystemPageProps) => {
             {cart.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Carrinho vazio</p>
+                <p className="font-medium">Carrinho vazio</p>
                 <p className="text-sm">Adicione produtos para iniciar</p>
               </div>
             )}

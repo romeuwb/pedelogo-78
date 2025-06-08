@@ -47,7 +47,9 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
   });
 
   useEffect(() => {
-    loadTables();
+    if (restaurantId) {
+      loadTables();
+    }
   }, [restaurantId]);
 
   const loadTables = async () => {
@@ -81,6 +83,11 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
     
     if (!formData.numero_mesa || !formData.capacidade) {
       toast.error('Número da mesa e capacidade são obrigatórios');
+      return;
+    }
+
+    if (!restaurantId) {
+      toast.error('ID do restaurante não encontrado');
       return;
     }
 
@@ -153,7 +160,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
       setShowDialog(false);
       setSelectedTable(null);
       setFormData({ numero_mesa: '', capacidade: '', localizacao: '', observacoes: '' });
-      await loadTables(); // Recarregar as mesas
+      await loadTables();
     } catch (error: any) {
       console.error('Erro ao salvar mesa:', error);
       toast.error('Erro ao salvar mesa: ' + (error.message || 'Erro desconhecido'));

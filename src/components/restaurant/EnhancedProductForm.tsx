@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,7 +49,8 @@ export const EnhancedProductForm = ({
     disponivel: true,
     favorito: false,
     tempo_preparo: '',
-    imagem_url: ''
+    imagem_url: '',
+    ativo: true
   });
 
   const [newIngredient, setNewIngredient] = useState('');
@@ -59,15 +61,21 @@ export const EnhancedProductForm = ({
   const { data: categories } = useQuery({
     queryKey: ['product-categories', restaurantId],
     queryFn: async () => {
+      if (!restaurantId) return [];
+      
       const { data, error } = await supabase
         .from('product_categories')
         .select('*')
         .eq('restaurant_id', restaurantId)
         .order('nome');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao carregar categorias:', error);
+        throw error;
+      }
       return data || [];
-    }
+    },
+    enabled: !!restaurantId
   });
 
   const { data: existingProduct } = useQuery({
@@ -104,13 +112,18 @@ export const EnhancedProductForm = ({
         disponivel: existingProduct.disponivel !== false,
         favorito: existingProduct.favorito || false,
         tempo_preparo: existingProduct.tempo_preparo?.toString() || '',
-        imagem_url: existingProduct.imagem_url || ''
+        imagem_url: existingProduct.imagem_url || '',
+        ativo: existingProduct.ativo !== false
       });
     }
   }, [existingProduct]);
 
   const saveProductMutation = useMutation({
     mutationFn: async (data: any) => {
+      if (!restaurantId) {
+        throw new Error('Restaurant ID é obrigatório');
+      }
+
       const productData = {
         ...data,
         restaurant_id: restaurantId,
@@ -119,17 +132,29 @@ export const EnhancedProductForm = ({
         tempo_preparo: data.tempo_preparo ? parseInt(data.tempo_preparo) : null
       };
 
+      console.log('Dados do produto a serem salvos:', productData);
+
       if (productId) {
         const { error } = await supabase
           .from('restaurant_products')
           .update(productData)
           .eq('id', productId);
-        if (error) throw error;
+        if (error) {
+          console.error('Erro ao atualizar produto:', error);
+          throw error;
+        }
       } else {
-        const { error } = await supabase
+        const { data: newProduct, error } = await supabase
           .from('restaurant_products')
-          .insert(productData);
-        if (error) throw error;
+          .insert(productData)
+          .select()
+          .single();
+        
+        if (error) {
+          console.error('Erro ao criar produto:', error);
+          throw error;
+        }
+        console.log('Produto criado:', newProduct);
       }
     },
     onSuccess: () => {
@@ -235,6 +260,15 @@ export const EnhancedProductForm = ({
       toast({
         title: "Campos obrigatórios",
         description: "Preencha nome, preço e categoria.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!restaurantId) {
+      toast({
+        title: "Erro de configuração",
+        description: "ID do restaurante não encontrado.",
         variant: "destructive",
       });
       return;
@@ -417,7 +451,7 @@ export const EnhancedProductForm = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="flex items-center space-x-2">
           <Checkbox
             id="disponivel"
@@ -434,6 +468,15 @@ export const EnhancedProductForm = ({
             onCheckedChange={(checked) => setFormData(prev => ({ ...prev, favorito: !!checked }))}
           />
           <Label htmlFor="favorito">Produto em Destaque</Label>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="ativo"
+            checked={formData.ativo}
+            onCheckedChange={(checked) => setFormData(prev => ({ ...prev, ativo: !!checked }))}
+          />
+          <Label htmlFor="ativo">Produto Ativo</Label>
         </div>
       </div>
 
