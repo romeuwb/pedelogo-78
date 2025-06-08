@@ -19,16 +19,14 @@ const ClientHome = () => {
   const [loading, setLoading] = useState(true);
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
 
   useEffect(() => {
     fetchRestaurants();
     fetchCategories();
-  }, []);
+  }, [selectedCategory]);
 
   const fetchRestaurants = async () => {
     try {
-      setLoading(true);
       let query = supabase
         .from('restaurant_details')
         .select('*')
@@ -66,12 +64,7 @@ const ClientHome = () => {
   };
 
   const handleSearch = async () => {
-    if (!searchTerm.trim() && !selectedCategory) {
-      fetchRestaurants();
-      return;
-    }
-
-    setSearchLoading(true);
+    if (!searchTerm.trim()) return;
 
     // Save search history
     if (user) {
@@ -110,10 +103,6 @@ const ClientHome = () => {
         );
       }
 
-      if (selectedCategory) {
-        restaurantQuery = restaurantQuery.eq('categoria', selectedCategory);
-      }
-
       const [restaurantResults, productResults] = await Promise.all([
         restaurantQuery,
         productQuery
@@ -143,17 +132,7 @@ const ClientHome = () => {
       setRestaurants(Array.from(matchingRestaurants.values()));
     } catch (error) {
       console.error('Error searching:', error);
-    } finally {
-      setSearchLoading(false);
     }
-  };
-
-  const handleCategoryChange = (category) => {
-    setSelectedCategory(category);
-    // Auto-search when category changes
-    setTimeout(() => {
-      handleSearch();
-    }, 100);
   };
 
   const handleRestaurantClick = (restaurant) => {
@@ -192,13 +171,6 @@ const ClientHome = () => {
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
           />
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-          <Button
-            onClick={handleSearch}
-            disabled={searchLoading}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 px-3"
-          >
-            {searchLoading ? '...' : 'Buscar'}
-          </Button>
         </div>
 
         {/* Categories Filter */}
@@ -206,7 +178,7 @@ const ClientHome = () => {
           <Badge
             variant={!selectedCategory ? "default" : "outline"}
             className="cursor-pointer whitespace-nowrap"
-            onClick={() => handleCategoryChange('')}
+            onClick={() => setSelectedCategory('')}
           >
             Todos
           </Badge>
@@ -215,7 +187,7 @@ const ClientHome = () => {
               key={category}
               variant={selectedCategory === category ? "default" : "outline"}
               className="cursor-pointer whitespace-nowrap"
-              onClick={() => handleCategoryChange(category)}
+              onClick={() => setSelectedCategory(category)}
             >
               {category}
             </Badge>
@@ -232,12 +204,7 @@ const ClientHome = () => {
           {selectedCategory ? `Restaurantes - ${selectedCategory}` : 'Restaurantes próximos'}
         </h2>
         
-        {searchLoading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Buscando...</p>
-          </div>
-        ) : restaurants.length === 0 ? (
+        {restaurants.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-center text-gray-500">
               Nenhum restaurante encontrado

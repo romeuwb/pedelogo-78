@@ -38,6 +38,18 @@ const cleanupAuthState = () => {
   }
 };
 
+// Função para redirecionar todos os usuários para dashboard
+const redirectToDashboard = () => {
+  console.log('Redirecionando para dashboard');
+  
+  // Verificar se já está na rota correta
+  const currentPath = window.location.pathname;
+  
+  if (currentPath !== '/dashboard') {
+    window.location.href = '/dashboard';
+  }
+};
+
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -47,7 +59,7 @@ export const useAuth = () => {
   useEffect(() => {
     let mounted = true;
 
-    // Configurar listener de mudanças de autenticação
+    // Configurar listener de mudanças de autenticação PRIMEIRO
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state change:', event, session?.user?.id);
@@ -62,22 +74,20 @@ export const useAuth = () => {
           return;
         }
 
-        if (session?.user) {
-          console.log('Usuario encontrado:', session.user.id);
+        if (event === 'SIGNED_IN' && session?.user) {
+          console.log('Usuario logado:', session.user.id);
           setUser(session.user);
-          
-          // Buscar perfil
-          try {
-            await fetchProfile(session.user.id);
-          } catch (error) {
-            console.error('Erro ao buscar perfil:', error);
-            setLoading(false);
-          }
+          // Buscar perfil após um pequeno delay para evitar conflitos
+          setTimeout(() => {
+            if (mounted) {
+              fetchProfile(session.user.id);
+            }
+          }, 100);
         }
       }
     );
 
-    // Verificar sessão existente
+    // Verificar sessão existente DEPOIS
     const initializeAuth = async () => {
       try {
         console.log('Inicializando autenticação...');
@@ -85,6 +95,7 @@ export const useAuth = () => {
         
         if (error) {
           console.error('Erro ao buscar sessão:', error);
+          cleanupAuthState();
           setLoading(false);
           return;
         }
@@ -99,6 +110,7 @@ export const useAuth = () => {
         }
       } catch (error) {
         console.error('Erro na inicialização da autenticação:', error);
+        cleanupAuthState();
         setLoading(false);
       }
     };
@@ -148,12 +160,26 @@ export const useAuth = () => {
             } else {
               console.log('Perfil criado:', createdProfile);
               setProfile(createdProfile);
+              // Redirecionar para dashboard após criar perfil
+              setTimeout(() => {
+                redirectToDashboard();
+              }, 500);
             }
           }
         }
-      } else {
-        console.log('Perfil carregado:', data);
-        setProfile(data);
+        
+        throw error;
+      }
+      
+      console.log('Perfil carregado:', data);
+      setProfile(data);
+      
+      // Redirecionar para dashboard se estiver na página inicial
+      const currentPath = window.location.pathname;
+      if (currentPath === '/') {
+        setTimeout(() => {
+          redirectToDashboard();
+        }, 500);
       }
       
     } catch (error) {

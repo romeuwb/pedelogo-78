@@ -30,114 +30,79 @@ export const DailySuggestion = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const { data: suggestions, isLoading, error } = useQuery({
+  const { data: suggestions, isLoading } = useQuery({
     queryKey: ['daily-suggestions', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
 
-      console.log('Buscando sugestões para usuário:', user.id);
+      // Buscar preferências do cliente
+      const { data: preferences, error: prefError } = await supabase
+        .from('client_product_preferences')
+        .select(`
+          *,
+          restaurant_products!product_id (
+            *,
+            restaurant_details!restaurant_id (
+              nome_fantasia,
+              logo_url,
+              tempo_entrega_min,
+              taxa_entrega
+            )
+          )
+        `)
+        .eq('client_id', user.id)
+        .order('preference_score', { ascending: false })
+        .limit(3);
 
-      try {
-        // Buscar preferências do cliente
-        const { data: preferences, error: prefError } = await supabase
-          .from('client_product_preferences')
+      if (prefError) throw prefError;
+
+      // Se não há preferências, buscar produtos populares
+      if (!preferences || preferences.length === 0) {
+        const { data: popularProducts, error: popError } = await supabase
+          .from('restaurant_products')
           .select(`
             *,
-            restaurant_products!product_id (
-              *,
-              restaurant_details!restaurant_id (
-                nome_fantasia,
-                logo_url,
-                tempo_entrega_min,
-                taxa_entrega
-              )
+            restaurant_details!restaurant_id (
+              nome_fantasia,
+              logo_url,
+              tempo_entrega_min,
+              taxa_entrega
             )
           `)
-          .eq('client_id', user.id)
-          .order('preference_score', { ascending: false })
+          .eq('disponivel', true)
+          .eq('favorito', true)
           .limit(3);
 
-        if (prefError) {
-          console.error('Erro ao buscar preferências:', prefError);
-          throw prefError;
-        }
+        if (popError) throw popError;
 
-        // Se não há preferências, buscar produtos populares
-        if (!preferences || preferences.length === 0) {
-          console.log('Nenhuma preferência encontrada, buscando produtos populares');
-          
-          const { data: popularProducts, error: popError } = await supabase
-            .from('restaurant_products')
-            .select(`
-              *,
-              restaurant_details!restaurant_id (
-                nome_fantasia,
-                logo_url,
-                tempo_entrega_min,
-                taxa_entrega
-              )
-            `)
-            .eq('disponivel', true)
-            .eq('favorito', true)
-            .limit(3);
-
-          if (popError) {
-            console.error('Erro ao buscar produtos populares:', popError);
-            throw popError;
-          }
-
-          console.log('Produtos populares encontrados:', popularProducts?.length || 0);
-
-          return popularProducts?.map(product => ({
-            ...product,
-            preference_score: 0.5
-          })) || [];
-        }
-
-        console.log('Preferências encontradas:', preferences.length);
-
-        return preferences.map(pref => ({
-          ...pref.restaurant_products,
-          restaurant_details: pref.restaurant_products.restaurant_details,
-          preference_score: pref.preference_score
-        }));
-      } catch (error) {
-        console.error('Erro na busca de sugestões:', error);
-        return [];
+        return popularProducts?.map(product => ({
+          ...product,
+          preference_score: 0.5
+        })) || [];
       }
+
+      return preferences.map(pref => ({
+        ...pref.restaurant_products,
+        restaurant_details: pref.restaurant_products.restaurant_details,
+        preference_score: pref.preference_score
+      }));
     },
-    enabled: !!user?.id,
-    retry: 1
+    enabled: !!user?.id
   });
 
   const handleOrderSuggestion = async (productId: string, restaurantId: string) => {
-    if (!user?.id) {
-      toast({
-        title: "Login necessário",
-        description: "Faça login para aceitar sugestões.",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!user?.id) return;
 
     try {
-      console.log('Processando sugestão para produto:', productId);
-
       // Registrar interesse na sugestão
-      const { error: historyError } = await supabase
-        .from('client_consumption_history')
-        .insert({
-          client_id: user.id,
-          restaurant_id: restaurantId,
-          product_id: productId,
-          quantity: 1,
-          total_spent: 0, // Será atualizado quando o pedido for finalizado
-          order_date: new Date().toISOString()
-        });
-
-      if (historyError) {
-        console.error('Erro ao inserir histórico:', historyError);
-      }
+      await supabase.from('client_consumption_history').insert({
+        client_id: user.id,
+        restaurant_id: restaurantId,
+        product_id: productId,
+        quantity: 1,
+        total_spent: 0, // Será atualizado quando o pedido for finalizado
+        order_date: new Date().toISOString()
+      });
 
       // Atualizar score de preferência
       const { error: updateError } = await supabase
@@ -151,9 +116,7 @@ export const DailySuggestion = () => {
           last_ordered: new Date().toISOString()
         });
 
-      if (updateError) {
-        console.error('Erro ao atualizar preferência:', updateError);
-      }
+      if (updateError) throw updateError;
 
       toast({
         title: "Sugestão Aceita!",
@@ -174,26 +137,6 @@ export const DailySuggestion = () => {
       <Card>
         <CardContent className="p-6 text-center">
           <p className="text-gray-500">Faça login para ver suas sugestões personalizadas</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error) {
-    console.error('Erro ao carregar sugestões:', error);
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Sparkles className="h-5 w-5 mr-2 text-yellow-500" />
-            Sugestão do Dia
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4">
-            <p className="text-gray-500">Erro ao carregar sugestões</p>
-            <p className="text-sm text-gray-400">Tente novamente mais tarde</p>
-          </div>
         </CardContent>
       </Card>
     );

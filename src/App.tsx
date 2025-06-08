@@ -4,7 +4,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { useAuth } from '@/hooks/useAuth';
-import Header from '@/components/Header';
 
 import Index from '@/pages/Index';
 import Dashboard from '@/pages/Dashboard';
@@ -14,7 +13,6 @@ import DeliveryDashboard from '@/pages/DeliveryDashboard';
 import RestaurantsPage from '@/pages/RestaurantsPage';
 import PromotionsPage from '@/pages/PromotionsPage';
 import ResetPassword from '@/pages/ResetPassword';
-import Auth from '@/pages/Auth';
 import NotFound from '@/pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -31,17 +29,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  // Aguardar o perfil carregar
-  if (!profile) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    );
+  if (!user || !profile) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -49,9 +38,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Component to render the correct dashboard based on user type
 const DashboardRouter = () => {
-  const { profile, loading } = useAuth();
+  const { profile } = useAuth();
 
-  if (loading || !profile) {
+  if (!profile) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
@@ -68,20 +57,10 @@ const DashboardRouter = () => {
     case 'entregador':
       return <DeliveryDashboard />;
     case 'admin':
-      return <AdminDashboard />;
+      return <Dashboard />; // Admin também vê o dashboard por padrão
     default:
-      return <ClientDashboard />;
+      return <Dashboard />;
   }
-};
-
-// Layout wrapper for pages that need header
-const LayoutWithHeader = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <>
-      <Header />
-      {children}
-    </>
-  );
 };
 
 function App() {
@@ -90,25 +69,17 @@ function App() {
       <Router>
         <div className="min-h-screen bg-gray-100">
           <Routes>
-            <Route path="/" element={
-              <LayoutWithHeader>
-                <Index />
-              </LayoutWithHeader>
-            } />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/restaurantes" element={
-              <LayoutWithHeader>
-                <RestaurantsPage />
-              </LayoutWithHeader>
-            } />
-            <Route path="/promocoes" element={
-              <LayoutWithHeader>
-                <PromotionsPage />
-              </LayoutWithHeader>
-            } />
+            <Route path="/" element={<Index />} />
+            <Route path="/restaurantes" element={<RestaurantsPage />} />
+            <Route path="/promocoes" element={<PromotionsPage />} />
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <DashboardRouter />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin" element={
+              <ProtectedRoute>
+                <AdminDashboard />
               </ProtectedRoute>
             } />
             <Route path="/reset-password" element={<ResetPassword />} />

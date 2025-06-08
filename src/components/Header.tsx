@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,12 +24,25 @@ const Header = () => {
 
   const handleProfileClick = () => {
     console.log('Profile type:', profile?.tipo);
-    navigate('/dashboard');
+    
+    if (profile?.tipo === 'cliente') {
+      navigate('/client-dashboard');
+    } else if (profile?.tipo === 'restaurante') {
+      console.log('Redirecting restaurant to dashboard');
+      navigate('/dashboard');
+    } else if (profile?.tipo === 'entregador') {
+      navigate('/delivery-dashboard');
+    } else {
+      // Fallback baseado no usuário logado
+      console.log('Fallback to dashboard for authenticated user');
+      navigate('/dashboard');
+    }
   };
 
   const handleLogout = async () => {
     try {
       await signOut();
+      navigate('/');
     } catch (error) {
       console.error('Erro no logout:', error);
       // Force navigation even if signOut fails
@@ -86,7 +100,9 @@ const Header = () => {
                       className="flex items-center space-x-2"
                     >
                       <User className="h-4 w-4" />
-                      <span className="hidden sm:inline">Dashboard</span>
+                      <span className="hidden sm:inline">
+                        {profile?.tipo === 'restaurante' ? 'Dashboard' : 'Meu Perfil'}
+                      </span>
                     </Button>
                     <Button
                       variant="outline"
@@ -163,7 +179,7 @@ const Header = () => {
                       className="justify-start"
                     >
                       <User className="h-4 w-4 mr-2" />
-                      Dashboard
+                      {profile?.tipo === 'restaurante' ? 'Dashboard' : 'Meu Perfil'}
                     </Button>
                     <Button
                       variant="outline"
@@ -214,6 +230,7 @@ const Header = () => {
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
+        userType={selectedUserType}
       />
     </>
   );
