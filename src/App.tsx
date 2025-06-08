@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 
 import Index from '@/pages/Index';
+import Auth from '@/pages/Auth';
 import RestaurantsPage from '@/pages/RestaurantsPage';
 import PromotionsPage from '@/pages/PromotionsPage';
 import ResetPassword from '@/pages/ResetPassword';
@@ -32,6 +33,7 @@ function App() {
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
             <Route path="/restaurantes" element={<RestaurantsPage />} />
             <Route path="/promocoes" element={<PromotionsPage />} />
             <Route path="/reset-password" element={<ResetPassword />} />

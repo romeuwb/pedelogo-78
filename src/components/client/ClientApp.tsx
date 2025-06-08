@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Home, ShoppingBag, Heart, User, Search } from 'lucide-react';
@@ -13,15 +13,12 @@ const ClientApp = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
 
-  useEffect(() => {
-    if (!user) {
-      // Redirect to login if not authenticated
-      window.location.href = '/auth';
-    }
-  }, [user]);
-
   if (!user) {
-    return <div>Carregando...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
   }
 
   return (

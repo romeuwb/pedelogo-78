@@ -22,6 +22,14 @@ const Header = () => {
     setShowLoginModal(true);
   };
 
+  const handleLoginClick = () => {
+    navigate('/auth');
+  };
+
+  const handleSignupClick = () => {
+    navigate('/auth');
+  };
+
   const handleProfileClick = () => {
     console.log('Profile type:', profile?.tipo);
     
@@ -123,13 +131,13 @@ const Header = () => {
                 <div className="hidden md:flex items-center space-x-2">
                   <Button
                     variant="ghost"
-                    onClick={() => setShowLoginModal(true)}
+                    onClick={handleLoginClick}
                   >
                     Entrar
                   </Button>
                   <Button
                     className="bg-orange-500 hover:bg-orange-600 text-white"
-                    onClick={() => setShowUserTypeModal(true)}
+                    onClick={handleSignupClick}
                   >
                     Cadastrar
                   </Button>
@@ -204,7 +212,7 @@ const Header = () => {
                     <Button
                       variant="ghost"
                       onClick={() => {
-                        setShowLoginModal(true);
+                        handleLoginClick();
                         setMobileMenuOpen(false);
                       }}
                       className="justify-start"
@@ -214,7 +222,7 @@ const Header = () => {
                     <Button
                       className="bg-orange-500 hover:bg-orange-600 text-white justify-start"
                       onClick={() => {
-                        setShowUserTypeModal(true);
+                        handleSignupClick();
                         setMobileMenuOpen(false);
                       }}
                     >
