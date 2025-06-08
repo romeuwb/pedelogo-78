@@ -18,7 +18,7 @@ import NotFound from '@/pages/NotFound';
 const queryClient = new QueryClient();
 
 // Component to handle protected routes
-const ProtectedRoute = ({ children, userType }: { children: React.ReactNode, userType: string }) => {
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, profile, loading } = useAuth();
 
   if (loading) {
@@ -33,24 +33,34 @@ const ProtectedRoute = ({ children, userType }: { children: React.ReactNode, use
     return <Navigate to="/" replace />;
   }
 
-  // Verificar se o usuário tem o tipo correto para a rota
-  if (profile.tipo !== userType) {
-    // Redirecionar para o dashboard apropriado baseado no tipo do usuário
-    switch (profile.tipo) {
-      case 'cliente':
-        return <Navigate to="/client-dashboard" replace />;
-      case 'restaurante':
-        return <Navigate to="/dashboard" replace />;
-      case 'entregador':
-        return <Navigate to="/delivery-dashboard" replace />;
-      case 'admin':
-        return <Navigate to="/admin" replace />;
-      default:
-        return <Navigate to="/" replace />;
-    }
+  return <>{children}</>;
+};
+
+// Component to render the correct dashboard based on user type
+const DashboardRouter = () => {
+  const { profile } = useAuth();
+
+  if (!profile) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
   }
 
-  return <>{children}</>;
+  // Renderizar o dashboard apropriado baseado no tipo de usuário
+  switch (profile.tipo) {
+    case 'cliente':
+      return <ClientDashboard />;
+    case 'restaurante':
+      return <Dashboard />;
+    case 'entregador':
+      return <DeliveryDashboard />;
+    case 'admin':
+      return <Dashboard />; // Admin também vê o dashboard por padrão
+    default:
+      return <Dashboard />;
+  }
 };
 
 function App() {
@@ -63,23 +73,13 @@ function App() {
             <Route path="/restaurantes" element={<RestaurantsPage />} />
             <Route path="/promocoes" element={<PromotionsPage />} />
             <Route path="/dashboard" element={
-              <ProtectedRoute userType="restaurante">
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/client-dashboard" element={
-              <ProtectedRoute userType="cliente">
-                <ClientDashboard />
+              <ProtectedRoute>
+                <DashboardRouter />
               </ProtectedRoute>
             } />
             <Route path="/admin" element={
-              <ProtectedRoute userType="admin">
+              <ProtectedRoute>
                 <AdminDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/delivery-dashboard" element={
-              <ProtectedRoute userType="entregador">
-                <DeliveryDashboard />
               </ProtectedRoute>
             } />
             <Route path="/reset-password" element={<ResetPassword />} />

@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,38 +38,15 @@ const cleanupAuthState = () => {
   }
 };
 
-// Função para redirecionar baseado no tipo de usuário
-const redirectBasedOnUserType = (profile: Profile) => {
-  console.log('Redirecionando usuário para dashboard apropriado:', profile.tipo);
+// Função para redirecionar todos os usuários para dashboard
+const redirectToDashboard = () => {
+  console.log('Redirecionando para dashboard');
   
   // Verificar se já está na rota correta
   const currentPath = window.location.pathname;
   
-  switch (profile.tipo) {
-    case 'cliente':
-      if (currentPath !== '/client-dashboard') {
-        window.location.href = '/client-dashboard';
-      }
-      break;
-    case 'restaurante':
-      if (currentPath !== '/dashboard') {
-        window.location.href = '/dashboard';
-      }
-      break;
-    case 'entregador':
-      if (currentPath !== '/delivery-dashboard') {
-        window.location.href = '/delivery-dashboard';
-      }
-      break;
-    case 'admin':
-      if (currentPath !== '/admin') {
-        window.location.href = '/admin';
-      }
-      break;
-    default:
-      if (currentPath !== '/') {
-        window.location.href = '/';
-      }
+  if (currentPath !== '/dashboard') {
+    window.location.href = '/dashboard';
   }
 };
 
@@ -182,9 +160,9 @@ export const useAuth = () => {
             } else {
               console.log('Perfil criado:', createdProfile);
               setProfile(createdProfile);
-              // Redirecionar após criar perfil
+              // Redirecionar para dashboard após criar perfil
               setTimeout(() => {
-                redirectBasedOnUserType(createdProfile);
+                redirectToDashboard();
               }, 500);
             }
           }
@@ -196,15 +174,11 @@ export const useAuth = () => {
       console.log('Perfil carregado:', data);
       setProfile(data);
       
-      // Redirecionar automaticamente se estiver na página inicial ou numa rota incorreta
+      // Redirecionar para dashboard se estiver na página inicial
       const currentPath = window.location.pathname;
-      if (currentPath === '/' || 
-          (data.tipo === 'cliente' && currentPath !== '/client-dashboard') ||
-          (data.tipo === 'restaurante' && currentPath !== '/dashboard') ||
-          (data.tipo === 'entregador' && currentPath !== '/delivery-dashboard') ||
-          (data.tipo === 'admin' && currentPath !== '/admin')) {
+      if (currentPath === '/') {
         setTimeout(() => {
-          redirectBasedOnUserType(data);
+          redirectToDashboard();
         }, 500);
       }
       
@@ -367,6 +341,5 @@ export const useAuth = () => {
     signIn,
     signOut,
     isAuthenticated: !!user && !!profile,
-    redirectBasedOnUserType, // Exportar para uso manual quando necessário
   };
 };
