@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Clock, Star, MapPin, Utensils } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { RestaurantMenu } from '@/components/client/RestaurantMenu';
 
 interface Restaurant {
   id: string;
@@ -27,6 +28,9 @@ interface RestaurantListProps {
 
 const RestaurantList = ({ selectedCategory }: RestaurantListProps) => {
   const { toast } = useToast();
+  const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+
   const { data: restaurants, isLoading, error } = useQuery({
     queryKey: ['restaurants', selectedCategory],
     queryFn: async () => {
@@ -61,16 +65,15 @@ const RestaurantList = ({ selectedCategory }: RestaurantListProps) => {
     return emojiMap[category] || '🍽️';
   };
 
-  const handleViewMenu = (restaurantId: string, restaurantName: string) => {
-    console.log(`Abrindo cardápio do restaurante: ${restaurantName} (ID: ${restaurantId})`);
-    // Aqui você pode implementar a navegação para o cardápio
-    // Por exemplo: navigate(`/restaurant/${restaurantId}/menu`);
-    
-    // Por enquanto, vamos mostrar um toast informativo
-    toast({
-      title: "Cardápio",
-      description: `Abrindo cardápio de ${restaurantName}`,
-    });
+  const handleViewMenu = (restaurant: Restaurant) => {
+    console.log(`Abrindo cardápio do restaurante: ${restaurant.nome_fantasia} (ID: ${restaurant.id})`);
+    setSelectedRestaurant(restaurant);
+    setShowMenu(true);
+  };
+
+  const closeMenu = () => {
+    setShowMenu(false);
+    setSelectedRestaurant(null);
   };
 
   if (isLoading) {
@@ -116,85 +119,96 @@ const RestaurantList = ({ selectedCategory }: RestaurantListProps) => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {restaurants.map((restaurant) => (
-        <Card key={restaurant.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-300 cursor-pointer group">
-          <div className="relative h-48 bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
-            {restaurant.logo_url ? (
-              <img 
-                src={restaurant.logo_url} 
-                alt={restaurant.nome_fantasia}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="text-white text-6xl">
-                {getCategoryEmoji(restaurant.categoria)}
-              </div>
-            )}
-            <div className="absolute top-4 right-4">
-              <Badge variant="secondary" className="bg-white/90 text-gray-800">
-                {getCategoryEmoji(restaurant.categoria)} {restaurant.categoria}
-              </Badge>
-            </div>
-          </div>
-          
-          <CardContent className="p-4">
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="font-semibold text-lg group-hover:text-delivery-orange transition-colors">
-                {restaurant.nome_fantasia}
-              </h3>
-              <div className="flex items-center space-x-1">
-                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                <span className="text-sm font-medium">4.5</span>
-              </div>
-            </div>
-            
-            {restaurant.descricao && (
-              <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                {restaurant.descricao}
-              </p>
-            )}
-            
-            <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
-              <div className="flex items-center space-x-1">
-                <Clock className="h-4 w-4" />
-                <span>{restaurant.tempo_entrega_min} min</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <span>Taxa: R$ {restaurant.taxa_entrega?.toFixed(2) || '0.00'}</span>
-              </div>
-            </div>
-            
-            {restaurant.endereco && (
-              <div className="flex items-center space-x-1 text-sm text-gray-500 mb-4">
-                <MapPin className="h-4 w-4" />
-                <span className="truncate">{restaurant.endereco}, {restaurant.cidade}</span>
-              </div>
-            )}
-            
-            <div className="flex space-x-2">
-              {restaurant.aceita_delivery && (
-                <Badge variant="outline" className="text-xs">
-                  🚚 Delivery
-                </Badge>
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {restaurants?.map((restaurant) => (
+          <Card key={restaurant.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-300 cursor-pointer group">
+            <div className="relative h-48 bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
+              {restaurant.logo_url ? (
+                <img 
+                  src={restaurant.logo_url} 
+                  alt={restaurant.nome_fantasia}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="text-white text-6xl">
+                  {getCategoryEmoji(restaurant.categoria)}
+                </div>
               )}
-              {restaurant.aceita_retirada && (
-                <Badge variant="outline" className="text-xs">
-                  🏪 Retirada
+              <div className="absolute top-4 right-4">
+                <Badge variant="secondary" className="bg-white/90 text-gray-800">
+                  {getCategoryEmoji(restaurant.categoria)} {restaurant.categoria}
                 </Badge>
-              )}
+              </div>
             </div>
             
-            <Button 
-              className="w-full mt-4 gradient-delivery text-white hover:opacity-90"
-              onClick={() => handleViewMenu(restaurant.id, restaurant.nome_fantasia)}
-            >
-              Ver Cardápio
-            </Button>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+            <CardContent className="p-4">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-semibold text-lg group-hover:text-delivery-orange transition-colors">
+                  {restaurant.nome_fantasia}
+                </h3>
+                <div className="flex items-center space-x-1">
+                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                  <span className="text-sm font-medium">4.5</span>
+                </div>
+              </div>
+              
+              {restaurant.descricao && (
+                <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                  {restaurant.descricao}
+                </p>
+              )}
+              
+              <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
+                <div className="flex items-center space-x-1">
+                  <Clock className="h-4 w-4" />
+                  <span>{restaurant.tempo_entrega_min} min</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span>Taxa: R$ {restaurant.taxa_entrega?.toFixed(2) || '0.00'}</span>
+                </div>
+              </div>
+              
+              {restaurant.endereco && (
+                <div className="flex items-center space-x-1 text-sm text-gray-500 mb-4">
+                  <MapPin className="h-4 w-4" />
+                  <span className="truncate">{restaurant.endereco}, {restaurant.cidade}</span>
+                </div>
+              )}
+              
+              <div className="flex space-x-2 mb-4">
+                {restaurant.aceita_delivery && (
+                  <Badge variant="outline" className="text-xs">
+                    🚚 Delivery
+                  </Badge>
+                )}
+                {restaurant.aceita_retirada && (
+                  <Badge variant="outline" className="text-xs">
+                    🏪 Retirada
+                  </Badge>
+                )}
+              </div>
+              
+              <Button 
+                className="w-full gradient-delivery text-white hover:opacity-90"
+                onClick={() => handleViewMenu(restaurant)}
+              >
+                Ver Cardápio
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Modal do Cardápio */}
+      {showMenu && selectedRestaurant && (
+        <RestaurantMenu
+          restaurantId={selectedRestaurant.id}
+          restaurantName={selectedRestaurant.nome_fantasia}
+          onClose={closeMenu}
+        />
+      )}
+    </>
   );
 };
 

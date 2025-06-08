@@ -7,6 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Star, Clock, Search, Filter } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { DailySuggestion } from './DailySuggestion';
+import { RestaurantMenu } from './RestaurantMenu';
 
 const ClientHome = () => {
   const { user } = useAuth();
@@ -15,6 +17,8 @@ const ClientHome = () => {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [loading, setLoading] = useState(true);
+  const [selectedRestaurant, setSelectedRestaurant] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     fetchRestaurants();
@@ -75,12 +79,65 @@ const ClientHome = () => {
       }
     }
 
-    // Filter restaurants
-    const filtered = restaurants.filter(restaurant =>
-      restaurant.nome_fantasia?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      restaurant.descricao?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setRestaurants(filtered);
+    // Enhanced search including products
+    try {
+      let restaurantQuery = supabase
+        .from('restaurant_details')
+        .select('*')
+        .eq('status_aprovacao', 'aprovado');
+
+      let productQuery = supabase
+        .from('restaurant_products')
+        .select(`
+          *,
+          restaurant_details!restaurant_id (*)
+        `)
+        .eq('disponivel', true);
+
+      if (searchTerm) {
+        restaurantQuery = restaurantQuery.or(
+          `nome_fantasia.ilike.%${searchTerm}%,descricao.ilike.%${searchTerm}%`
+        );
+        productQuery = productQuery.or(
+          `nome.ilike.%${searchTerm}%,descricao.ilike.%${searchTerm}%`
+        );
+      }
+
+      const [restaurantResults, productResults] = await Promise.all([
+        restaurantQuery,
+        productQuery
+      ]);
+
+      if (restaurantResults.error) throw restaurantResults.error;
+      if (productResults.error) throw productResults.error;
+
+      // Combine results - restaurants that match directly or have matching products
+      const matchingRestaurants = new Map();
+      
+      // Add directly matching restaurants
+      restaurantResults.data?.forEach(restaurant => {
+        matchingRestaurants.set(restaurant.id, restaurant);
+      });
+
+      // Add restaurants that have matching products
+      productResults.data?.forEach(product => {
+        if (product.restaurant_details) {
+          matchingRestaurants.set(
+            product.restaurant_details.id, 
+            product.restaurant_details
+          );
+        }
+      });
+
+      setRestaurants(Array.from(matchingRestaurants.values()));
+    } catch (error) {
+      console.error('Error searching:', error);
+    }
+  };
+
+  const handleRestaurantClick = (restaurant) => {
+    setSelectedRestaurant(restaurant);
+    setShowMenu(true);
   };
 
   if (loading) {
@@ -138,6 +195,9 @@ const ClientHome = () => {
         </div>
       </div>
 
+      {/* Daily Suggestion */}
+      {user && <DailySuggestion />}
+
       {/* Restaurants List */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-gray-900">
@@ -152,7 +212,11 @@ const ClientHome = () => {
           </Card>
         ) : (
           restaurants.map((restaurant) => (
-            <Card key={restaurant.id} className="cursor-pointer hover:shadow-md transition-shadow">
+            <Card 
+              key={restaurant.id} 
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => handleRestaurantClick(restaurant)}
+            >
               <CardContent className="p-4">
                 <div className="flex items-start gap-4">
                   <div className="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0">
@@ -200,6 +264,18 @@ const ClientHome = () => {
           ))
         )}
       </div>
+
+      {/* Restaurant Menu Modal */}
+      {showMenu && selectedRestaurant && (
+        <RestaurantMenu
+          restaurantId={selectedRestaurant.id}
+          restaurantName={selectedRestaurant.nome_fantasia || selectedRestaurant.razao_social}
+          onClose={() => {
+            setShowMenu(false);
+            setSelectedRestaurant(null);
+          }}
+        />
+      )}
     </div>
   );
 };
