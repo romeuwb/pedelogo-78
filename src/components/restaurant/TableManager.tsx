@@ -21,12 +21,10 @@ export const TableManager = ({ restaurantId }: TableManagerProps) => {
 
   const queryClient = useQueryClient();
 
-  // Buscar mesas (usando restaurant_tables se existir, senão usar mock)
+  // Buscar mesas
   const { data: tables } = useQuery({
     queryKey: ['restaurant-tables', restaurantId],
     queryFn: async () => {
-      // Como a tabela restaurant_tables pode não existir, vamos usar a existente restaurant_tables 
-      // ou retornar dados mock
       try {
         const { data, error } = await supabase
           .from('restaurant_tables')
@@ -35,32 +33,35 @@ export const TableManager = ({ restaurantId }: TableManagerProps) => {
           .order('numero', { ascending: true });
 
         if (error) {
-          // Se a tabela não existir, retornar dados mock
-          console.log('Tabela restaurant_tables não encontrada, usando dados mock');
-          return [
-            { id: '1', numero: 1, capacidade: 4, status: 'disponivel', ativo: true },
-            { id: '2', numero: 2, capacidade: 2, status: 'ocupada', ativo: true },
-            { id: '3', numero: 3, capacidade: 6, status: 'disponivel', ativo: true },
-          ];
+          console.log('Erro ao buscar mesas:', error);
+          return [];
         }
         return data || [];
       } catch (error) {
-        console.log('Erro ao buscar mesas, usando dados mock:', error);
-        return [
-          { id: '1', numero: 1, capacidade: 4, status: 'disponivel', ativo: true },
-          { id: '2', numero: 2, capacidade: 2, status: 'ocupada', ativo: true },
-          { id: '3', numero: 3, capacidade: 6, status: 'disponivel', ativo: true },
-        ];
+        console.log('Erro ao buscar mesas:', error);
+        return [];
       }
     },
   });
 
-  // Adicionar/Editar mesa (mock por enquanto)
+  // Adicionar/Editar mesa
   const saveTableMutation = useMutation({
     mutationFn: async (tableData: any) => {
-      console.log('Salvando mesa:', tableData);
-      // Mock implementation
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (editingTable) {
+        const { error } = await supabase
+          .from('restaurant_tables')
+          .update(tableData)
+          .eq('id', editingTable.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('restaurant_tables')
+          .insert({
+            restaurant_id: restaurantId,
+            ...tableData
+          });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       toast.success(editingTable ? 'Mesa atualizada!' : 'Mesa criada!');
@@ -73,12 +74,14 @@ export const TableManager = ({ restaurantId }: TableManagerProps) => {
     }
   });
 
-  // Deletar mesa (mock por enquanto)
+  // Deletar mesa
   const deleteTableMutation = useMutation({
     mutationFn: async (tableId: string) => {
-      console.log('Deletando mesa:', tableId);
-      // Mock implementation
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await supabase
+        .from('restaurant_tables')
+        .delete()
+        .eq('id', tableId);
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Mesa excluída!');
@@ -96,8 +99,8 @@ export const TableManager = ({ restaurantId }: TableManagerProps) => {
     const tableData = {
       numero: parseInt(formData.get('numero') as string),
       capacidade: parseInt(formData.get('capacidade') as string),
-      localizacao: formData.get('localizacao'),
-      restaurant_id: restaurantId,
+      localizacao: formData.get('localizacao') as string,
+      observacoes: formData.get('observacoes') as string,
     };
 
     saveTableMutation.mutate(tableData);
@@ -261,6 +264,15 @@ export const TableManager = ({ restaurantId }: TableManagerProps) => {
               <Input 
                 name="localizacao" 
                 placeholder="Ex: Área interna, Varanda, Área externa"
+                defaultValue={editingTable?.localizacao || ''}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Observações</label>
+              <Input 
+                name="observacoes" 
+                placeholder="Observações adicionais"
                 defaultValue={editingTable?.observacoes || ''}
               />
             </div>

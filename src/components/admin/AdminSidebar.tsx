@@ -13,7 +13,8 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
-  ShoppingCart
+  ShoppingCart,
+  Monitor
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -25,6 +26,7 @@ interface AdminSidebarProps {
 
 const navigation = [
   { id: 'overview', name: 'Dashboard', icon: LayoutDashboard },
+  { id: 'dashboard-access', name: 'Acessar Dashboards', icon: Monitor },
   { id: 'users', name: 'Usuários', icon: Users },
   { id: 'products', name: 'Produtos', icon: ShoppingCart },
   { id: 'orders', name: 'Pedidos', icon: Package },

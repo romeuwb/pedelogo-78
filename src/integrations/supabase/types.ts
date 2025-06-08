@@ -1937,6 +1937,136 @@ export type Database = {
           },
         ]
       }
+      pos_order_items: {
+        Row: {
+          created_at: string
+          id: string
+          nome_produto: string
+          observacoes: string | null
+          pos_order_id: string
+          preco_total: number
+          preco_unitario: number
+          product_id: string | null
+          quantidade: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome_produto: string
+          observacoes?: string | null
+          pos_order_id: string
+          preco_total: number
+          preco_unitario: number
+          product_id?: string | null
+          quantidade?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome_produto?: string
+          observacoes?: string | null
+          pos_order_id?: string
+          preco_total?: number
+          preco_unitario?: number
+          product_id?: string | null
+          quantidade?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_order_items_pos_order_id_fkey"
+            columns: ["pos_order_id"]
+            isOneToOne: false
+            referencedRelation: "pos_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_orders: {
+        Row: {
+          cliente_nome: string | null
+          created_at: string
+          desconto: number | null
+          funcionario_id: string | null
+          id: string
+          metodo_pagamento: string | null
+          numero_mesa: number | null
+          observacoes: string | null
+          restaurant_id: string
+          status: string
+          subtotal: number
+          table_session_id: string | null
+          taxa_servico: number | null
+          tipo_pedido: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          cliente_nome?: string | null
+          created_at?: string
+          desconto?: number | null
+          funcionario_id?: string | null
+          id?: string
+          metodo_pagamento?: string | null
+          numero_mesa?: number | null
+          observacoes?: string | null
+          restaurant_id: string
+          status?: string
+          subtotal?: number
+          table_session_id?: string | null
+          taxa_servico?: number | null
+          tipo_pedido?: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          cliente_nome?: string | null
+          created_at?: string
+          desconto?: number | null
+          funcionario_id?: string | null
+          id?: string
+          metodo_pagamento?: string | null
+          numero_mesa?: number | null
+          observacoes?: string | null
+          restaurant_id?: string
+          status?: string
+          subtotal?: number
+          table_session_id?: string | null
+          taxa_servico?: number | null
+          tipo_pedido?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_orders_funcionario_id_fkey"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_orders_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_orders_table_session_id_fkey"
+            columns: ["table_session_id"]
+            isOneToOne: false
+            referencedRelation: "table_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_categories: {
         Row: {
           ativo: boolean | null
@@ -2834,7 +2964,8 @@ export type Database = {
           capacidade: number
           created_at: string
           id: string
-          numero: number
+          localizacao: string | null
+          numero_mesa: number
           observacoes: string | null
           posicao_x: number | null
           posicao_y: number | null
@@ -2848,7 +2979,8 @@ export type Database = {
           capacidade?: number
           created_at?: string
           id?: string
-          numero: number
+          localizacao?: string | null
+          numero_mesa: number
           observacoes?: string | null
           posicao_x?: number | null
           posicao_y?: number | null
@@ -2862,7 +2994,8 @@ export type Database = {
           capacidade?: number
           created_at?: string
           id?: string
-          numero?: number
+          localizacao?: string | null
+          numero_mesa?: number
           observacoes?: string | null
           posicao_x?: number | null
           posicao_y?: number | null
@@ -3246,6 +3379,56 @@ export type Database = {
           weather_multiplier?: number | null
         }
         Relationships: []
+      }
+      table_sessions: {
+        Row: {
+          cliente_nome: string | null
+          created_at: string
+          data_abertura: string
+          data_fechamento: string | null
+          id: string
+          mesa_numero: number
+          observacoes: string | null
+          restaurant_id: string
+          status: string
+          total: number | null
+          updated_at: string
+        }
+        Insert: {
+          cliente_nome?: string | null
+          created_at?: string
+          data_abertura?: string
+          data_fechamento?: string | null
+          id?: string
+          mesa_numero: number
+          observacoes?: string | null
+          restaurant_id: string
+          status?: string
+          total?: number | null
+          updated_at?: string
+        }
+        Update: {
+          cliente_nome?: string | null
+          created_at?: string
+          data_abertura?: string
+          data_fechamento?: string | null
+          id?: string
+          mesa_numero?: number
+          observacoes?: string | null
+          restaurant_id?: string
+          status?: string
+          total?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "table_sessions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ticket_responses: {
         Row: {
