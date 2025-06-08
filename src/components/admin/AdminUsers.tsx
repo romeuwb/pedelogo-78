@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UserDetailsModal } from '@/components/admin/UserDetailsModal';
+import { useAuth } from '@/hooks/useAuth';
 
 interface RestaurantDetail {
   id: string;
@@ -58,6 +59,7 @@ export const AdminUsers = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['adminUsers', activeTab, searchTerm],
@@ -82,9 +84,13 @@ export const AdminUsers = () => {
       }
 
       const { data, error } = await query.order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
-    }
+      if (error) {
+        console.error('Error fetching users:', error);
+        throw error;
+      }
+      return data || [];
+    },
+    enabled: !!user
   });
 
   const { data: restaurantDetails } = useQuery({
@@ -96,10 +102,13 @@ export const AdminUsers = () => {
         .from('restaurant_details')
         .select('id, user_id, nome_fantasia, status_aprovacao, categoria, endereco, cnpj, razao_social');
       
-      if (error) throw error;
-      return data as RestaurantDetail[];
+      if (error) {
+        console.error('Error fetching restaurant details:', error);
+        throw error;
+      }
+      return data as RestaurantDetail[] || [];
     },
-    enabled: activeTab === 'restaurantes'
+    enabled: activeTab === 'restaurantes' && !!user
   });
 
   const { data: deliveryDetails } = useQuery({
@@ -111,10 +120,13 @@ export const AdminUsers = () => {
         .from('delivery_details')
         .select('id, user_id, status_aprovacao, veiculos, documentos_verificados, endereco, cpf, numero_cnh');
       
-      if (error) throw error;
-      return data as DeliveryDetail[];
+      if (error) {
+        console.error('Error fetching delivery details:', error);
+        throw error;
+      }
+      return data as DeliveryDetail[] || [];
     },
-    enabled: activeTab === 'entregadores'
+    enabled: activeTab === 'entregadores' && !!user
   });
 
   const toggleUserStatus = useMutation({
@@ -123,7 +135,7 @@ export const AdminUsers = () => {
       
       const { error } = await supabase
         .from('profiles')
-        .update({ ativo: newStatus })
+        .update({ ativo: newStatus, updated_at: new Date().toISOString() })
         .eq('user_id', userId);
       
       if (error) {
@@ -171,7 +183,7 @@ export const AdminUsers = () => {
       if (approve) {
         await supabase
           .from('profiles')
-          .update({ ativo: true })
+          .update({ ativo: true, updated_at: new Date().toISOString() })
           .eq('user_id', userId);
       }
     },
@@ -216,7 +228,7 @@ export const AdminUsers = () => {
       if (approve) {
         await supabase
           .from('profiles')
-          .update({ ativo: true })
+          .update({ ativo: true, updated_at: new Date().toISOString() })
           .eq('user_id', userId);
       }
     },
@@ -318,6 +330,30 @@ export const AdminUsers = () => {
     setShowDetailsModal(true);
   };
 
+  const handleToggleUserStatus = (user: any) => {
+    console.log('Clicando para alterar status do usuário:', user);
+    toggleUserStatus.mutate({ 
+      userId: user.user_id, 
+      newStatus: !user.ativo 
+    });
+  };
+
+  const handleApproveRestaurant = (user: any, approve: boolean) => {
+    console.log('Clicando para aprovar/rejeitar restaurante:', user, approve);
+    approveRestaurant.mutate({ 
+      userId: user.user_id, 
+      approve 
+    });
+  };
+
+  const handleApproveDelivery = (user: any, approve: boolean) => {
+    console.log('Clicando para aprovar/rejeitar entregador:', user, approve);
+    approveDelivery.mutate({ 
+      userId: user.user_id, 
+      approve 
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -371,53 +407,56 @@ export const AdminUsers = () => {
                 <CardTitle>Clientes</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Telefone</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Cadastro</TableHead>
-                      <TableHead>Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users?.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.nome}</TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.telefone || 'N/A'}</TableCell>
-                        <TableCell>{getStatusBadge(user)}</TableCell>
-                        <TableCell>
-                          {new Date(user.created_at).toLocaleDateString('pt-BR')}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleViewUser(user)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant={user.ativo ? "destructive" : "default"}
-                              onClick={() => toggleUserStatus.mutate({ 
-                                userId: user.user_id, 
-                                newStatus: !user.ativo 
-                              })}
-                              disabled={toggleUserStatus.isPending}
-                            >
-                              {user.ativo ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-                            </Button>
-                          </div>
-                        </TableCell>
+                {!users || users.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">Nenhum cliente encontrado</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Telefone</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Cadastro</TableHead>
+                        <TableHead>Ações</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-medium">{user.nome}</TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>{user.telefone || 'N/A'}</TableCell>
+                          <TableCell>{getStatusBadge(user)}</TableCell>
+                          <TableCell>
+                            {new Date(user.created_at).toLocaleDateString('pt-BR')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleViewUser(user)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant={user.ativo ? "destructive" : "default"}
+                                onClick={() => handleToggleUserStatus(user)}
+                                disabled={toggleUserStatus.isPending}
+                              >
+                                {user.ativo ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -428,83 +467,80 @@ export const AdminUsers = () => {
                 <CardTitle>Restaurantes</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Restaurante</TableHead>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users?.map((user) => {
-                      const restaurant = getRestaurantInfo(user.user_id);
-                      return (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.nome}</TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>{restaurant?.nome_fantasia || 'N/A'}</TableCell>
-                          <TableCell>{restaurant?.categoria || 'N/A'}</TableCell>
-                          <TableCell>{getStatusBadge(user)}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center space-x-2">
-                              {restaurant?.status_aprovacao === 'pendente' && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    className="bg-green-600 hover:bg-green-700 text-white"
-                                    onClick={() => approveRestaurant.mutate({ 
-                                      userId: user.user_id, 
-                                      approve: true 
-                                    })}
-                                    disabled={approveRestaurant.isPending}
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-1" />
-                                    Aprovar
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => approveRestaurant.mutate({ 
-                                      userId: user.user_id, 
-                                      approve: false 
-                                    })}
-                                    disabled={approveRestaurant.isPending}
-                                  >
-                                    <XCircle className="h-4 w-4 mr-1" />
-                                    Rejeitar
-                                  </Button>
-                                </>
-                              )}
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => handleViewUser(user)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant={user.ativo ? "destructive" : "default"}
-                                onClick={() => toggleUserStatus.mutate({ 
-                                  userId: user.user_id, 
-                                  newStatus: !user.ativo 
-                                })}
-                                disabled={toggleUserStatus.isPending}
-                              >
-                                {user.ativo ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                {!users || users.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">Nenhum restaurante encontrado</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Restaurante</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((user) => {
+                        const restaurant = getRestaurantInfo(user.user_id);
+                        return (
+                          <TableRow key={user.id}>
+                            <TableCell className="font-medium">{user.nome}</TableCell>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell>{restaurant?.nome_fantasia || 'N/A'}</TableCell>
+                            <TableCell>{restaurant?.categoria || 'N/A'}</TableCell>
+                            <TableCell>{getStatusBadge(user)}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                {restaurant?.status_aprovacao === 'pendente' && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      className="bg-green-600 hover:bg-green-700 text-white"
+                                      onClick={() => handleApproveRestaurant(user, true)}
+                                      disabled={approveRestaurant.isPending}
+                                    >
+                                      <CheckCircle className="h-4 w-4 mr-1" />
+                                      Aprovar
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => handleApproveRestaurant(user, false)}
+                                      disabled={approveRestaurant.isPending}
+                                    >
+                                      <XCircle className="h-4 w-4 mr-1" />
+                                      Rejeitar
+                                    </Button>
+                                  </>
+                                )}
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => handleViewUser(user)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant={user.ativo ? "destructive" : "default"}
+                                  onClick={() => handleToggleUserStatus(user)}
+                                  disabled={toggleUserStatus.isPending}
+                                >
+                                  {user.ativo ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -515,85 +551,82 @@ export const AdminUsers = () => {
                 <CardTitle>Entregadores</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Telefone</TableHead>
-                      <TableHead>Veículos</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users?.map((user) => {
-                      const delivery = getDeliveryInfo(user.user_id);
-                      return (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.nome}</TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>{user.telefone || 'N/A'}</TableCell>
-                          <TableCell>
-                            {delivery?.veiculos?.join(', ') || 'N/A'}
-                          </TableCell>
-                          <TableCell>{getStatusBadge(user)}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center space-x-2">
-                              {delivery?.status_aprovacao === 'pendente' && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    className="bg-green-600 hover:bg-green-700 text-white"
-                                    onClick={() => approveDelivery.mutate({ 
-                                      userId: user.user_id, 
-                                      approve: true 
-                                    })}
-                                    disabled={approveDelivery.isPending}
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-1" />
-                                    Aprovar
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => approveDelivery.mutate({ 
-                                      userId: user.user_id, 
-                                      approve: false 
-                                    })}
-                                    disabled={approveDelivery.isPending}
-                                  >
-                                    <XCircle className="h-4 w-4 mr-1" />
-                                    Rejeitar
-                                  </Button>
-                                </>
-                              )}
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => handleViewUser(user)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant={user.ativo ? "destructive" : "default"}
-                                onClick={() => toggleUserStatus.mutate({ 
-                                  userId: user.user_id, 
-                                  newStatus: !user.ativo 
-                                })}
-                                disabled={toggleUserStatus.isPending}
-                              >
-                                {user.ativo ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                {!users || users.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">Nenhum entregador encontrado</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Telefone</TableHead>
+                        <TableHead>Veículos</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((user) => {
+                        const delivery = getDeliveryInfo(user.user_id);
+                        return (
+                          <TableRow key={user.id}>
+                            <TableCell className="font-medium">{user.nome}</TableCell>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell>{user.telefone || 'N/A'}</TableCell>
+                            <TableCell>
+                              {delivery?.veiculos?.join(', ') || 'N/A'}
+                            </TableCell>
+                            <TableCell>{getStatusBadge(user)}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                {delivery?.status_aprovacao === 'pendente' && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      className="bg-green-600 hover:bg-green-700 text-white"
+                                      onClick={() => handleApproveDelivery(user, true)}
+                                      disabled={approveDelivery.isPending}
+                                    >
+                                      <CheckCircle className="h-4 w-4 mr-1" />
+                                      Aprovar
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => handleApproveDelivery(user, false)}
+                                      disabled={approveDelivery.isPending}
+                                    >
+                                      <XCircle className="h-4 w-4 mr-1" />
+                                      Rejeitar
+                                    </Button>
+                                  </>
+                                )}
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => handleViewUser(user)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant={user.ativo ? "destructive" : "default"}
+                                  onClick={() => handleToggleUserStatus(user)}
+                                  disabled={toggleUserStatus.isPending}
+                                >
+                                  {user.ativo ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
