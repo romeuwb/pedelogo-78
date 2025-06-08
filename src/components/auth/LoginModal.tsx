@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Eye, EyeOff, Mail, Lock, User, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -25,6 +25,7 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [loginData, setLoginData] = useState({
     email: '',
@@ -49,6 +50,8 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
     if (!error) {
       onClose();
       setLoginData({ email: '', password: '' });
+      // Redirecionar para o dashboard após login bem-sucedido
+      navigate('/dashboard');
     }
     
     setIsLoading(false);
@@ -95,7 +98,7 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`
+          redirectTo: `${window.location.origin}/dashboard`
         }
       });
 
@@ -105,6 +108,8 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
           description: error.message,
           variant: "destructive",
         });
+      } else {
+        onClose();
       }
     } catch (error: any) {
       toast({
@@ -123,7 +128,7 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: `${window.location.origin}/`
+          redirectTo: `${window.location.origin}/dashboard`
         }
       });
 
@@ -133,6 +138,8 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
           description: error.message,
           variant: "destructive",
         });
+      } else {
+        onClose();
       }
     } catch (error: any) {
       toast({

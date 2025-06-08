@@ -52,7 +52,7 @@ const DashboardRouter = () => {
     return <Navigate to="/" replace />;
   }
 
-  // Renderizar diretamente o dashboard correto baseado no tipo do usuário
+  // Renderizar o dashboard correto baseado no tipo do usuário
   switch (profile.tipo) {
     case 'cliente':
       return <ClientDashboard />;
@@ -86,11 +86,6 @@ function App() {
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <DashboardRouter />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin" element={
-              <ProtectedRoute>
-                <AdminDashboard />
               </ProtectedRoute>
             } />
             <Route path="/reset-password" element={<ResetPassword />} />

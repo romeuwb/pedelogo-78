@@ -14,132 +14,69 @@ interface Profile {
   ativo: boolean;
 }
 
-// Função para limpeza completa do estado de autenticação
-const cleanupAuthState = () => {
-  console.log('Limpando estado de autenticação...');
-  try {
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-        localStorage.removeItem(key);
-      }
-    });
-    
-    if (typeof sessionStorage !== 'undefined') {
-      Object.keys(sessionStorage).forEach((key) => {
-        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-          sessionStorage.removeItem(key);
-        }
-      });
-    }
-  } catch (error) {
-    console.error('Erro ao limpar estado:', error);
-  }
-};
-
-// Cache global para evitar múltiplas instâncias
-let globalAuthState = {
-  user: null as User | null,
-  profile: null as Profile | null,
-  loading: true,
-  initialized: false
-};
-
-let globalSubscription: any = null;
-let profileFetchPromise: Promise<any> | null = null;
-
 export const useAuth = () => {
-  const [user, setUser] = useState<User | null>(globalAuthState.user);
-  const [profile, setProfile] = useState<Profile | null>(globalAuthState.profile);
-  const [loading, setLoading] = useState(globalAuthState.loading);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Se já foi inicializado, use o estado global
-    if (globalAuthState.initialized) {
-      setUser(globalAuthState.user);
-      setProfile(globalAuthState.profile);
-      setLoading(globalAuthState.loading);
-      return;
-    }
+    let mounted = true;
 
     const initializeAuth = async () => {
       try {
-        console.log('Inicializando autenticação (única vez)...');
-        
-        // Configurar listener apenas uma vez
-        if (!globalSubscription) {
-          const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
-              console.log('Auth state change:', event, session?.user?.id);
-              
-              if (event === 'SIGNED_OUT' || !session) {
-                console.log('Usuario deslogado');
-                globalAuthState.user = null;
-                globalAuthState.profile = null;
-                globalAuthState.loading = false;
-                setUser(null);
-                setProfile(null);
-                setLoading(false);
-                return;
-              }
-
-              if (session?.user) {
-                console.log('Usuario logado:', session.user.id);
-                globalAuthState.user = session.user;
-                setUser(session.user);
-                
-                // Buscar perfil apenas se não estiver sendo buscado
-                if (!profileFetchPromise) {
-                  profileFetchPromise = fetchProfile(session.user.id);
-                  await profileFetchPromise;
-                  profileFetchPromise = null;
-                }
-              }
-            }
-          );
-          globalSubscription = subscription;
-        }
-
-        // Verificar sessão existente
+        // Verificar sessão atual
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Erro ao buscar sessão:', error);
-          globalAuthState.loading = false;
+          console.error('Erro ao verificar sessão:', error);
+          setLoading(false);
+          return;
+        }
+
+        if (session?.user && mounted) {
+          setUser(session.user);
+          await fetchProfile(session.user.id);
+        } else if (mounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Erro na inicialização:', error);
+        if (mounted) setLoading(false);
+      }
+    };
+
+    // Configurar listener de mudanças de auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+
+        console.log('Auth event:', event);
+        
+        if (event === 'SIGNED_OUT' || !session) {
+          setUser(null);
+          setProfile(null);
           setLoading(false);
           return;
         }
 
         if (session?.user) {
-          console.log('Sessão encontrada:', session.user.id);
-          globalAuthState.user = session.user;
           setUser(session.user);
           await fetchProfile(session.user.id);
-        } else {
-          console.log('Nenhuma sessão encontrada');
-          globalAuthState.loading = false;
-          setLoading(false);
         }
-        
-        globalAuthState.initialized = true;
-      } catch (error) {
-        console.error('Erro na inicialização da autenticação:', error);
-        globalAuthState.loading = false;
-        setLoading(false);
       }
-    };
+    );
 
     initializeAuth();
 
     return () => {
-      // Cleanup apenas quando o último componente for desmontado
+      mounted = false;
+      subscription.unsubscribe();
     };
   }, []);
 
   const fetchProfile = async (userId: string) => {
     try {
-      console.log('Buscando perfil para usuario:', userId);
-      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -147,10 +84,8 @@ export const useAuth = () => {
         .single();
 
       if (error) {
-        console.error('Erro ao buscar perfil:', error);
-        
         if (error.code === 'PGRST116') {
-          console.log('Perfil não encontrado, criando perfil básico...');
+          // Perfil não encontrado, criar um novo
           const { data: userData } = await supabase.auth.getUser();
           if (userData.user) {
             const newProfile = {
@@ -167,39 +102,30 @@ export const useAuth = () => {
               .select()
               .single();
               
-            if (createError) {
-              console.error('Erro ao criar perfil:', createError);
-            } else {
-              console.log('Perfil criado:', createdProfile);
-              globalAuthState.profile = createdProfile;
+            if (!createError && createdProfile) {
               setProfile(createdProfile);
             }
           }
+        } else {
+          throw error;
         }
-        throw error;
+      } else {
+        setProfile(data);
       }
-      
-      console.log('Perfil carregado:', data);
-      globalAuthState.profile = data;
-      setProfile(data);
-      
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('Erro ao buscar perfil:', error);
       toast({
         title: "Erro ao carregar perfil",
         description: "Tente fazer login novamente.",
         variant: "destructive",
       });
     } finally {
-      globalAuthState.loading = false;
       setLoading(false);
     }
   };
 
   const signUp = async (email: string, password: string, userData: any) => {
     try {
-      cleanupAuthState();
-      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -232,26 +158,12 @@ export const useAuth = () => {
     try {
       setLoading(true);
       
-      console.log('Tentando fazer login...');
-      cleanupAuthState();
-      
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        console.log('Logout preventivo ignorado');
-      }
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        console.error('Erro no login:', error);
-        throw error;
-      }
-
-      console.log('Login bem-sucedido:', data.user?.id);
+      if (error) throw error;
 
       toast({
         title: "Login realizado com sucesso!",
@@ -273,36 +185,23 @@ export const useAuth = () => {
 
   const signOut = async () => {
     try {
-      console.log('Iniciando logout...');
       setLoading(true);
       
-      // Limpar estado global
-      globalAuthState.user = null;
-      globalAuthState.profile = null;
-      globalAuthState.loading = false;
+      const { error } = await supabase.auth.signOut();
       
+      if (error) throw error;
+
       setUser(null);
       setProfile(null);
-      
-      cleanupAuthState();
-      
-      const { error } = await supabase.auth.signOut({ scope: 'global' });
-      
-      if (error) {
-        console.error('Erro no logout:', error);
-        throw error;
-      }
-
-      console.log('Logout realizado com sucesso');
+      setLoading(false);
 
       toast({
         title: "Logout realizado com sucesso!",
         description: "Até logo!",
       });
 
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 100);
+      // Redirecionar para a página inicial
+      window.location.href = '/';
       
     } catch (error: any) {
       console.error('Erro no logout:', error);
@@ -311,23 +210,9 @@ export const useAuth = () => {
         description: error.message,
         variant: "destructive",
       });
-      
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 1000);
-    } finally {
       setLoading(false);
     }
   };
-
-  // Sincronizar com estado global
-  useEffect(() => {
-    if (profile) {
-      localStorage.setItem('userProfile', JSON.stringify(profile));
-    } else {
-      localStorage.removeItem('userProfile');
-    }
-  }, [profile]);
 
   return {
     user,
