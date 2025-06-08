@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { useAuth } from '@/hooks/useAuth';
 
 import Index from '@/pages/Index';
+import Dashboard from '@/pages/Dashboard';
 import ClientDashboard from '@/pages/ClientDashboard';
 import AdminDashboard from '@/pages/AdminDashboard';
 import DeliveryDashboard from '@/pages/DeliveryDashboard';
@@ -13,7 +14,6 @@ import RestaurantsPage from '@/pages/RestaurantsPage';
 import PromotionsPage from '@/pages/PromotionsPage';
 import ResetPassword from '@/pages/ResetPassword';
 import NotFound from '@/pages/NotFound';
-import RestaurantDashboardPage from '@/pages/RestaurantDashboard';
 
 const queryClient = new QueryClient();
 
@@ -38,9 +38,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Component to render the correct dashboard based on user type
 const DashboardRouter = () => {
-  const { profile, loading, user } = useAuth();
+  const { profile } = useAuth();
 
-  if (loading) {
+  if (!profile) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
@@ -48,23 +48,18 @@ const DashboardRouter = () => {
     );
   }
 
-  if (!profile || !user) {
-    return <Navigate to="/" replace />;
-  }
-
-  // Renderizar o dashboard correto baseado no tipo do usuário
+  // Renderizar o dashboard apropriado baseado no tipo de usuário
   switch (profile.tipo) {
     case 'cliente':
       return <ClientDashboard />;
     case 'restaurante':
-      return <RestaurantDashboardPage />;
+      return <Dashboard />;
     case 'entregador':
       return <DeliveryDashboard />;
     case 'admin':
-      return <AdminDashboard />;
+      return <Dashboard />; // Admin também vê o dashboard por padrão
     default:
-      console.warn('Tipo de usuário não reconhecido:', profile.tipo);
-      return <Navigate to="/" replace />;
+      return <Dashboard />;
   }
 };
 
@@ -80,6 +75,11 @@ function App() {
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <DashboardRouter />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin" element={
+              <ProtectedRoute>
+                <AdminDashboard />
               </ProtectedRoute>
             } />
             <Route path="/reset-password" element={<ResetPassword />} />

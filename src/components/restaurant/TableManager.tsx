@@ -55,6 +55,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
   const loadTables = async () => {
     try {
       setLoading(true);
+      console.log('Carregando mesas para restaurante:', restaurantId);
       
       const { data, error } = await supabase
         .from('restaurant_tables')
@@ -67,6 +68,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
         throw error;
       }
       
+      console.log('Mesas carregadas:', data);
       setTables(data || []);
     } catch (error) {
       console.error('Erro ao carregar mesas:', error);
@@ -105,6 +107,8 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
         qr_code: `mesa-${formData.numero_mesa}-${Date.now()}`
       };
 
+      console.log('Dados da mesa a serem salvos:', tableData);
+
       if (selectedTable) {
         // Atualizar mesa existente
         const { error } = await supabase
@@ -130,7 +134,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
           .select('id')
           .eq('restaurant_id', restaurantId)
           .eq('numero_mesa', tableData.numero_mesa)
-          .maybeSingle();
+          .single();
 
         if (existingTable) {
           toast.error('Já existe uma mesa com este número');
@@ -140,7 +144,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
         // Criar nova mesa
         const { data: newTable, error } = await supabase
           .from('restaurant_tables')
-          .insert([tableData])
+          .insert(tableData)
           .select()
           .single();
         
@@ -149,6 +153,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
           throw error;
         }
         
+        console.log('Mesa criada:', newTable);
         toast.success('Mesa criada com sucesso!');
       }
 
@@ -326,7 +331,81 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
         </Dialog>
       </div>
 
-      {tables.length === 0 ? (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {tables.map((table) => (
+          <Card key={table.id} className={`${!table.ativo ? 'opacity-50' : ''}`}>
+            <CardHeader className="pb-3">
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="flex items-center">
+                    Mesa {table.numero_mesa}
+                    {!table.ativo && (
+                      <Badge variant="secondary" className="ml-2">Inativa</Badge>
+                    )}
+                  </CardTitle>
+                  <div className="flex items-center mt-1">
+                    <Users className="h-4 w-4 mr-1 text-gray-500" />
+                    <span className="text-sm text-gray-600">{table.capacidade} pessoas</span>
+                  </div>
+                </div>
+                <Badge className={`${getStatusColor(table.status)} text-white`}>
+                  {getStatusText(table.status)}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {table.localizacao && (
+                <div className="flex items-center text-sm text-gray-600">
+                  <MapPin className="h-4 w-4 mr-2" />
+                  {table.localizacao}
+                </div>
+              )}
+              
+              {table.observacoes && (
+                <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                  {table.observacoes}
+                </p>
+              )}
+
+              {table.qr_code && (
+                <div className="flex items-center text-sm text-gray-500">
+                  <QrCode className="h-4 w-4 mr-2" />
+                  QR Code: {table.qr_code.slice(-8)}
+                </div>
+              )}
+
+              <div className="flex justify-between items-center pt-2">
+                <div className="flex space-x-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleEdit(table)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDelete(table.id)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button
+                  size="sm"
+                  variant={table.ativo ? "secondary" : "default"}
+                  onClick={() => toggleTableStatus(table)}
+                >
+                  {table.ativo ? 'Desativar' : 'Ativar'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {tables.length === 0 && (
         <div className="text-center py-12">
           <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma mesa cadastrada</h3>
@@ -335,80 +414,6 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
             <Plus className="h-4 w-4 mr-2" />
             Adicionar primeira mesa
           </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {tables.map((table) => (
-            <Card key={table.id} className={`${!table.ativo ? 'opacity-50' : ''}`}>
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="flex items-center">
-                      Mesa {table.numero_mesa}
-                      {!table.ativo && (
-                        <Badge variant="secondary" className="ml-2">Inativa</Badge>
-                      )}
-                    </CardTitle>
-                    <div className="flex items-center mt-1">
-                      <Users className="h-4 w-4 mr-1 text-gray-500" />
-                      <span className="text-sm text-gray-600">{table.capacidade} pessoas</span>
-                    </div>
-                  </div>
-                  <Badge className={`${getStatusColor(table.status)} text-white`}>
-                    {getStatusText(table.status)}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {table.localizacao && (
-                  <div className="flex items-center text-sm text-gray-600">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    {table.localizacao}
-                  </div>
-                )}
-                
-                {table.observacoes && (
-                  <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                    {table.observacoes}
-                  </p>
-                )}
-
-                {table.qr_code && (
-                  <div className="flex items-center text-sm text-gray-500">
-                    <QrCode className="h-4 w-4 mr-2" />
-                    QR Code: {table.qr_code.slice(-8)}
-                  </div>
-                )}
-
-                <div className="flex justify-between items-center pt-2">
-                  <div className="flex space-x-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleEdit(table)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDelete(table.id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant={table.ativo ? "secondary" : "default"}
-                    onClick={() => toggleTableStatus(table)}
-                  >
-                    {table.ativo ? 'Desativar' : 'Ativar'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
         </div>
       )}
     </div>

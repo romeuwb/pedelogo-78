@@ -58,6 +58,8 @@ export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerP
   const { data: categories, isLoading, error } = useQuery({
     queryKey: ['product-categories', restaurantId],
     queryFn: async () => {
+      console.log('Buscando categorias para restaurant_id:', restaurantId);
+      
       if (!restaurantId) {
         console.warn('RestaurantId não fornecido');
         return [];
@@ -74,6 +76,7 @@ export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerP
         throw error;
       }
       
+      console.log('Categorias encontradas:', data);
       return data as Category[];
     },
     enabled: !!restaurantId
@@ -81,6 +84,9 @@ export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerP
 
   const saveCategoryMutation = useMutation({
     mutationFn: async (categoryData: any) => {
+      console.log('Salvando categoria:', categoryData);
+      console.log('Restaurant ID:', restaurantId);
+      
       if (editingCategory) {
         const { error } = await supabase
           .from('product_categories')
@@ -92,16 +98,15 @@ export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerP
           throw error;
         }
       } else {
-        // Garantir que todos os campos obrigatórios estejam presentes
+        // Garantir que o restaurant_id está sendo incluído
         const insertData = {
-          nome: categoryData.nome,
-          descricao: categoryData.descricao || null,
-          icone: categoryData.icone || null,
-          cor: categoryData.cor || '#6b7280',
-          restaurant_id: restaurantId, // Garantir que o restaurant_id está sendo incluído
+          ...categoryData,
+          restaurant_id: restaurantId,
           posicao: categories?.length || 0,
           ativo: true
         };
+        
+        console.log('Dados para inserção:', insertData);
         
         const { data, error } = await supabase
           .from('product_categories')
@@ -111,8 +116,12 @@ export const ProductCategoryManager = ({ restaurantId }: ProductCategoryManagerP
         
         if (error) {
           console.error('Erro ao criar categoria:', error);
+          console.error('Detalhes do erro:', error.details);
+          console.error('Código do erro:', error.code);
           throw error;
         }
+        
+        console.log('Categoria criada:', data);
       }
     },
     onSuccess: () => {

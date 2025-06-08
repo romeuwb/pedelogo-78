@@ -14,6 +14,42 @@ interface Profile {
   ativo: boolean;
 }
 
+// Função para limpeza completa do estado de autenticação
+const cleanupAuthState = () => {
+  console.log('Limpando estado de autenticação...');
+  try {
+    // Remove todas as chaves relacionadas ao Supabase do localStorage
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+        localStorage.removeItem(key);
+      }
+    });
+    
+    // Remove também do sessionStorage se estiver sendo usado
+    if (typeof sessionStorage !== 'undefined') {
+      Object.keys(sessionStorage).forEach((key) => {
+        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao limpar estado:', error);
+  }
+};
+
+// Função para redirecionar todos os usuários para dashboard
+const redirectToDashboard = () => {
+  console.log('Redirecionando para dashboard');
+  
+  // Verificar se já está na rota correta
+  const currentPath = window.location.pathname;
+  
+  if (currentPath !== '/dashboard') {
+    window.location.href = '/dashboard';
+  }
+};
+
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -23,49 +59,61 @@ export const useAuth = () => {
   useEffect(() => {
     let mounted = true;
 
-    const initializeAuth = async () => {
-      try {
-        // Verificar sessão atual
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Erro ao verificar sessão:', error);
-          setLoading(false);
-          return;
-        }
-
-        if (session?.user && mounted) {
-          setUser(session.user);
-          await fetchProfile(session.user.id);
-        } else if (mounted) {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Erro na inicialização:', error);
-        if (mounted) setLoading(false);
-      }
-    };
-
-    // Configurar listener de mudanças de auth
+    // Configurar listener de mudanças de autenticação PRIMEIRO
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.id);
+        
         if (!mounted) return;
 
-        console.log('Auth event:', event);
-        
         if (event === 'SIGNED_OUT' || !session) {
+          console.log('Usuario deslogado');
           setUser(null);
           setProfile(null);
           setLoading(false);
           return;
         }
 
-        if (session?.user) {
+        if (event === 'SIGNED_IN' && session?.user) {
+          console.log('Usuario logado:', session.user.id);
           setUser(session.user);
-          await fetchProfile(session.user.id);
+          // Buscar perfil após um pequeno delay para evitar conflitos
+          setTimeout(() => {
+            if (mounted) {
+              fetchProfile(session.user.id);
+            }
+          }, 100);
         }
       }
     );
+
+    // Verificar sessão existente DEPOIS
+    const initializeAuth = async () => {
+      try {
+        console.log('Inicializando autenticação...');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Erro ao buscar sessão:', error);
+          cleanupAuthState();
+          setLoading(false);
+          return;
+        }
+
+        if (session?.user && mounted) {
+          console.log('Sessão encontrada:', session.user.id);
+          setUser(session.user);
+          await fetchProfile(session.user.id);
+        } else {
+          console.log('Nenhuma sessão encontrada');
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Erro na inicialização da autenticação:', error);
+        cleanupAuthState();
+        setLoading(false);
+      }
+    };
 
     initializeAuth();
 
@@ -77,6 +125,8 @@ export const useAuth = () => {
 
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('Buscando perfil para usuario:', userId);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -84,8 +134,11 @@ export const useAuth = () => {
         .single();
 
       if (error) {
+        console.error('Erro ao buscar perfil:', error);
+        
+        // Se o perfil não existe, criar um básico
         if (error.code === 'PGRST116') {
-          // Perfil não encontrado, criar um novo
+          console.log('Perfil não encontrado, criando perfil básico...');
           const { data: userData } = await supabase.auth.getUser();
           if (userData.user) {
             const newProfile = {
@@ -102,18 +155,35 @@ export const useAuth = () => {
               .select()
               .single();
               
-            if (!createError && createdProfile) {
+            if (createError) {
+              console.error('Erro ao criar perfil:', createError);
+            } else {
+              console.log('Perfil criado:', createdProfile);
               setProfile(createdProfile);
+              // Redirecionar para dashboard após criar perfil
+              setTimeout(() => {
+                redirectToDashboard();
+              }, 500);
             }
           }
-        } else {
-          throw error;
         }
-      } else {
-        setProfile(data);
+        
+        throw error;
       }
+      
+      console.log('Perfil carregado:', data);
+      setProfile(data);
+      
+      // Redirecionar para dashboard se estiver na página inicial
+      const currentPath = window.location.pathname;
+      if (currentPath === '/') {
+        setTimeout(() => {
+          redirectToDashboard();
+        }, 500);
+      }
+      
     } catch (error) {
-      console.error('Erro ao buscar perfil:', error);
+      console.error('Error fetching profile:', error);
       toast({
         title: "Erro ao carregar perfil",
         description: "Tente fazer login novamente.",
@@ -126,6 +196,9 @@ export const useAuth = () => {
 
   const signUp = async (email: string, password: string, userData: any) => {
     try {
+      // Limpar estado antes de cadastrar
+      cleanupAuthState();
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -158,12 +231,31 @@ export const useAuth = () => {
     try {
       setLoading(true);
       
+      console.log('Tentando fazer login...');
+      
+      // Limpar estado antes de fazer login
+      cleanupAuthState();
+      
+      // Fazer logout global primeiro para garantir estado limpo
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+        console.log('Logout preventivo concluído');
+      } catch (err) {
+        // Ignorar erros de logout se não houver sessão
+        console.log('Logout preventivo ignorado');
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro no login:', error);
+        throw error;
+      }
+
+      console.log('Login bem-sucedido:', data.user?.id);
 
       toast({
         title: "Login realizado com sucesso!",
@@ -185,23 +277,35 @@ export const useAuth = () => {
 
   const signOut = async () => {
     try {
+      console.log('Iniciando logout...');
       setLoading(true);
       
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) throw error;
-
+      // Limpar estado local primeiro
       setUser(null);
       setProfile(null);
-      setLoading(false);
+      
+      // Limpar localStorage
+      cleanupAuthState();
+      
+      // Fazer logout no Supabase
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      
+      if (error) {
+        console.error('Erro no logout:', error);
+        throw error;
+      }
+
+      console.log('Logout realizado com sucesso');
 
       toast({
         title: "Logout realizado com sucesso!",
         description: "Até logo!",
       });
 
-      // Redirecionar para a página inicial
-      window.location.href = '/';
+      // Redirecionar para home apenas se bem-sucedido
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
       
     } catch (error: any) {
       console.error('Erro no logout:', error);
@@ -210,9 +314,24 @@ export const useAuth = () => {
         description: error.message,
         variant: "destructive",
       });
+      
+      // Mesmo com erro, tentar redirecionar
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 1000);
+    } finally {
       setLoading(false);
     }
   };
+
+  // Armazenar perfil no localStorage para acesso rápido
+  useEffect(() => {
+    if (profile) {
+      localStorage.setItem('userProfile', JSON.stringify(profile));
+    } else {
+      localStorage.removeItem('userProfile');
+    }
+  }, [profile]);
 
   return {
     user,

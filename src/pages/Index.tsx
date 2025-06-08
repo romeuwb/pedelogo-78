@@ -106,12 +106,7 @@ const Index = () => {
         </div>
       </section>
 
-      {showLogin && (
-        <LoginModal 
-          isOpen={showLogin} 
-          onClose={() => setShowLogin(false)} 
-        />
-      )}
+      <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
     </div>
   );
 };

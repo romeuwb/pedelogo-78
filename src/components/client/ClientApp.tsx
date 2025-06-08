@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Home, ShoppingBag, Heart, User, Search } from 'lucide-react';
@@ -10,26 +10,18 @@ import ClientProfile from './ClientProfile';
 import ClientSearch from './ClientSearch';
 
 const ClientApp = () => {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!user) {
+      // Redirect to login if not authenticated
+      window.location.href = '/auth';
+    }
+  }, [user]);
 
   if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Acesso negado</h2>
-          <p className="text-gray-600">Você precisa estar logado para acessar esta página.</p>
-        </div>
-      </div>
-    );
+    return <div>Carregando...</div>;
   }
 
   return (
