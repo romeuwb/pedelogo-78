@@ -7,7 +7,7 @@ import { DeliveryAreaMap } from './DeliveryAreaMap';
 import { RouteOptimization } from './RouteOptimization';
 import { ClientOptimization } from './ClientOptimization';
 import { OperatingHoursManager } from './OperatingHoursManager';
-import { TableManager } from './TableManager';
+import TableManager from './TableManager';
 import { StaffManager } from './StaffManager';
 
 interface RestaurantSettingsProps {

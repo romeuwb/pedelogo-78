@@ -134,7 +134,10 @@ const AdminDashboard = () => {
       />
       
       <div className="flex-1 flex flex-col">
-        <AdminHeader />
+        <AdminHeader 
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+        />
         
         <main className="flex-1 p-6">
           {renderContent()}
