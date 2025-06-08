@@ -13,7 +13,7 @@ import RestaurantsPage from '@/pages/RestaurantsPage';
 import PromotionsPage from '@/pages/PromotionsPage';
 import ResetPassword from '@/pages/ResetPassword';
 import NotFound from '@/pages/NotFound';
-import RestaurantDashboard from '@/components/restaurant/RestaurantDashboard';
+import RestaurantDashboardPage from '@/pages/RestaurantDashboard';
 
 const queryClient = new QueryClient();
 
@@ -57,13 +57,7 @@ const DashboardRouter = () => {
     case 'cliente':
       return <ClientDashboard />;
     case 'restaurante':
-      return (
-        <div className="min-h-screen bg-gray-50">
-          <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-            <RestaurantDashboard restaurantId={user.id} />
-          </div>
-        </div>
-      );
+      return <RestaurantDashboardPage />;
     case 'entregador':
       return <DeliveryDashboard />;
     case 'admin':
