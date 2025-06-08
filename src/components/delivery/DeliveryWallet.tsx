@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -128,8 +127,8 @@ const DeliveryWallet = ({ deliveryDetails }: DeliveryWalletProps) => {
           solicitante_id: deliveryDetails.user_id,
           tipo_solicitante: 'entregador',
           valor_solicitado: parseFloat(withdrawAmount),
-          periodo_inicio: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          periodo_fim: new Date().toISOString().split('T')[0],
+          data_inicio: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          data_fim: new Date().toISOString().split('T')[0],
           periodo_referencia: `Ganhos acumulados até ${new Date().toLocaleDateString()}`,
           observacoes: withdrawNotes || null,
           status: 'pendente'
