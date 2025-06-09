@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -62,8 +61,8 @@ const RestaurantsPage = () => {
           .eq('disponivel', true)
           .or(`nome.ilike.%${searchTerm}%,descricao.ilike.%${searchTerm}%`);
 
-        // Combine restaurant IDs from both searches
-        const restaurantIds = new Set();
+        // Combine restaurant IDs from both searches with proper typing
+        const restaurantIds = new Set<string>();
         restaurantResults.data?.forEach(r => restaurantIds.add(r.id));
         productResults.data?.forEach(p => restaurantIds.add(p.restaurant_id));
 
