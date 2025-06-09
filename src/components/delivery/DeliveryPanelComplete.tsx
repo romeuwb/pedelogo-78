@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,6 +31,7 @@ const DeliveryPanelComplete = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(true);
+  const [currentOrder, setCurrentOrder] = useState(null);
 
   useEffect(() => {
     if (user && profile?.tipo === 'entregador') {
@@ -254,7 +254,11 @@ const DeliveryPanelComplete = () => {
           </TabsContent>
 
           <TabsContent value="earnings">
-            <DeliveryEarnings deliveryDetails={deliveryDetails} />
+            <DeliveryEarnings 
+              deliveryDetails={deliveryDetails} 
+              currentOrder={currentOrder}
+              setCurrentOrder={setCurrentOrder}
+            />
           </TabsContent>
 
           <TabsContent value="wallet">
@@ -262,7 +266,7 @@ const DeliveryPanelComplete = () => {
           </TabsContent>
 
           <TabsContent value="tracking">
-            <DeliveryTracking orderId="" userType="delivery" />
+            <DeliveryTracking orderId={currentOrder?.id || ""} userType="delivery" />
           </TabsContent>
 
           <TabsContent value="profile">

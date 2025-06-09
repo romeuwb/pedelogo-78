@@ -5,7 +5,7 @@ import { AdminSidebar } from './AdminSidebar';
 import { AdminOverview } from './AdminOverview';
 import { AdminUsers } from './AdminUsers';
 import { AdminSupport } from './AdminSupport';
-import { AdminSettings } from './AdminSettings';
+import AdminSettings from './AdminSettings';
 import { useAuth } from '@/hooks/useAuth';
 
 const AdminDashboardLayout = () => {
