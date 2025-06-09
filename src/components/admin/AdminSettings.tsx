@@ -1,52 +1,44 @@
 
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Settings, 
-  MapPin, 
+  Map, 
   DollarSign, 
-  Truck, 
-  Mail,
-  Globe,
-  Key,
+  Bell, 
+  Mail, 
+  Truck,
   Save,
+  Eye,
+  EyeOff,
   TestTube
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 interface SystemConfig {
+  id: string;
   chave: string;
   valor: string;
   categoria: string;
-  descricao?: string;
+  descricao: string;
+  created_at: string;
+  updated_at: string;
 }
 
-export const AdminSettings = () => {
+const AdminSettings = () => {
   const [configs, setConfigs] = useState<SystemConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [testingEmail, setTestingEmail] = useState(false);
-
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('general');
+  const [showPasswords, setShowPasswords] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     loadConfigurations();
@@ -60,418 +52,293 @@ export const AdminSettings = () => {
         .order('categoria', { ascending: true });
 
       if (error) throw error;
-      setConfigs(data || []);
+      
+      // Convert Json type to string for display
+      const configsWithStringValues = data.map(config => ({
+        ...config,
+        valor: typeof config.valor === 'string' ? config.valor : String(config.valor || '')
+      }));
+      
+      setConfigs(configsWithStringValues);
     } catch (error) {
       console.error('Erro ao carregar configurações:', error);
-      toast({
-        title: 'Erro',
-        description: 'Erro ao carregar configurações do sistema',
-        variant: 'destructive'
-      });
+      toast.error('Erro ao carregar configurações');
     } finally {
       setLoading(false);
     }
   };
 
-  const updateConfig = async (chave: string, valor: string) => {
+  const updateConfiguration = async (chave: string, novoValor: string) => {
+    setSaving(true);
     try {
       const { error } = await supabase
         .from('system_configurations')
-        .upsert({
-          chave,
-          valor,
-          categoria: getConfigCategory(chave),
-          descricao: getConfigDescription(chave),
-          updated_at: new Date().toISOString()
-        });
+        .update({ valor: novoValor })
+        .eq('chave', chave);
 
       if (error) throw error;
 
       setConfigs(prev => prev.map(config => 
-        config.chave === chave ? { ...config, valor } : config
+        config.chave === chave ? { ...config, valor: novoValor } : config
       ));
 
-      toast({
-        title: 'Sucesso',
-        description: 'Configuração atualizada com sucesso'
-      });
+      toast.success('Configuração atualizada com sucesso');
     } catch (error) {
       console.error('Erro ao atualizar configuração:', error);
-      toast({
-        title: 'Erro',
-        description: 'Erro ao atualizar configuração',
-        variant: 'destructive'
-      });
+      toast.error('Erro ao atualizar configuração');
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const getConfigsByCategory = (categoria: string) => {
+    return configs.filter(config => config.categoria === categoria);
   };
 
   const getConfigValue = (chave: string) => {
     return configs.find(config => config.chave === chave)?.valor || '';
   };
 
-  const getConfigCategory = (chave: string) => {
-    if (chave.includes('map') || chave.includes('google') || chave.includes('mapbox')) return 'mapas';
-    if (chave.includes('stripe') || chave.includes('taxa') || chave.includes('comissao')) return 'financeiro';
-    if (chave.includes('email') || chave.includes('smtp') || chave.includes('notification')) return 'notificacoes';
-    if (chave.includes('entrega') || chave.includes('delivery') || chave.includes('distancia')) return 'entrega';
-    return 'geral';
+  const handleConfigChange = (chave: string, valor: string) => {
+    setConfigs(prev => prev.map(config => 
+      config.chave === chave ? { ...config, valor } : config
+    ));
   };
 
-  const getConfigDescription = (chave: string) => {
-    const descriptions: Record<string, string> = {
-      'app_name': 'Nome do aplicativo',
-      'google_maps_api_key': 'Chave da API do Google Maps',
-      'mapbox_access_token': 'Token de acesso do Mapbox',
-      'default_map_provider': 'Provedor de mapas padrão (google/mapbox)',
-      'stripe_publishable_key': 'Chave pública do Stripe',
-      'stripe_secret_key': 'Chave secreta do Stripe',
-      'taxa_comissao_restaurante': 'Taxa de comissão do restaurante (decimal)',
-      'taxa_entrega_base': 'Taxa base de entrega em reais',
-      'taxa_entrega_por_km': 'Taxa por quilômetro em reais',
-      'distancia_maxima_entrega': 'Distância máxima de entrega em quilômetros',
-      'tempo_maximo_preparo': 'Tempo máximo de preparo em minutos',
-      'email_from': 'E-mail remetente padrão',
-      'smtp_host': 'Servidor SMTP',
-      'smtp_port': 'Porta do servidor SMTP'
-    };
-    return descriptions[chave] || '';
-  };
-
-  const saveAllConfigs = async () => {
-    setSaving(true);
-    try {
-      for (const config of configs) {
-        await updateConfig(config.chave, config.valor);
-      }
-      toast({
-        title: 'Sucesso',
-        description: 'Todas as configurações foram salvas'
-      });
-    } catch (error) {
-      toast({
-        title: 'Erro',
-        description: 'Erro ao salvar configurações',
-        variant: 'destructive'
-      });
-    } finally {
-      setSaving(false);
-    }
+  const togglePasswordVisibility = (chave: string) => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [chave]: !prev[chave]
+    }));
   };
 
   const testEmailConfig = async () => {
-    setTestingEmail(true);
     try {
-      // Implementar teste de email via edge function
-      toast({
-        title: 'Teste Iniciado',
-        description: 'Testando configurações de email...'
-      });
+      const { data, error } = await supabase.functions.invoke('test-email-config');
+      if (error) throw error;
+      
+      toast.success('Teste de email enviado com sucesso');
     } catch (error) {
-      toast({
-        title: 'Erro',
-        description: 'Erro ao testar configurações de email',
-        variant: 'destructive'
-      });
-    } finally {
-      setTestingEmail(false);
+      console.error('Erro no teste de email:', error);
+      toast.error('Erro ao testar configuração de email');
     }
+  };
+
+  const renderConfigField = (config: SystemConfig) => {
+    const isPassword = config.chave.toLowerCase().includes('password') || 
+                      config.chave.toLowerCase().includes('secret') ||
+                      config.chave.toLowerCase().includes('key');
+    const isTextarea = config.descricao?.toLowerCase().includes('texto') || 
+                      config.valor.length > 100;
+
+    return (
+      <div key={config.id} className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor={config.chave} className="text-sm font-medium">
+            {config.chave.replace(/_/g, ' ').toUpperCase()}
+          </Label>
+          {config.categoria && (
+            <Badge variant="outline" className="text-xs">
+              {config.categoria}
+            </Badge>
+          )}
+        </div>
+        
+        {config.descricao && (
+          <p className="text-xs text-gray-600">{config.descricao}</p>
+        )}
+        
+        <div className="flex space-x-2">
+          {isTextarea ? (
+            <Textarea
+              id={config.chave}
+              value={config.valor}
+              onChange={(e) => handleConfigChange(config.chave, e.target.value)}
+              placeholder={`Digite ${config.chave.replace(/_/g, ' ')}`}
+              rows={3}
+            />
+          ) : (
+            <Input
+              id={config.chave}
+              type={isPassword && !showPasswords[config.chave] ? 'password' : 'text'}
+              value={config.valor}
+              onChange={(e) => handleConfigChange(config.chave, e.target.value)}
+              placeholder={`Digite ${config.chave.replace(/_/g, ' ')}`}
+            />
+          )}
+          
+          {isPassword && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => togglePasswordVisibility(config.chave)}
+            >
+              {showPasswords[config.chave] ? <EyeOff size={16} /> : <Eye size={16} />}
+            </Button>
+          )}
+          
+          <Button
+            onClick={() => updateConfiguration(config.chave, config.valor)}
+            disabled={saving}
+            size="sm"
+          >
+            <Save size={16} />
+          </Button>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
+      <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
       </div>
     );
   }
 
-  const generalConfigs = configs.filter(c => c.categoria === 'geral');
-  const mapConfigs = configs.filter(c => c.categoria === 'mapas');
-  const financialConfigs = configs.filter(c => c.categoria === 'financeiro');
-  const deliveryConfigs = configs.filter(c => c.categoria === 'entrega');
-  const notificationConfigs = configs.filter(c => c.categoria === 'notificacoes');
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Configurações do Sistema</h1>
-          <p className="text-gray-600">Gerencie as configurações globais da plataforma</p>
-        </div>
-        <Button onClick={saveAllConfigs} disabled={saving}>
-          <Save className="h-4 w-4 mr-2" />
-          {saving ? 'Salvando...' : 'Salvar Tudo'}
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Configurações do Sistema</h1>
+        <p className="text-gray-600">Gerencie as configurações globais da plataforma</p>
       </div>
 
-      <Tabs defaultValue="geral" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="geral">Geral</TabsTrigger>
-          <TabsTrigger value="mapas">Mapas</TabsTrigger>
-          <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
-          <TabsTrigger value="entrega">Entrega</TabsTrigger>
-          <TabsTrigger value="notificacoes">Notificações</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="general" className="flex items-center gap-2">
+            <Settings size={16} />
+            Geral
+          </TabsTrigger>
+          <TabsTrigger value="maps" className="flex items-center gap-2">
+            <Map size={16} />
+            Mapas
+          </TabsTrigger>
+          <TabsTrigger value="payment" className="flex items-center gap-2">
+            <DollarSign size={16} />
+            Pagamento
+          </TabsTrigger>
+          <TabsTrigger value="delivery" className="flex items-center gap-2">
+            <Truck size={16} />
+            Entrega
+          </TabsTrigger>
+          <TabsTrigger value="email" className="flex items-center gap-2">
+            <Mail size={16} />
+            Email
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="flex items-center gap-2">
+            <Bell size={16} />
+            Notificações
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="geral" className="space-y-4">
+        <TabsContent value="general" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Globe className="h-5 w-5" />
-                <span>Configurações Gerais</span>
-              </CardTitle>
+              <CardTitle>Configurações Gerais</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="app_name">Nome do Aplicativo</Label>
-                <Input
-                  id="app_name"
-                  value={getConfigValue('app_name')}
-                  onChange={(e) => {
-                    const newConfigs = configs.map(config =>
-                      config.chave === 'app_name' ? { ...config, valor: e.target.value } : config
-                    );
-                    setConfigs(newConfigs);
-                  }}
-                  placeholder="PedeLogo"
-                />
+              {getConfigsByCategory('geral').map(renderConfigField)}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="maps" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Configurações de Mapas e Rotas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {getConfigsByCategory('mapas').map(renderConfigField)}
+              
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">Google Maps API</h4>
+                <p className="text-sm text-blue-700 mb-3">
+                  Configure sua chave da API do Google Maps para habilitar funcionalidades de mapa e roteamento.
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="google_maps_api_key">Chave da API</Label>
+                  <div className="flex space-x-2">
+                    <Input
+                      id="google_maps_api_key"
+                      type={showPasswords['google_maps_api_key'] ? 'text' : 'password'}
+                      value={getConfigValue('google_maps_api_key')}
+                      onChange={(e) => handleConfigChange('google_maps_api_key', e.target.value)}
+                      placeholder="Digite sua chave da API do Google Maps"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => togglePasswordVisibility('google_maps_api_key')}
+                    >
+                      {showPasswords['google_maps_api_key'] ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </Button>
+                    <Button
+                      onClick={() => updateConfiguration('google_maps_api_key', getConfigValue('google_maps_api_key'))}
+                      disabled={saving}
+                      size="sm"
+                    >
+                      <Save size={16} />
+                    </Button>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="mapas" className="space-y-4">
+        <TabsContent value="payment" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <MapPin className="h-5 w-5" />
-                <span>Configurações de Mapas</span>
-              </CardTitle>
+              <CardTitle>Configurações de Pagamento</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="google_maps_api_key">Chave da API do Google Maps</Label>
-                <Input
-                  id="google_maps_api_key"
-                  type="password"
-                  value={getConfigValue('google_maps_api_key')}
-                  onChange={(e) => {
-                    const newConfigs = configs.map(config =>
-                      config.chave === 'google_maps_api_key' ? { ...config, valor: e.target.value } : config
-                    );
-                    setConfigs(newConfigs);
-                  }}
-                  placeholder="Sua chave da API do Google Maps"
-                />
-              </div>
+              {getConfigsByCategory('pagamento').map(renderConfigField)}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-              <div className="space-y-2">
-                <Label htmlFor="mapbox_access_token">Token de Acesso do Mapbox</Label>
-                <Input
-                  id="mapbox_access_token"
-                  type="password"
-                  value={getConfigValue('mapbox_access_token')}
-                  onChange={(e) => {
-                    const newConfigs = configs.map(config =>
-                      config.chave === 'mapbox_access_token' ? { ...config, valor: e.target.value } : config
-                    );
-                    setConfigs(newConfigs);
-                  }}
-                  placeholder="Seu token de acesso do Mapbox"
-                />
-              </div>
+        <TabsContent value="delivery" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Configurações de Entrega</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {getConfigsByCategory('entrega').map(renderConfigField)}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-              <div className="space-y-2">
-                <Label htmlFor="default_map_provider">Provedor de Mapas Padrão</Label>
-                <Select
-                  value={getConfigValue('default_map_provider')}
-                  onValueChange={(value) => {
-                    const newConfigs = configs.map(config =>
-                      config.chave === 'default_map_provider' ? { ...config, valor: value } : config
-                    );
-                    setConfigs(newConfigs);
-                  }}
+        <TabsContent value="email" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                Configurações de Email
+                <Button
+                  onClick={testEmailConfig}
+                  variant="outline"
+                  size="sm"
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o provedor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="google">Google Maps</SelectItem>
-                    <SelectItem value="mapbox">Mapbox</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  <TestTube className="h-4 w-4 mr-2" />
+                  Testar Configuração
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {getConfigsByCategory('email').map(renderConfigField)}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="financeiro" className="space-y-4">
+        <TabsContent value="notifications" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <DollarSign className="h-5 w-5" />
-                <span>Configurações Financeiras</span>
-              </CardTitle>
+              <CardTitle>Configurações de Notificações</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="taxa_comissao_restaurante">Taxa de Comissão do Restaurante (%)</Label>
-                <Input
-                  id="taxa_comissao_restaurante"
-                  type="number"
-                  step="0.01"
-                  value={getConfigValue('taxa_comissao_restaurante')}
-                  onChange={(e) => {
-                    const newConfigs = configs.map(config =>
-                      config.chave === 'taxa_comissao_restaurante' ? { ...config, valor: e.target.value } : config
-                    );
-                    setConfigs(newConfigs);
-                  }}
-                  placeholder="0.15"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="taxa_entrega_base">Taxa Base de Entrega (R$)</Label>
-                <Input
-                  id="taxa_entrega_base"
-                  type="number"
-                  step="0.01"
-                  value={getConfigValue('taxa_entrega_base')}
-                  onChange={(e) => {
-                    const newConfigs = configs.map(config =>
-                      config.chave === 'taxa_entrega_base' ? { ...config, valor: e.target.value } : config
-                    );
-                    setConfigs(newConfigs);
-                  }}
-                  placeholder="5.00"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="taxa_entrega_por_km">Taxa por Quilômetro (R$)</Label>
-                <Input
-                  id="taxa_entrega_por_km"
-                  type="number"
-                  step="0.01"
-                  value={getConfigValue('taxa_entrega_por_km')}
-                  onChange={(e) => {
-                    const newConfigs = configs.map(config =>
-                      config.chave === 'taxa_entrega_por_km' ? { ...config, valor: e.target.value } : config
-                    );
-                    setConfigs(newConfigs);
-                  }}
-                  placeholder="1.50"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="entrega" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Truck className="h-5 w-5" />
-                <span>Configurações de Entrega</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="distancia_maxima_entrega">Distância Máxima de Entrega (km)</Label>
-                <Input
-                  id="distancia_maxima_entrega"
-                  type="number"
-                  value={getConfigValue('distancia_maxima_entrega')}
-                  onChange={(e) => {
-                    const newConfigs = configs.map(config =>
-                      config.chave === 'distancia_maxima_entrega' ? { ...config, valor: e.target.value } : config
-                    );
-                    setConfigs(newConfigs);
-                  }}
-                  placeholder="20"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="tempo_maximo_preparo">Tempo Máximo de Preparo (minutos)</Label>
-                <Input
-                  id="tempo_maximo_preparo"
-                  type="number"
-                  value={getConfigValue('tempo_maximo_preparo')}
-                  onChange={(e) => {
-                    const newConfigs = configs.map(config =>
-                      config.chave === 'tempo_maximo_preparo' ? { ...config, valor: e.target.value } : config
-                    );
-                    setConfigs(newConfigs);
-                  }}
-                  placeholder="60"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="notificacoes" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Mail className="h-5 w-5" />
-                <span>Configurações de Notificações</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email_from">E-mail Remetente</Label>
-                <Input
-                  id="email_from"
-                  type="email"
-                  value={getConfigValue('email_from')}
-                  onChange={(e) => {
-                    const newConfigs = configs.map(config =>
-                      config.chave === 'email_from' ? { ...config, valor: e.target.value } : config
-                    );
-                    setConfigs(newConfigs);
-                  }}
-                  placeholder="noreply@pedelogo.com"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="smtp_host">Servidor SMTP</Label>
-                <Input
-                  id="smtp_host"
-                  value={getConfigValue('smtp_host')}
-                  onChange={(e) => {
-                    const newConfigs = configs.map(config =>
-                      config.chave === 'smtp_host' ? { ...config, valor: e.target.value } : config
-                    );
-                    setConfigs(newConfigs);
-                  }}
-                  placeholder="smtp.gmail.com"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="smtp_port">Porta SMTP</Label>
-                <Input
-                  id="smtp_port"
-                  type="number"
-                  value={getConfigValue('smtp_port')}
-                  onChange={(e) => {
-                    const newConfigs = configs.map(config =>
-                      config.chave === 'smtp_port' ? { ...config, valor: e.target.value } : config
-                    );
-                    setConfigs(newConfigs);
-                  }}
-                  placeholder="587"
-                />
-              </div>
-
-              <Button onClick={testEmailConfig} disabled={testingEmail} variant="outline">
-                <TestTube className="h-4 w-4 mr-2" />
-                {testingEmail ? 'Testando...' : 'Testar Configurações de Email'}
-              </Button>
+              {getConfigsByCategory('notificacoes').map(renderConfigField)}
             </CardContent>
           </Card>
         </TabsContent>
@@ -479,3 +346,5 @@ export const AdminSettings = () => {
     </div>
   );
 };
+
+export default AdminSettings;

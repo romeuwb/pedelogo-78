@@ -17,12 +17,12 @@ import {
   Wallet,
   BarChart3
 } from 'lucide-react';
-import { DeliveryOrders } from './DeliveryOrders';
-import { DeliveryProfile } from './DeliveryProfile';
-import { DeliverySupport } from './DeliverySupport';
-import { DeliveryEarnings } from './DeliveryEarnings';
-import { DeliveryWallet } from './DeliveryWallet';
-import { DeliveryTracking } from './DeliveryTracking';
+import DeliveryOrders from './DeliveryOrders';
+import DeliveryProfile from './DeliveryProfile';
+import DeliverySupport from './DeliverySupport';
+import DeliveryEarnings from './DeliveryEarnings';
+import DeliveryWallet from './DeliveryWallet';
+import DeliveryTracking from './DeliveryTracking';
 import { toast } from 'sonner';
 
 const DeliveryPanelComplete = () => {
@@ -262,11 +262,11 @@ const DeliveryPanelComplete = () => {
           </TabsContent>
 
           <TabsContent value="tracking">
-            <DeliveryTracking deliveryDetails={deliveryDetails} />
+            <DeliveryTracking orderId="" userType="delivery" />
           </TabsContent>
 
           <TabsContent value="profile">
-            <DeliveryProfile />
+            <DeliveryProfile deliveryDetails={deliveryDetails} setDeliveryDetails={setDeliveryDetails} />
           </TabsContent>
 
           <TabsContent value="support">
