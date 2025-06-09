@@ -1,883 +1,477 @@
-import { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, DollarSign, Truck, Mail, Map, CreditCard } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { 
+  Settings, 
+  MapPin, 
+  DollarSign, 
+  Truck, 
+  Mail,
+  Globe,
+  Key,
+  Save,
+  TestTube
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+
+interface SystemConfig {
+  chave: string;
+  valor: string;
+  categoria: string;
+  descricao?: string;
+}
 
 export const AdminSettings = () => {
-  const [settings, setSettings] = useState<any>({});
+  const [configs, setConfigs] = useState<SystemConfig[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
-  const { data: systemSettings, isLoading } = useQuery({
-    queryKey: ['systemSettings'],
-    queryFn: async () => {
-      console.log('Buscando configurações do sistema...');
+  useEffect(() => {
+    loadConfigurations();
+  }, []);
+
+  const loadConfigurations = async () => {
+    try {
       const { data, error } = await supabase
         .from('system_configurations')
-        .select('*');
-      
-      if (error) {
-        console.error('Erro ao buscar configurações:', error);
-        throw error;
-      }
-      
-      console.log('Configurações encontradas:', data);
-      
-      // Converter array para objeto para facilitar o uso
-      const settingsObj: any = {};
-      data?.forEach(setting => {
-        try {
-          settingsObj[setting.chave] = typeof setting.valor === 'string' 
-            ? JSON.parse(setting.valor) 
-            : setting.valor;
-        } catch (e) {
-          // Se não conseguir fazer parse, usar valor como string
-          settingsObj[setting.chave] = setting.valor;
-        }
-      });
-      
-      setSettings(settingsObj);
-      return settingsObj;
-    }
-  });
+        .select('*')
+        .order('categoria', { ascending: true });
 
-  const updateSetting = useMutation({
-    mutationFn: async ({ key, value }: { key: string; value: any }) => {
-      console.log('Atualizando configuração:', key, value);
-      
-      // Validar se o valor não está vazio
-      if (value === '' || value === null || value === undefined) {
-        throw new Error('Valor não pode estar vazio');
-      }
-      
-      const valorString = typeof value === 'string' ? value : JSON.stringify(value);
-      
+      if (error) throw error;
+      setConfigs(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar configurações:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao carregar configurações do sistema',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateConfig = async (chave: string, valor: string) => {
+    try {
       const { error } = await supabase
         .from('system_configurations')
         .upsert({
-          chave: key,
-          valor: valorString,
-          categoria: 'geral',
+          chave,
+          valor,
+          categoria: getConfigCategory(chave),
+          descricao: getConfigDescription(chave),
           updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'chave'
         });
-      
-      if (error) {
-        console.error('Erro ao atualizar configuração:', error);
-        throw error;
-      }
-      
-      console.log('Configuração atualizada com sucesso');
-    },
-    onSuccess: (_, { key }) => {
-      queryClient.invalidateQueries({ queryKey: ['systemSettings'] });
+
+      if (error) throw error;
+
+      setConfigs(prev => prev.map(config => 
+        config.chave === chave ? { ...config, valor } : config
+      ));
+
       toast({
         title: 'Sucesso',
-        description: `Configuração ${key} atualizada com sucesso`
+        description: 'Configuração atualizada com sucesso'
       });
-    },
-    onError: (error: any) => {
-      console.error('Erro na mutação:', error);
+    } catch (error) {
+      console.error('Erro ao atualizar configuração:', error);
       toast({
         title: 'Erro',
-        description: error.message || 'Erro ao atualizar configuração',
+        description: 'Erro ao atualizar configuração',
         variant: 'destructive'
       });
     }
-  });
-
-  const handleUpdateSetting = (key: string, value: any) => {
-    setSettings((prev: any) => ({ ...prev, [key]: value }));
   };
 
-  const saveSetting = (key: string) => {
-    const value = settings[key];
-    if (!value && value !== 0) {
+  const getConfigValue = (chave: string) => {
+    return configs.find(config => config.chave === chave)?.valor || '';
+  };
+
+  const getConfigCategory = (chave: string) => {
+    if (chave.includes('map') || chave.includes('google') || chave.includes('mapbox')) return 'mapas';
+    if (chave.includes('stripe') || chave.includes('taxa') || chave.includes('comissao')) return 'financeiro';
+    if (chave.includes('email') || chave.includes('smtp') || chave.includes('notification')) return 'notificacoes';
+    if (chave.includes('entrega') || chave.includes('delivery') || chave.includes('distancia')) return 'entrega';
+    return 'geral';
+  };
+
+  const getConfigDescription = (chave: string) => {
+    const descriptions: Record<string, string> = {
+      'app_name': 'Nome do aplicativo',
+      'google_maps_api_key': 'Chave da API do Google Maps',
+      'mapbox_access_token': 'Token de acesso do Mapbox',
+      'default_map_provider': 'Provedor de mapas padrão (google/mapbox)',
+      'stripe_publishable_key': 'Chave pública do Stripe',
+      'stripe_secret_key': 'Chave secreta do Stripe',
+      'taxa_comissao_restaurante': 'Taxa de comissão do restaurante (decimal)',
+      'taxa_entrega_base': 'Taxa base de entrega em reais',
+      'taxa_entrega_por_km': 'Taxa por quilômetro em reais',
+      'distancia_maxima_entrega': 'Distância máxima de entrega em quilômetros',
+      'tempo_maximo_preparo': 'Tempo máximo de preparo em minutos',
+      'email_from': 'E-mail remetente padrão',
+      'smtp_host': 'Servidor SMTP',
+      'smtp_port': 'Porta do servidor SMTP'
+    };
+    return descriptions[chave] || '';
+  };
+
+  const saveAllConfigs = async () => {
+    setSaving(true);
+    try {
+      for (const config of configs) {
+        await updateConfig(config.chave, config.valor);
+      }
+      toast({
+        title: 'Sucesso',
+        description: 'Todas as configurações foram salvas'
+      });
+    } catch (error) {
       toast({
         title: 'Erro',
-        description: 'Valor não pode estar vazio',
+        description: 'Erro ao salvar configurações',
         variant: 'destructive'
       });
-      return;
+    } finally {
+      setSaving(false);
     }
-    updateSetting.mutate({ key, value });
   };
 
-  if (isLoading) {
+  const testEmailConfig = async () => {
+    setTestingEmail(true);
+    try {
+      // Implementar teste de email via edge function
+      toast({
+        title: 'Teste Iniciado',
+        description: 'Testando configurações de email...'
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Erro ao testar configurações de email',
+        variant: 'destructive'
+      });
+    } finally {
+      setTestingEmail(false);
+    }
+  };
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Carregando configurações...</p>
-        </div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
       </div>
     );
   }
 
+  const generalConfigs = configs.filter(c => c.categoria === 'geral');
+  const mapConfigs = configs.filter(c => c.categoria === 'mapas');
+  const financialConfigs = configs.filter(c => c.categoria === 'financeiro');
+  const deliveryConfigs = configs.filter(c => c.categoria === 'entrega');
+  const notificationConfigs = configs.filter(c => c.categoria === 'notificacoes');
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Configurações do Sistema</h1>
-        <p className="text-gray-600">Gerencie configurações gerais da plataforma</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Configurações do Sistema</h1>
+          <p className="text-gray-600">Gerencie as configurações globais da plataforma</p>
+        </div>
+        <Button onClick={saveAllConfigs} disabled={saving}>
+          <Save className="h-4 w-4 mr-2" />
+          {saving ? 'Salvando...' : 'Salvar Tudo'}
+        </Button>
       </div>
 
-      <Tabs defaultValue="general">
-        <TabsList>
-          <TabsTrigger value="general" className="flex items-center space-x-2">
-            <Settings className="h-4 w-4" />
-            <span>Geral</span>
-          </TabsTrigger>
-          <TabsTrigger value="maps" className="flex items-center space-x-2">
-            <Map className="h-4 w-4" />
-            <span>Mapas</span>
-          </TabsTrigger>
-          <TabsTrigger value="financial" className="flex items-center space-x-2">
-            <DollarSign className="h-4 w-4" />
-            <span>Financeiro</span>
-          </TabsTrigger>
-          <TabsTrigger value="payments" className="flex items-center space-x-2">
-            <CreditCard className="h-4 w-4" />
-            <span>Pagamentos</span>
-          </TabsTrigger>
-          <TabsTrigger value="delivery" className="flex items-center space-x-2">
-            <Truck className="h-4 w-4" />
-            <span>Entrega</span>
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center space-x-2">
-            <Mail className="h-4 w-4" />
-            <span>Notificações</span>
-          </TabsTrigger>
+      <Tabs defaultValue="geral" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="geral">Geral</TabsTrigger>
+          <TabsTrigger value="mapas">Mapas</TabsTrigger>
+          <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
+          <TabsTrigger value="entrega">Entrega</TabsTrigger>
+          <TabsTrigger value="notificacoes">Notificações</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="general" className="mt-6">
+        <TabsContent value="geral" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Configurações Gerais</CardTitle>
+              <CardTitle className="flex items-center space-x-2">
+                <Globe className="h-5 w-5" />
+                <span>Configurações Gerais</span>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label htmlFor="app_name">Nome do Aplicativo</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="app_name"
-                      placeholder="PedeLogo"
-                      value={settings.app_name || ''}
-                      onChange={(e) => handleUpdateSetting('app_name', e.target.value)}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('app_name')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="app_logo">URL do Logo</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="app_logo"
-                      placeholder="https://exemplo.com/logo.png"
-                      value={settings.app_logo || ''}
-                      onChange={(e) => handleUpdateSetting('app_logo', e.target.value)}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('app_logo')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="moeda">Moeda</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="moeda"
-                      placeholder="BRL"
-                      value={settings.moeda || ''}
-                      onChange={(e) => handleUpdateSetting('moeda', e.target.value)}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('moeda')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="app_name">Nome do Aplicativo</Label>
+                <Input
+                  id="app_name"
+                  value={getConfigValue('app_name')}
+                  onChange={(e) => {
+                    const newConfigs = configs.map(config =>
+                      config.chave === 'app_name' ? { ...config, valor: e.target.value } : config
+                    );
+                    setConfigs(newConfigs);
+                  }}
+                  placeholder="PedeLogo"
+                />
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="maps" className="mt-6">
+        <TabsContent value="mapas" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Configurações de Mapas</CardTitle>
-              <p className="text-sm text-gray-600">Configure APIs de mapas para funcionalidades de localização e roteamento</p>
+              <CardTitle className="flex items-center space-x-2">
+                <MapPin className="h-5 w-5" />
+                <span>Configurações de Mapas</span>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 gap-6">
-                <div>
-                  <Label htmlFor="google_maps_api_key">Google Maps API Key</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="google_maps_api_key"
-                      type="password"
-                      placeholder="Sua chave da API do Google Maps"
-                      value={settings.google_maps_api_key || ''}
-                      onChange={(e) => handleUpdateSetting('google_maps_api_key', e.target.value)}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('google_maps_api_key')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="google_maps_api_key">Chave da API do Google Maps</Label>
+                <Input
+                  id="google_maps_api_key"
+                  type="password"
+                  value={getConfigValue('google_maps_api_key')}
+                  onChange={(e) => {
+                    const newConfigs = configs.map(config =>
+                      config.chave === 'google_maps_api_key' ? { ...config, valor: e.target.value } : config
+                    );
+                    setConfigs(newConfigs);
+                  }}
+                  placeholder="Sua chave da API do Google Maps"
+                />
+              </div>
 
-                <div>
-                  <Label htmlFor="mapbox_access_token">Mapbox Access Token</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="mapbox_access_token"
-                      type="password"
-                      placeholder="Seu token de acesso do Mapbox"
-                      value={settings.mapbox_access_token || ''}
-                      onChange={(e) => handleUpdateSetting('mapbox_access_token', e.target.value)}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('mapbox_access_token')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="mapbox_access_token">Token de Acesso do Mapbox</Label>
+                <Input
+                  id="mapbox_access_token"
+                  type="password"
+                  value={getConfigValue('mapbox_access_token')}
+                  onChange={(e) => {
+                    const newConfigs = configs.map(config =>
+                      config.chave === 'mapbox_access_token' ? { ...config, valor: e.target.value } : config
+                    );
+                    setConfigs(newConfigs);
+                  }}
+                  placeholder="Seu token de acesso do Mapbox"
+                />
+              </div>
 
-                <div>
-                  <Label htmlFor="default_map_provider">Provedor de Mapas Padrão</Label>
-                  <div className="flex space-x-2">
-                    <select
-                      id="default_map_provider"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      value={settings.default_map_provider || 'google'}
-                      onChange={(e) => handleUpdateSetting('default_map_provider', e.target.value)}
-                    >
-                      <option value="google">Google Maps</option>
-                      <option value="mapbox">Mapbox</option>
-                    </select>
-                    <Button 
-                      onClick={() => saveSetting('default_map_provider')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="border-t pt-4">
-                  <h3 className="text-md font-semibold mb-3">Configurações para Usuários</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="enable_restaurant_maps">Habilitar Mapas para Restaurantes</Label>
-                      <div className="flex space-x-2">
-                        <select
-                          id="enable_restaurant_maps"
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                          value={settings.enable_restaurant_maps ? 'true' : 'false'}
-                          onChange={(e) => handleUpdateSetting('enable_restaurant_maps', e.target.value === 'true')}
-                        >
-                          <option value="false">Desabilitado</option>
-                          <option value="true">Habilitado</option>
-                        </select>
-                        <Button 
-                          onClick={() => saveSetting('enable_restaurant_maps')}
-                          disabled={updateSetting.isPending}
-                        >
-                          Salvar
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Permite que restaurantes configurem suas zonas de entrega
-                      </p>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="enable_delivery_maps">Habilitar Mapas para Entregadores</Label>
-                      <div className="flex space-x-2">
-                        <select
-                          id="enable_delivery_maps"
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                          value={settings.enable_delivery_maps ? 'true' : 'false'}
-                          onChange={(e) => handleUpdateSetting('enable_delivery_maps', e.target.value === 'true')}
-                        >
-                          <option value="false">Desabilitado</option>
-                          <option value="true">Habilitado</option>
-                        </select>
-                        <Button 
-                          onClick={() => saveSetting('enable_delivery_maps')}
-                          disabled={updateSetting.isPending}
-                        >
-                          Salvar
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Permite que entregadores vejam suas rotas e configurem zonas de atuação
-                      </p>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="default_delivery_radius">Raio Padrão de Entrega (km)</Label>
-                      <div className="flex space-x-2">
-                        <Input
-                          id="default_delivery_radius"
-                          type="number"
-                          min="1"
-                          max="50"
-                          placeholder="10"
-                          value={settings.default_delivery_radius || ''}
-                          onChange={(e) => handleUpdateSetting('default_delivery_radius', parseInt(e.target.value))}
-                        />
-                        <Button 
-                          onClick={() => saveSetting('default_delivery_radius')}
-                          disabled={updateSetting.isPending}
-                        >
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="auto_assign_delivery">Atribuição Automática de Entregadores</Label>
-                      <div className="flex space-x-2">
-                        <select
-                          id="auto_assign_delivery"
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                          value={settings.auto_assign_delivery ? 'true' : 'false'}
-                          onChange={(e) => handleUpdateSetting('auto_assign_delivery', e.target.value === 'true')}
-                        >
-                          <option value="false">Desabilitado</option>
-                          <option value="true">Habilitado</option>
-                        </select>
-                        <Button 
-                          onClick={() => saveSetting('auto_assign_delivery')}
-                          disabled={updateSetting.isPending}
-                        >
-                          Salvar
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Atribui automaticamente entregadores baseado na proximidade
-                      </p>
-                    </div>
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="default_map_provider">Provedor de Mapas Padrão</Label>
+                <Select
+                  value={getConfigValue('default_map_provider')}
+                  onValueChange={(value) => {
+                    const newConfigs = configs.map(config =>
+                      config.chave === 'default_map_provider' ? { ...config, valor: value } : config
+                    );
+                    setConfigs(newConfigs);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o provedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="google">Google Maps</SelectItem>
+                    <SelectItem value="mapbox">Mapbox</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="financial" className="mt-6">
+        <TabsContent value="financeiro" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Configurações Financeiras</CardTitle>
+              <CardTitle className="flex items-center space-x-2">
+                <DollarSign className="h-5 w-5" />
+                <span>Configurações Financeiras</span>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label htmlFor="stripe_publishable_key">Stripe Publishable Key</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="stripe_publishable_key"
-                      placeholder="pk_test_..."
-                      value={settings.stripe_publishable_key || ''}
-                      onChange={(e) => handleUpdateSetting('stripe_publishable_key', e.target.value)}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('stripe_publishable_key')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="taxa_comissao_restaurante">Taxa de Comissão do Restaurante (%)</Label>
+                <Input
+                  id="taxa_comissao_restaurante"
+                  type="number"
+                  step="0.01"
+                  value={getConfigValue('taxa_comissao_restaurante')}
+                  onChange={(e) => {
+                    const newConfigs = configs.map(config =>
+                      config.chave === 'taxa_comissao_restaurante' ? { ...config, valor: e.target.value } : config
+                    );
+                    setConfigs(newConfigs);
+                  }}
+                  placeholder="0.15"
+                />
+              </div>
 
-                <div>
-                  <Label htmlFor="stripe_secret_key">Stripe Secret Key</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="stripe_secret_key"
-                      type="password"
-                      placeholder="sk_test_..."
-                      value={settings.stripe_secret_key || ''}
-                      onChange={(e) => handleUpdateSetting('stripe_secret_key', e.target.value)}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('stripe_secret_key')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="taxa_entrega_base">Taxa Base de Entrega (R$)</Label>
+                <Input
+                  id="taxa_entrega_base"
+                  type="number"
+                  step="0.01"
+                  value={getConfigValue('taxa_entrega_base')}
+                  onChange={(e) => {
+                    const newConfigs = configs.map(config =>
+                      config.chave === 'taxa_entrega_base' ? { ...config, valor: e.target.value } : config
+                    );
+                    setConfigs(newConfigs);
+                  }}
+                  placeholder="5.00"
+                />
+              </div>
 
-                <div>
-                  <Label htmlFor="taxa_comissao_restaurante">Taxa de Comissão Restaurante (%)</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="taxa_comissao_restaurante"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      placeholder="15.00"
-                      value={settings.taxa_comissao_restaurante ? (parseFloat(settings.taxa_comissao_restaurante) * 100).toFixed(2) : ''}
-                      onChange={(e) => handleUpdateSetting('taxa_comissao_restaurante', parseFloat(e.target.value) / 100)}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('taxa_comissao_restaurante')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="taxa_entrega_base">Taxa Base de Entrega (R$)</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="taxa_entrega_base"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="5.00"
-                      value={settings.taxa_entrega_base || ''}
-                      onChange={(e) => handleUpdateSetting('taxa_entrega_base', parseFloat(e.target.value))}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('taxa_entrega_base')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="taxa_entrega_por_km">Taxa por KM (R$)</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="taxa_entrega_por_km"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="1.50"
-                      value={settings.taxa_entrega_por_km || ''}
-                      onChange={(e) => handleUpdateSetting('taxa_entrega_por_km', parseFloat(e.target.value))}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('taxa_entrega_por_km')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="taxa_entrega_por_km">Taxa por Quilômetro (R$)</Label>
+                <Input
+                  id="taxa_entrega_por_km"
+                  type="number"
+                  step="0.01"
+                  value={getConfigValue('taxa_entrega_por_km')}
+                  onChange={(e) => {
+                    const newConfigs = configs.map(config =>
+                      config.chave === 'taxa_entrega_por_km' ? { ...config, valor: e.target.value } : config
+                    );
+                    setConfigs(newConfigs);
+                  }}
+                  placeholder="1.50"
+                />
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="payments" className="mt-6">
+        <TabsContent value="entrega" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Configurações de Pagamento</CardTitle>
-              <p className="text-sm text-gray-600">Configure os provedores de pagamento</p>
+              <CardTitle className="flex items-center space-x-2">
+                <Truck className="h-5 w-5" />
+                <span>Configurações de Entrega</span>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 gap-6">
-                <div className="border rounded-lg p-4">
-                  <h3 className="text-lg font-semibold mb-4">Mercado Pago</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="mercadopago_public_key">Public Key</Label>
-                      <div className="flex space-x-2">
-                        <Input
-                          id="mercadopago_public_key"
-                          placeholder="APP_USR-..."
-                          value={settings.mercadopago_public_key || ''}
-                          onChange={(e) => handleUpdateSetting('mercadopago_public_key', e.target.value)}
-                        />
-                        <Button 
-                          onClick={() => saveSetting('mercadopago_public_key')}
-                          disabled={updateSetting.isPending}
-                        >
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="distancia_maxima_entrega">Distância Máxima de Entrega (km)</Label>
+                <Input
+                  id="distancia_maxima_entrega"
+                  type="number"
+                  value={getConfigValue('distancia_maxima_entrega')}
+                  onChange={(e) => {
+                    const newConfigs = configs.map(config =>
+                      config.chave === 'distancia_maxima_entrega' ? { ...config, valor: e.target.value } : config
+                    );
+                    setConfigs(newConfigs);
+                  }}
+                  placeholder="20"
+                />
+              </div>
 
-                    <div>
-                      <Label htmlFor="mercadopago_access_token">Access Token</Label>
-                      <div className="flex space-x-2">
-                        <Input
-                          id="mercadopago_access_token"
-                          type="password"
-                          placeholder="APP_USR-..."
-                          value={settings.mercadopago_access_token || ''}
-                          onChange={(e) => handleUpdateSetting('mercadopago_access_token', e.target.value)}
-                        />
-                        <Button 
-                          onClick={() => saveSetting('mercadopago_access_token')}
-                          disabled={updateSetting.isPending}
-                        >
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="mercadopago_webhook_secret">Webhook Secret</Label>
-                      <div className="flex space-x-2">
-                        <Input
-                          id="mercadopago_webhook_secret"
-                          type="password"
-                          placeholder="Webhook secret key"
-                          value={settings.mercadopago_webhook_secret || ''}
-                          onChange={(e) => handleUpdateSetting('mercadopago_webhook_secret', e.target.value)}
-                        />
-                        <Button 
-                          onClick={() => saveSetting('mercadopago_webhook_secret')}
-                          disabled={updateSetting.isPending}
-                        >
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="mercadopago_environment">Ambiente</Label>
-                      <div className="flex space-x-2">
-                        <select
-                          id="mercadopago_environment"
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                          value={settings.mercadopago_environment || 'sandbox'}
-                          onChange={(e) => handleUpdateSetting('mercadopago_environment', e.target.value)}
-                        >
-                          <option value="sandbox">Sandbox (Teste)</option>
-                          <option value="production">Produção</option>
-                        </select>
-                        <Button 
-                          onClick={() => saveSetting('mercadopago_environment')}
-                          disabled={updateSetting.isPending}
-                        >
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border rounded-lg p-4">
-                  <h3 className="text-lg font-semibold mb-4">Stripe</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="stripe_publishable_key">Stripe Publishable Key</Label>
-                      <div className="flex space-x-2">
-                        <Input
-                          id="stripe_publishable_key"
-                          placeholder="pk_test_..."
-                          value={settings.stripe_publishable_key || ''}
-                          onChange={(e) => handleUpdateSetting('stripe_publishable_key', e.target.value)}
-                        />
-                        <Button 
-                          onClick={() => saveSetting('stripe_publishable_key')}
-                          disabled={updateSetting.isPending}
-                        >
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="stripe_secret_key">Stripe Secret Key</Label>
-                      <div className="flex space-x-2">
-                        <Input
-                          id="stripe_secret_key"
-                          type="password"
-                          placeholder="sk_test_..."
-                          value={settings.stripe_secret_key || ''}
-                          onChange={(e) => handleUpdateSetting('stripe_secret_key', e.target.value)}
-                        />
-                        <Button 
-                          onClick={() => saveSetting('stripe_secret_key')}
-                          disabled={updateSetting.isPending}
-                        >
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border rounded-lg p-4">
-                  <h3 className="text-lg font-semibold mb-4">PIX</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="pix_enabled">Habilitar PIX</Label>
-                      <div className="flex space-x-2">
-                        <select
-                          id="pix_enabled"
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                          value={settings.pix_enabled ? 'true' : 'false'}
-                          onChange={(e) => handleUpdateSetting('pix_enabled', e.target.value === 'true')}
-                        >
-                          <option value="false">Desabilitado</option>
-                          <option value="true">Habilitado</option>
-                        </select>
-                        <Button 
-                          onClick={() => saveSetting('pix_enabled')}
-                          disabled={updateSetting.isPending}
-                        >
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="pix_recipient_key">Chave PIX Recebedor</Label>
-                      <div className="flex space-x-2">
-                        <Input
-                          id="pix_recipient_key"
-                          placeholder="Chave PIX da empresa"
-                          value={settings.pix_recipient_key || ''}
-                          onChange={(e) => handleUpdateSetting('pix_recipient_key', e.target.value)}
-                        />
-                        <Button 
-                          onClick={() => saveSetting('pix_recipient_key')}
-                          disabled={updateSetting.isPending}
-                        >
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="tempo_maximo_preparo">Tempo Máximo de Preparo (minutos)</Label>
+                <Input
+                  id="tempo_maximo_preparo"
+                  type="number"
+                  value={getConfigValue('tempo_maximo_preparo')}
+                  onChange={(e) => {
+                    const newConfigs = configs.map(config =>
+                      config.chave === 'tempo_maximo_preparo' ? { ...config, valor: e.target.value } : config
+                    );
+                    setConfigs(newConfigs);
+                  }}
+                  placeholder="60"
+                />
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="delivery" className="mt-6">
+        <TabsContent value="notificacoes" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Configurações de Entrega</CardTitle>
+              <CardTitle className="flex items-center space-x-2">
+                <Mail className="h-5 w-5" />
+                <span>Configurações de Notificações</span>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label htmlFor="distancia_maxima_entrega">Distância Máxima de Entrega (km)</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="distancia_maxima_entrega"
-                      type="number"
-                      min="1"
-                      placeholder="20"
-                      value={settings.distancia_maxima_entrega || ''}
-                      onChange={(e) => handleUpdateSetting('distancia_maxima_entrega', parseInt(e.target.value))}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('distancia_maxima_entrega')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="tempo_maximo_preparo">Tempo Máximo de Preparo (min)</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="tempo_maximo_preparo"
-                      type="number"
-                      min="5"
-                      placeholder="60"
-                      value={settings.tempo_maximo_preparo || ''}
-                      onChange={(e) => handleUpdateSetting('tempo_maximo_preparo', parseInt(e.target.value))}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('tempo_maximo_preparo')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="horario_pico_inicio">Horário de Pico - Início</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="horario_pico_inicio"
-                      type="time"
-                      value={settings.horario_pico_inicio || ''}
-                      onChange={(e) => handleUpdateSetting('horario_pico_inicio', e.target.value)}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('horario_pico_inicio')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="horario_pico_fim">Horário de Pico - Fim</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="horario_pico_fim"
-                      type="time"
-                      value={settings.horario_pico_fim || ''}
-                      onChange={(e) => handleUpdateSetting('horario_pico_fim', e.target.value)}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('horario_pico_fim')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="taxa_pico_multiplier">Multiplicador Taxa Horário de Pico</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="taxa_pico_multiplier"
-                      type="number"
-                      step="0.1"
-                      min="1"
-                      placeholder="1.5"
-                      value={settings.taxa_pico_multiplier || ''}
-                      onChange={(e) => handleUpdateSetting('taxa_pico_multiplier', parseFloat(e.target.value))}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('taxa_pico_multiplier')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="aprovacao_automatica_entregadores">Aprovação Automática de Entregadores</Label>
-                  <div className="flex space-x-2">
-                    <select
-                      id="aprovacao_automatica_entregadores"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      value={settings.aprovacao_automatica_entregadores ? 'true' : 'false'}
-                      onChange={(e) => handleUpdateSetting('aprovacao_automatica_entregadores', e.target.value === 'true')}
-                    >
-                      <option value="false">Desabilitado</option>
-                      <option value="true">Habilitado</option>
-                    </select>
-                    <Button 
-                      onClick={() => saveSetting('aprovacao_automatica_entregadores')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Aprova automaticamente entregadores que completarem o cadastro
-                  </p>
-                </div>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email_from">E-mail Remetente</Label>
+                <Input
+                  id="email_from"
+                  type="email"
+                  value={getConfigValue('email_from')}
+                  onChange={(e) => {
+                    const newConfigs = configs.map(config =>
+                      config.chave === 'email_from' ? { ...config, valor: e.target.value } : config
+                    );
+                    setConfigs(newConfigs);
+                  }}
+                  placeholder="noreply@pedelogo.com"
+                />
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        <TabsContent value="notifications" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Configurações de Notificações</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 gap-6">
-                <div>
-                  <Label htmlFor="email_from">E-mail Remetente</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="email_from"
-                      type="email"
-                      placeholder="noreply@pedelogo.com"
-                      value={settings.email_from || ''}
-                      onChange={(e) => handleUpdateSetting('email_from', e.target.value)}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('email_from')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="smtp_host">SMTP Host</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="smtp_host"
-                      placeholder="smtp.exemplo.com"
-                      value={settings.smtp_host || ''}
-                      onChange={(e) => handleUpdateSetting('smtp_host', e.target.value)}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('smtp_host')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="smtp_port">SMTP Port</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="smtp_port"
-                      type="number"
-                      placeholder="587"
-                      value={settings.smtp_port || ''}
-                      onChange={(e) => handleUpdateSetting('smtp_port', parseInt(e.target.value))}
-                    />
-                    <Button 
-                      onClick={() => saveSetting('smtp_port')}
-                      disabled={updateSetting.isPending}
-                    >
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="smtp_host">Servidor SMTP</Label>
+                <Input
+                  id="smtp_host"
+                  value={getConfigValue('smtp_host')}
+                  onChange={(e) => {
+                    const newConfigs = configs.map(config =>
+                      config.chave === 'smtp_host' ? { ...config, valor: e.target.value } : config
+                    );
+                    setConfigs(newConfigs);
+                  }}
+                  placeholder="smtp.gmail.com"
+                />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="smtp_port">Porta SMTP</Label>
+                <Input
+                  id="smtp_port"
+                  type="number"
+                  value={getConfigValue('smtp_port')}
+                  onChange={(e) => {
+                    const newConfigs = configs.map(config =>
+                      config.chave === 'smtp_port' ? { ...config, valor: e.target.value } : config
+                    );
+                    setConfigs(newConfigs);
+                  }}
+                  placeholder="587"
+                />
+              </div>
+
+              <Button onClick={testEmailConfig} disabled={testingEmail} variant="outline">
+                <TestTube className="h-4 w-4 mr-2" />
+                {testingEmail ? 'Testando...' : 'Testar Configurações de Email'}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
