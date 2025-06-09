@@ -31,7 +31,6 @@ const DeliveryPanelComplete = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(true);
-  const [currentOrder, setCurrentOrder] = useState(null);
 
   useEffect(() => {
     if (user && profile?.tipo === 'entregador') {
@@ -254,11 +253,7 @@ const DeliveryPanelComplete = () => {
           </TabsContent>
 
           <TabsContent value="earnings">
-            <DeliveryEarnings 
-              deliveryDetails={deliveryDetails} 
-              currentOrder={currentOrder}
-              setCurrentOrder={setCurrentOrder}
-            />
+            <DeliveryEarnings deliveryDetails={deliveryDetails} />
           </TabsContent>
 
           <TabsContent value="wallet">
@@ -266,7 +261,7 @@ const DeliveryPanelComplete = () => {
           </TabsContent>
 
           <TabsContent value="tracking">
-            <DeliveryTracking orderId={currentOrder?.id || ""} userType="delivery" />
+            <DeliveryTracking orderId="" userType="delivery" />
           </TabsContent>
 
           <TabsContent value="profile">
