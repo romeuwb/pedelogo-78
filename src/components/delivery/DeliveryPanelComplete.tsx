@@ -258,11 +258,7 @@ const DeliveryPanelComplete = () => {
           </TabsContent>
 
           <TabsContent value="earnings">
-            <DeliveryEarnings 
-              deliveryDetails={deliveryDetails}
-              currentOrder={currentOrder}
-              setCurrentOrder={setCurrentOrder}
-            />
+            <DeliveryEarnings deliveryDetails={deliveryDetails} />
           </TabsContent>
 
           <TabsContent value="wallet">
