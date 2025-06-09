@@ -1,15 +1,39 @@
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapPin, Search, Star, Clock } from 'lucide-react';
 import LoginModal from '@/components/auth/LoginModal';
 import RestaurantList from '@/components/RestaurantList';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [location, setLocation] = useState('São Paulo, SP');
+  const navigate = useNavigate();
+
+  const handleSearch = () => {
+    if (searchTerm.trim()) {
+      navigate(`/restaurantes?search=${encodeURIComponent(searchTerm)}&location=${encodeURIComponent(location)}`);
+    } else {
+      navigate('/restaurantes');
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
+  const handleCategoryClick = (category: string) => {
+    navigate(`/restaurantes?categoria=${encodeURIComponent(category)}`);
+  };
 
   return (
     <div className="min-h-screen">
@@ -34,6 +58,9 @@ const Index = () => {
                 <Input
                   placeholder="Buscar restaurantes ou pratos..."
                   className="pl-10 h-12 text-gray-900"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyPress={handleKeyPress}
                 />
               </div>
               <div className="flex-1 relative">
@@ -41,9 +68,14 @@ const Index = () => {
                 <Input
                   placeholder="São Paulo, SP"
                   className="pl-10 h-12 text-gray-900"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
                 />
               </div>
-              <Button className="h-12 px-8 bg-orange-500 hover:bg-orange-600">
+              <Button 
+                className="h-12 px-8 bg-orange-500 hover:bg-orange-600"
+                onClick={handleSearch}
+              >
                 Buscar
               </Button>
             </div>
@@ -57,7 +89,11 @@ const Index = () => {
           <h2 className="text-3xl font-bold text-center mb-12">Categorias Populares</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
             {['Pizza', 'Hambúrguer', 'Japonês', 'Italiana', 'Mexicana', 'Brasileira'].map((category) => (
-              <Card key={category} className="text-center hover:shadow-lg transition-shadow cursor-pointer">
+              <Card 
+                key={category} 
+                className="text-center hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => handleCategoryClick(category)}
+              >
                 <CardContent className="p-6">
                   <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <span className="text-2xl">🍕</span>

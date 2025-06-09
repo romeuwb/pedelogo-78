@@ -1,6 +1,7 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,13 +9,24 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Search, Star, Clock, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { RestaurantMenu } from '@/components/client/RestaurantMenu';
 
 const RestaurantsPage = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('categoria') || '');
+  const [selectedRestaurant, setSelectedRestaurant] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
+
+  // Update search term when URL params change
+  useEffect(() => {
+    setSearchTerm(searchParams.get('search') || '');
+    setSelectedCategory(searchParams.get('categoria') || '');
+  }, [searchParams]);
 
   const { data: restaurants, isLoading } = useQuery({
-    queryKey: ['restaurants', searchTerm, selectedCategory],
+    queryKey: ['restaurants-page', searchTerm, selectedCategory],
     queryFn: async () => {
       let query = supabase
         .from('restaurant_details')
@@ -34,8 +46,33 @@ const RestaurantsPage = () => {
         `)
         .eq('status_aprovacao', 'aprovado');
 
+      // Search functionality
       if (searchTerm) {
-        query = query.or(`nome_fantasia.ilike.%${searchTerm}%,categoria.ilike.%${searchTerm}%`);
+        // Search in restaurants
+        const restaurantResults = await supabase
+          .from('restaurant_details')
+          .select('id')
+          .eq('status_aprovacao', 'aprovado')
+          .or(`nome_fantasia.ilike.%${searchTerm}%,categoria.ilike.%${searchTerm}%,descricao.ilike.%${searchTerm}%`);
+
+        // Search in products
+        const productResults = await supabase
+          .from('restaurant_products')
+          .select('restaurant_id')
+          .eq('disponivel', true)
+          .or(`nome.ilike.%${searchTerm}%,descricao.ilike.%${searchTerm}%`);
+
+        // Combine restaurant IDs from both searches
+        const restaurantIds = new Set();
+        restaurantResults.data?.forEach(r => restaurantIds.add(r.id));
+        productResults.data?.forEach(p => restaurantIds.add(p.restaurant_id));
+
+        if (restaurantIds.size > 0) {
+          query = query.in('id', Array.from(restaurantIds));
+        } else {
+          // If no results found, return empty array
+          return [];
+        }
       }
 
       if (selectedCategory) {
@@ -64,6 +101,23 @@ const RestaurantsPage = () => {
       return uniqueCategories.filter(Boolean);
     }
   });
+
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (searchTerm) params.set('search', searchTerm);
+    if (selectedCategory) params.set('categoria', selectedCategory);
+    navigate(`/restaurantes?${params.toString()}`);
+  };
+
+  const handleRestaurantClick = (restaurant) => {
+    setSelectedRestaurant(restaurant);
+    setShowMenu(true);
+  };
+
+  const closeMenu = () => {
+    setShowMenu(false);
+    setSelectedRestaurant(null);
+  };
 
   if (isLoading) {
     return (
@@ -106,14 +160,20 @@ const RestaurantsPage = () => {
 
         {/* Filters */}
         <div className="mb-8 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Buscar restaurantes ou categorias..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 max-w-md"
-            />
+          <div className="flex gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Buscar restaurantes, pratos ou categorias..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                className="pl-10"
+              />
+            </div>
+            <Button onClick={handleSearch} className="bg-orange-500 hover:bg-orange-600">
+              Buscar
+            </Button>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -140,7 +200,11 @@ const RestaurantsPage = () => {
         {/* Restaurant Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {restaurants?.map((restaurant) => (
-            <Card key={restaurant.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card 
+              key={restaurant.id} 
+              className="hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => handleRestaurantClick(restaurant)}
+            >
               <div className="aspect-video bg-gray-200 rounded-t-lg overflow-hidden">
                 {restaurant.logo_url ? (
                   <img
@@ -196,6 +260,10 @@ const RestaurantsPage = () => {
                     )}
                   </div>
                 </div>
+
+                <Button className="w-full mt-4 bg-orange-500 hover:bg-orange-600">
+                  Ver Cardápio
+                </Button>
               </CardContent>
             </Card>
           ))}
@@ -206,11 +274,20 @@ const RestaurantsPage = () => {
             <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Nenhum restaurante encontrado</h3>
             <p className="text-gray-600">
-              Tente ajustar os filtros ou buscar por outros termos.
+              {searchTerm ? `Nenhum resultado para "${searchTerm}"` : 'Tente ajustar os filtros ou buscar por outros termos.'}
             </p>
           </div>
         )}
       </div>
+
+      {/* Restaurant Menu Modal */}
+      {showMenu && selectedRestaurant && (
+        <RestaurantMenu
+          restaurantId={selectedRestaurant.id}
+          restaurantName={selectedRestaurant.nome_fantasia}
+          onClose={closeMenu}
+        />
+      )}
     </div>
   );
 };
