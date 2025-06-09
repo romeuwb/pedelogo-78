@@ -1,5 +1,4 @@
-
-import React, { useState, Dispatch, SetStateAction } from 'react';
+import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { User, Phone, Mail, MapPin, Edit, Save, X, LogOut } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { User, Phone, Mail, MapPin, Edit, Save, X, LogOut, CreditCard } from 'lucide-react';
 
 interface DeliveryProfileProps {
   deliveryDetails: any;
@@ -19,6 +19,8 @@ const DeliveryProfile = ({ deliveryDetails, setDeliveryDetails }: DeliveryProfil
   const { user, profile, signOut } = useAuth();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [isBankEditing, setIsBankEditing] = useState(false);
+  const [bankDetails, setBankDetails] = useState(null);
   const [formData, setFormData] = useState({
     nome: profile?.nome || '',
     telefone: profile?.telefone || '',
@@ -31,7 +33,55 @@ const DeliveryProfile = ({ deliveryDetails, setDeliveryDetails }: DeliveryProfil
     cpf: deliveryDetails?.cpf || '',
     observacoes: deliveryDetails?.observacoes || ''
   });
+  const [bankFormData, setBankFormData] = useState({
+    banco: '',
+    agencia: '',
+    conta: '',
+    tipo_conta: '',
+    titular_conta: '',
+    cpf_titular: '',
+    chave_pix: '',
+    tipo_chave_pix: ''
+  });
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (deliveryDetails?.id) {
+      loadBankDetails();
+    }
+  }, [deliveryDetails]);
+
+  const loadBankDetails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('delivery_bank_details')
+        .select('*')
+        .eq('delivery_detail_id', deliveryDetails.id)
+        .eq('ativo', true)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Erro ao carregar dados bancários:', error);
+        return;
+      }
+
+      if (data) {
+        setBankDetails(data);
+        setBankFormData({
+          banco: data.banco || '',
+          agencia: data.agencia || '',
+          conta: data.conta || '',
+          tipo_conta: data.tipo_conta || '',
+          titular_conta: data.titular_conta || '',
+          cpf_titular: data.cpf_titular || '',
+          chave_pix: data.chave_pix || '',
+          tipo_chave_pix: data.tipo_chave_pix || ''
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados bancários:', error);
+    }
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -88,6 +138,54 @@ const DeliveryProfile = ({ deliveryDetails, setDeliveryDetails }: DeliveryProfil
     }
   };
 
+  const handleBankSave = async () => {
+    setIsSaving(true);
+    try {
+      if (bankDetails) {
+        // Atualizar dados bancários existentes
+        const { error } = await supabase
+          .from('delivery_bank_details')
+          .update({
+            ...bankFormData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', bankDetails.id);
+
+        if (error) throw error;
+      } else {
+        // Criar novos dados bancários
+        const { data, error } = await supabase
+          .from('delivery_bank_details')
+          .insert({
+            delivery_detail_id: deliveryDetails.id,
+            ...bankFormData
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        setBankDetails(data);
+      }
+
+      setIsBankEditing(false);
+
+      toast({
+        title: "Dados bancários salvos!",
+        description: "Suas informações bancárias foram atualizadas com sucesso.",
+      });
+
+    } catch (error: any) {
+      console.error('Erro ao salvar dados bancários:', error);
+      toast({
+        title: "Erro ao salvar",
+        description: error.message || "Ocorreu um erro ao salvar os dados bancários.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleCancel = () => {
     setFormData({
       nome: profile?.nome || '',
@@ -102,6 +200,33 @@ const DeliveryProfile = ({ deliveryDetails, setDeliveryDetails }: DeliveryProfil
       observacoes: deliveryDetails?.observacoes || ''
     });
     setIsEditing(false);
+  };
+
+  const handleBankCancel = () => {
+    if (bankDetails) {
+      setBankFormData({
+        banco: bankDetails.banco || '',
+        agencia: bankDetails.agencia || '',
+        conta: bankDetails.conta || '',
+        tipo_conta: bankDetails.tipo_conta || '',
+        titular_conta: bankDetails.titular_conta || '',
+        cpf_titular: bankDetails.cpf_titular || '',
+        chave_pix: bankDetails.chave_pix || '',
+        tipo_chave_pix: bankDetails.tipo_chave_pix || ''
+      });
+    } else {
+      setBankFormData({
+        banco: '',
+        agencia: '',
+        conta: '',
+        tipo_conta: '',
+        titular_conta: '',
+        cpf_titular: '',
+        chave_pix: '',
+        tipo_chave_pix: ''
+      });
+    }
+    setIsBankEditing(false);
   };
 
   const handleLogout = async () => {
@@ -119,43 +244,41 @@ const DeliveryProfile = ({ deliveryDetails, setDeliveryDetails }: DeliveryProfil
           <h2 className="text-2xl font-bold">Meu Perfil</h2>
           <p className="text-gray-600">Gerencie suas informações pessoais</p>
         </div>
-        <div className="flex gap-2">
-          {!isEditing ? (
-            <>
-              <Button onClick={() => setIsEditing(true)} variant="outline">
-                <Edit className="h-4 w-4 mr-2" />
-                Editar
-              </Button>
-              <Button onClick={handleLogout} variant="destructive">
-                <LogOut className="h-4 w-4 mr-2" />
-                Sair
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button 
-                onClick={handleSave} 
-                disabled={isSaving}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {isSaving ? 'Salvando...' : 'Salvar'}
-              </Button>
-              <Button onClick={handleCancel} variant="outline">
-                <X className="h-4 w-4 mr-2" />
-                Cancelar
-              </Button>
-            </>
-          )}
-        </div>
+        <Button onClick={handleLogout} variant="destructive">
+          <LogOut className="h-4 w-4 mr-2" />
+          Sair
+        </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Informações Pessoais
-          </CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Informações Pessoais
+            </CardTitle>
+            {!isEditing ? (
+              <Button onClick={() => setIsEditing(true)} variant="outline">
+                <Edit className="h-4 w-4 mr-2" />
+                Editar
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleSave} 
+                  disabled={isSaving}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {isSaving ? 'Salvando...' : 'Salvar'}
+                </Button>
+                <Button onClick={handleCancel} variant="outline">
+                  <X className="h-4 w-4 mr-2" />
+                  Cancelar
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -275,6 +398,163 @@ const DeliveryProfile = ({ deliveryDetails, setDeliveryDetails }: DeliveryProfil
               rows={3}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Dados Bancários
+            </CardTitle>
+            {!isBankEditing ? (
+              <Button onClick={() => setIsBankEditing(true)} variant="outline">
+                <Edit className="h-4 w-4 mr-2" />
+                {bankDetails ? 'Editar' : 'Adicionar'}
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleBankSave} 
+                  disabled={isSaving}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {isSaving ? 'Salvando...' : 'Salvar'}
+                </Button>
+                <Button onClick={handleBankCancel} variant="outline">
+                  <X className="h-4 w-4 mr-2" />
+                  Cancelar
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="banco">Banco</Label>
+              <Input
+                id="banco"
+                placeholder="Ex: Banco do Brasil, Itaú, Nubank..."
+                value={bankFormData.banco}
+                onChange={(e) => setBankFormData({ ...bankFormData, banco: e.target.value })}
+                disabled={!isBankEditing}
+              />
+            </div>
+            <div>
+              <Label htmlFor="agencia">Agência</Label>
+              <Input
+                id="agencia"
+                placeholder="Ex: 1234"
+                value={bankFormData.agencia}
+                onChange={(e) => setBankFormData({ ...bankFormData, agencia: e.target.value })}
+                disabled={!isBankEditing}
+              />
+            </div>
+            <div>
+              <Label htmlFor="conta">Conta</Label>
+              <Input
+                id="conta"
+                placeholder="Ex: 12345-6"
+                value={bankFormData.conta}
+                onChange={(e) => setBankFormData({ ...bankFormData, conta: e.target.value })}
+                disabled={!isBankEditing}
+              />
+            </div>
+            <div>
+              <Label htmlFor="tipo_conta">Tipo de Conta</Label>
+              <Select 
+                value={bankFormData.tipo_conta} 
+                onValueChange={(value) => setBankFormData({ ...bankFormData, tipo_conta: value })}
+                disabled={!isBankEditing}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="corrente">Conta Corrente</SelectItem>
+                  <SelectItem value="poupanca">Conta Poupança</SelectItem>
+                  <SelectItem value="salario">Conta Salário</SelectItem>
+                  <SelectItem value="pagamento">Conta de Pagamento</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="titular_conta">Titular da Conta</Label>
+              <Input
+                id="titular_conta"
+                placeholder="Nome completo do titular"
+                value={bankFormData.titular_conta}
+                onChange={(e) => setBankFormData({ ...bankFormData, titular_conta: e.target.value })}
+                disabled={!isBankEditing}
+              />
+            </div>
+            <div>
+              <Label htmlFor="cpf_titular">CPF do Titular</Label>
+              <Input
+                id="cpf_titular"
+                placeholder="000.000.000-00"
+                value={bankFormData.cpf_titular}
+                onChange={(e) => setBankFormData({ ...bankFormData, cpf_titular: e.target.value })}
+                disabled={!isBankEditing}
+              />
+            </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <h4 className="font-medium mb-3">Chave PIX (Opcional)</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="tipo_chave_pix">Tipo de Chave PIX</Label>
+                <Select 
+                  value={bankFormData.tipo_chave_pix} 
+                  onValueChange={(value) => setBankFormData({ ...bankFormData, tipo_chave_pix: value })}
+                  disabled={!isBankEditing}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cpf">CPF</SelectItem>
+                    <SelectItem value="email">E-mail</SelectItem>
+                    <SelectItem value="telefone">Telefone</SelectItem>
+                    <SelectItem value="aleatoria">Chave Aleatória</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="chave_pix">Chave PIX</Label>
+                <Input
+                  id="chave_pix"
+                  placeholder="Sua chave PIX"
+                  value={bankFormData.chave_pix}
+                  onChange={(e) => setBankFormData({ ...bankFormData, chave_pix: e.target.value })}
+                  disabled={!isBankEditing}
+                />
+              </div>
+            </div>
+          </div>
+
+          {bankDetails && (
+            <div className="mt-4 p-3 bg-green-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${
+                  bankDetails.verificado ? 'bg-green-500' : 'bg-yellow-500'
+                }`}></div>
+                <span className="text-sm font-medium">
+                  Status: {bankDetails.verificado ? 'Verificado' : 'Pendente de Verificação'}
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 mt-1">
+                {bankDetails.verificado 
+                  ? 'Seus dados bancários foram verificados e aprovados.'
+                  : 'Seus dados bancários estão sendo analisados pela nossa equipe.'
+                }
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
