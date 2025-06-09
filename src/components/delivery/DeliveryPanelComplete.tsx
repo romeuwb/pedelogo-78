@@ -28,6 +28,7 @@ const DeliveryPanelComplete = () => {
   const { user, profile } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [deliveryDetails, setDeliveryDetails] = useState(null);
+  const [currentOrder, setCurrentOrder] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(true);
@@ -249,11 +250,19 @@ const DeliveryPanelComplete = () => {
           </TabsContent>
 
           <TabsContent value="orders">
-            <DeliveryOrders deliveryDetails={deliveryDetails} />
+            <DeliveryOrders 
+              deliveryDetails={deliveryDetails} 
+              currentOrder={currentOrder} 
+              setCurrentOrder={setCurrentOrder} 
+            />
           </TabsContent>
 
           <TabsContent value="earnings">
-            <DeliveryEarnings deliveryDetails={deliveryDetails} />
+            <DeliveryEarnings 
+              deliveryDetails={deliveryDetails}
+              currentOrder={currentOrder}
+              setCurrentOrder={setCurrentOrder}
+            />
           </TabsContent>
 
           <TabsContent value="wallet">
