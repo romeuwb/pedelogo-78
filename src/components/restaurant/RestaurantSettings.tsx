@@ -2,13 +2,14 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Route, Users, MapPin, Clock, Utensils, UserCheck } from 'lucide-react';
+import { Settings, Route, Users, MapPin, Clock, Utensils, UserCheck, Printer } from 'lucide-react';
 import { DeliveryAreaMap } from './DeliveryAreaMap';
 import { RouteOptimization } from './RouteOptimization';
 import { ClientOptimization } from './ClientOptimization';
 import { OperatingHoursManager } from './OperatingHoursManager';
 import TableManager from './TableManager';
 import { StaffManager } from './StaffManager';
+import { PrinterConfiguration } from './PrinterConfiguration';
 
 interface RestaurantSettingsProps {
   restaurantId: string;
@@ -26,7 +27,7 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="delivery" className="w-full">
-            <TabsList className="grid w-full grid-cols-7">
+            <TabsList className="grid w-full grid-cols-8">
               <TabsTrigger value="delivery" className="flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
                 Área de Entrega
@@ -50,6 +51,10 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
               <TabsTrigger value="staff" className="flex items-center gap-2">
                 <UserCheck className="h-4 w-4" />
                 Funcionários
+              </TabsTrigger>
+              <TabsTrigger value="printers" className="flex items-center gap-2">
+                <Printer className="h-4 w-4" />
+                Impressoras
               </TabsTrigger>
               <TabsTrigger value="general" className="flex items-center gap-2">
                 <Settings className="h-4 w-4" />
@@ -79,6 +84,10 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
 
             <TabsContent value="staff" className="mt-6">
               <StaffManager restaurantId={restaurantId} />
+            </TabsContent>
+
+            <TabsContent value="printers" className="mt-6">
+              <PrinterConfiguration restaurantId={restaurantId} />
             </TabsContent>
 
             <TabsContent value="general" className="mt-6">

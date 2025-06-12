@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +18,7 @@ import {
   XCircle,
   AlertCircle
 } from 'lucide-react';
+import { printerService } from '@/services/printerService';
 
 interface RestaurantOrdersPanelProps {
   restaurantId: string;
@@ -104,29 +104,15 @@ export const RestaurantOrdersPanel = ({ restaurantId }: RestaurantOrdersPanelPro
     updateOrderMutation.mutate({ orderId, status: 'cancelado' });
   };
 
-  const printOrder = (order: any) => {
-    const printWindow = window.open('', '_blank');
-    const orderDetails = `
-      <html>
-        <head><title>Pedido #${order.id.slice(-8)}</title></head>
-        <body>
-          <h2>Pedido #${order.id.slice(-8)}</h2>
-          <p><strong>Cliente:</strong> ${order.cliente_profile?.nome}</p>
-          <p><strong>Telefone:</strong> ${order.cliente_profile?.telefone}</p>
-          <p><strong>Data:</strong> ${new Date(order.created_at).toLocaleString()}</p>
-          <hr>
-          <h3>Itens:</h3>
-          ${order.order_items?.map((item: any) => `
-            <p>${item.quantidade}x ${item.nome_item} - R$ ${(item.quantidade * item.preco_unitario).toFixed(2)}</p>
-          `).join('')}
-          <hr>
-          <p><strong>Total:</strong> R$ ${order.total.toFixed(2)}</p>
-          ${order.observacoes ? `<p><strong>Observações:</strong> ${order.observacoes}</p>` : ''}
-        </body>
-      </html>
-    `;
-    printWindow?.document.write(orderDetails);
-    printWindow?.print();
+  const printOrder = (order: any, type: 'kitchen' | 'receipt') => {
+    const content = printerService.formatOrderForPrint(order, type);
+    printerService.print({
+      id: `${type}-${order.id}-${Date.now()}`,
+      content,
+      type,
+      copies: 1,
+      priority: 'normal'
+    });
   };
 
   const statusTabs = [
@@ -232,10 +218,19 @@ export const RestaurantOrdersPanel = ({ restaurantId }: RestaurantOrdersPanelPro
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => printOrder(order)}
+                        onClick={() => printOrder(order, 'kitchen')}
                       >
                         <Printer className="h-4 w-4 mr-1" />
-                        Imprimir
+                        Cozinha
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => printOrder(order, 'receipt')}
+                      >
+                        <Printer className="h-4 w-4 mr-1" />
+                        Comprovante
                       </Button>
 
                       {order.status === 'pendente' && (
