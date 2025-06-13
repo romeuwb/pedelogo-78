@@ -50,14 +50,15 @@ export const useGoogleMaps = (apiKey?: string): UseGoogleMapsReturn => {
       };
     }
 
-    // Carregar o script do Google Maps
+    // Carregar o script do Google Maps com callback único
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=drawing,geometry,places&callback=initGoogleMaps`;
+    const callbackName = `initGoogleMaps_${Date.now()}`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=drawing,geometry,places&callback=${callbackName}`;
     script.async = true;
     script.defer = true;
 
-    // Callback global para o Google Maps
-    (window as any).initGoogleMaps = () => {
+    // Callback único para o Google Maps
+    (window as any)[callbackName] = () => {
       setTimeout(() => {
         if (window.google && window.google.maps) {
           setIsLoaded(true);
@@ -79,8 +80,8 @@ export const useGoogleMaps = (apiKey?: string): UseGoogleMapsReturn => {
       if (script.parentNode) {
         script.parentNode.removeChild(script);
       }
-      if ((window as any).initGoogleMaps) {
-        delete (window as any).initGoogleMaps;
+      if ((window as any)[callbackName]) {
+        delete (window as any)[callbackName];
       }
     };
   }, [apiKey]);

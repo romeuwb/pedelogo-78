@@ -69,7 +69,9 @@ const AdminMaps = () => {
 
   useEffect(() => {
     if (systemConfigs?.valor) {
-      setGoogleMapsApiKey(systemConfigs.valor);
+      // Garantir que o valor seja uma string
+      const apiKey = typeof systemConfigs.valor === 'string' ? systemConfigs.valor : String(systemConfigs.valor);
+      setGoogleMapsApiKey(apiKey);
     }
   }, [systemConfigs]);
 

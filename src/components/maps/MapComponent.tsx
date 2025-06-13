@@ -20,13 +20,6 @@ interface MapComponentProps {
   apiKey?: string;
 }
 
-declare global {
-  interface Window {
-    google: any;
-    initGoogleMaps: () => void;
-  }
-}
-
 export const MapComponent: React.FC<MapComponentProps> = ({
   center = { lat: -23.5505, lng: -46.6333 }, // São Paulo default
   zoom = 13,
@@ -54,14 +47,18 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 
     // Load Google Maps script
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry&callback=initGoogleMaps`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry&callback=initMap`;
     script.async = true;
     script.defer = true;
 
-    window.initGoogleMaps = () => {
+    // Create unique callback name for this component instance
+    const callbackName = `initMap_${Date.now()}`;
+    (window as any)[callbackName] = () => {
       setIsLoaded(true);
       initializeMap();
     };
+
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry&callback=${callbackName}`;
 
     script.onerror = () => {
       console.error('Erro ao carregar Google Maps');
@@ -79,8 +76,9 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       if (existingScript && existingScript.parentNode) {
         existingScript.parentNode.removeChild(existingScript);
       }
-      if (window.initGoogleMaps) {
-        delete window.initGoogleMaps;
+      // Clean up callback
+      if ((window as any)[callbackName]) {
+        delete (window as any)[callbackName];
       }
     };
   }, [apiKey]);

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,10 +19,15 @@ import {
   Save,
   Eye,
   EyeOff,
-  TestTube
+  TestTube,
+  CreditCard,
+  Package,
+  Clock,
+  MapPin
 } from 'lucide-react';
 import { toast } from 'sonner';
 import MapComponent from '@/components/maps/MapComponent';
+import AdminMaps from '@/components/admin/AdminMaps';
 
 interface SystemConfig {
   id: string;
@@ -256,85 +262,157 @@ const AdminSettings = () => {
         </TabsContent>
 
         <TabsContent value="maps" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                Configurações de Mapas e Rotas
-                <Button
-                  onClick={testMapsConfig}
-                  variant="outline"
-                  size="sm"
-                  disabled={!getConfigValue('google_maps_api_key')}
-                >
-                  <TestTube className="h-4 w-4 mr-2" />
-                  Testar Configuração
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {getConfigsByCategory('mapas').map(renderConfigField)}
-              
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h4 className="font-medium text-blue-900 mb-2">Google Maps API</h4>
-                <p className="text-sm text-blue-700 mb-3">
-                  Configure sua chave da API do Google Maps para habilitar funcionalidades de mapa e roteamento.
-                </p>
-                <div className="space-y-2">
-                  <Label htmlFor="google_maps_api_key">Chave da API</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="google_maps_api_key"
-                      type={showPasswords['google_maps_api_key'] ? 'text' : 'password'}
-                      value={getConfigValue('google_maps_api_key')}
-                      onChange={(e) => handleConfigChange('google_maps_api_key', e.target.value)}
-                      placeholder="Digite sua chave da API do Google Maps"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => togglePasswordVisibility('google_maps_api_key')}
-                    >
-                      {showPasswords['google_maps_api_key'] ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </Button>
-                    <Button
-                      onClick={() => updateConfiguration('google_maps_api_key', getConfigValue('google_maps_api_key'))}
-                      disabled={saving}
-                      size="sm"
-                    >
-                      <Save size={16} />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Teste do Mapa */}
-              {testingMaps && getConfigValue('google_maps_api_key') && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Teste do Google Maps</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64">
-                      <MapComponent
-                        center={{ lat: -23.5505, lng: -46.6333 }}
-                        zoom={10}
-                        apiKey={getConfigValue('google_maps_api_key')}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </CardContent>
-          </Card>
+          <AdminMaps />
         </TabsContent>
 
         <TabsContent value="payment" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Configurações de Pagamento</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Configurações de Pagamento
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
+              {/* Configurações do Stripe */}
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Stripe
+                </h4>
+                <p className="text-sm text-blue-700 mb-3">
+                  Configure suas chaves do Stripe para processar pagamentos com cartão de crédito.
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <Label>Chave Publicável (Publishable Key)</Label>
+                    <div className="flex space-x-2">
+                      <Input
+                        placeholder="pk_test_..."
+                        value={getConfigValue('stripe_publishable_key')}
+                        onChange={(e) => handleConfigChange('stripe_publishable_key', e.target.value)}
+                      />
+                      <Button
+                        onClick={() => updateConfiguration('stripe_publishable_key', getConfigValue('stripe_publishable_key'))}
+                        disabled={saving}
+                        size="sm"
+                      >
+                        <Save size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Chave Secreta (Secret Key)</Label>
+                    <div className="flex space-x-2">
+                      <Input
+                        type={showPasswords['stripe_secret_key'] ? 'text' : 'password'}
+                        placeholder="sk_test_..."
+                        value={getConfigValue('stripe_secret_key')}
+                        onChange={(e) => handleConfigChange('stripe_secret_key', e.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => togglePasswordVisibility('stripe_secret_key')}
+                      >
+                        {showPasswords['stripe_secret_key'] ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </Button>
+                      <Button
+                        onClick={() => updateConfiguration('stripe_secret_key', getConfigValue('stripe_secret_key'))}
+                        disabled={saving}
+                        size="sm"
+                      >
+                        <Save size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Configurações do PIX */}
+              <div className="p-4 bg-green-50 rounded-lg">
+                <h4 className="font-medium text-green-900 mb-2">PIX</h4>
+                <p className="text-sm text-green-700 mb-3">
+                  Configure as opções de pagamento via PIX.
+                </p>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="pix_enabled"
+                      checked={getConfigValue('pix_enabled') === 'true'}
+                      onCheckedChange={(checked) => {
+                        handleConfigChange('pix_enabled', checked.toString());
+                        updateConfiguration('pix_enabled', checked.toString());
+                      }}
+                    />
+                    <Label htmlFor="pix_enabled">Habilitar pagamento via PIX</Label>
+                  </div>
+                  <div>
+                    <Label>Chave PIX</Label>
+                    <div className="flex space-x-2">
+                      <Input
+                        placeholder="Digite sua chave PIX"
+                        value={getConfigValue('pix_key')}
+                        onChange={(e) => handleConfigChange('pix_key', e.target.value)}
+                      />
+                      <Button
+                        onClick={() => updateConfiguration('pix_key', getConfigValue('pix_key'))}
+                        disabled={saving}
+                        size="sm"
+                      >
+                        <Save size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Configurações de Taxas */}
+              <div className="p-4 bg-orange-50 rounded-lg">
+                <h4 className="font-medium text-orange-900 mb-2">Taxas e Comissões</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Taxa da Plataforma (%)</Label>
+                    <div className="flex space-x-2">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="5.00"
+                        value={getConfigValue('platform_fee_percentage')}
+                        onChange={(e) => handleConfigChange('platform_fee_percentage', e.target.value)}
+                      />
+                      <Button
+                        onClick={() => updateConfiguration('platform_fee_percentage', getConfigValue('platform_fee_percentage'))}
+                        disabled={saving}
+                        size="sm"
+                      >
+                        <Save size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Taxa de Entrega Mínima (R$)</Label>
+                    <div className="flex space-x-2">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="3.00"
+                        value={getConfigValue('min_delivery_fee')}
+                        onChange={(e) => handleConfigChange('min_delivery_fee', e.target.value)}
+                      />
+                      <Button
+                        onClick={() => updateConfiguration('min_delivery_fee', getConfigValue('min_delivery_fee'))}
+                        disabled={saving}
+                        size="sm"
+                      >
+                        <Save size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {getConfigsByCategory('pagamento').map(renderConfigField)}
             </CardContent>
           </Card>
@@ -343,9 +421,146 @@ const AdminSettings = () => {
         <TabsContent value="delivery" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Configurações de Entrega</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Truck className="h-5 w-5" />
+                Configurações de Entrega
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
+              {/* Configurações de Tempo */}
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Tempos de Entrega
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Tempo Mínimo (min)</Label>
+                    <div className="flex space-x-2">
+                      <Input
+                        type="number"
+                        placeholder="20"
+                        value={getConfigValue('min_delivery_time')}
+                        onChange={(e) => handleConfigChange('min_delivery_time', e.target.value)}
+                      />
+                      <Button
+                        onClick={() => updateConfiguration('min_delivery_time', getConfigValue('min_delivery_time'))}
+                        disabled={saving}
+                        size="sm"
+                      >
+                        <Save size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Tempo Máximo (min)</Label>
+                    <div className="flex space-x-2">
+                      <Input
+                        type="number"
+                        placeholder="60"
+                        value={getConfigValue('max_delivery_time')}
+                        onChange={(e) => handleConfigChange('max_delivery_time', e.target.value)}
+                      />
+                      <Button
+                        onClick={() => updateConfiguration('max_delivery_time', getConfigValue('max_delivery_time'))}
+                        disabled={saving}
+                        size="sm"
+                      >
+                        <Save size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Configurações de Área */}
+              <div className="p-4 bg-green-50 rounded-lg">
+                <h4 className="font-medium text-green-900 mb-2 flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Área de Cobertura
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Raio Máximo (km)</Label>
+                    <div className="flex space-x-2">
+                      <Input
+                        type="number"
+                        step="0.1"
+                        placeholder="10.0"
+                        value={getConfigValue('max_delivery_radius')}
+                        onChange={(e) => handleConfigChange('max_delivery_radius', e.target.value)}
+                      />
+                      <Button
+                        onClick={() => updateConfiguration('max_delivery_radius', getConfigValue('max_delivery_radius'))}
+                        disabled={saving}
+                        size="sm"
+                      >
+                        <Save size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Taxa por KM (R$)</Label>
+                    <div className="flex space-x-2">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="1.50"
+                        value={getConfigValue('fee_per_km')}
+                        onChange={(e) => handleConfigChange('fee_per_km', e.target.value)}
+                      />
+                      <Button
+                        onClick={() => updateConfiguration('fee_per_km', getConfigValue('fee_per_km'))}
+                        disabled={saving}
+                        size="sm"
+                      >
+                        <Save size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Configurações de Entregadores */}
+              <div className="p-4 bg-purple-50 rounded-lg">
+                <h4 className="font-medium text-purple-900 mb-2 flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Entregadores
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="auto_assign_delivery"
+                      checked={getConfigValue('auto_assign_delivery') === 'true'}
+                      onCheckedChange={(checked) => {
+                        handleConfigChange('auto_assign_delivery', checked.toString());
+                        updateConfiguration('auto_assign_delivery', checked.toString());
+                      }}
+                    />
+                    <Label htmlFor="auto_assign_delivery">Atribuição automática de entregas</Label>
+                  </div>
+                  <div>
+                    <Label>Comissão do Entregador (%)</Label>
+                    <div className="flex space-x-2">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="15.00"
+                        value={getConfigValue('delivery_commission_percentage')}
+                        onChange={(e) => handleConfigChange('delivery_commission_percentage', e.target.value)}
+                      />
+                      <Button
+                        onClick={() => updateConfiguration('delivery_commission_percentage', getConfigValue('delivery_commission_percentage'))}
+                        disabled={saving}
+                        size="sm"
+                      >
+                        <Save size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {getConfigsByCategory('entrega').map(renderConfigField)}
             </CardContent>
           </Card>
