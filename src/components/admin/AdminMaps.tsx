@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 type SearchType = 'city' | 'state' | 'country' | 'custom';
+type RegionType = 'city' | 'state' | 'country' | 'custom';
 
 const AdminMaps = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -79,7 +81,7 @@ const AdminMaps = () => {
 
   const [formData, setFormData] = useState<CreateRegionData>({
     name: '',
-    type: 'city',
+    type: 'city' as RegionType,
     country: '',
     state: '',
     city: '',
@@ -152,7 +154,7 @@ const AdminMaps = () => {
         } finally {
           setIsManualSearching(false);
         }
-      }, 300); // Reduzido para 300ms para resposta mais rápida
+      }, 300);
     } else {
       setSearchResults([]);
       setShowResults(false);
@@ -171,13 +173,13 @@ const AdminMaps = () => {
     
     let newFormData: CreateRegionData = {
       ...formData,
-      type: searchType,
+      type: searchType as RegionType,
       coordinates: location.coordinates
     };
 
     // Determinar o tipo baseado nos tipos do Google Places
     const placeTypes = location.types || [];
-    let determinedType: SearchType = searchType;
+    let determinedType: RegionType = searchType as RegionType;
     
     if (placeTypes.includes('country')) {
       determinedType = 'country';
@@ -208,7 +210,7 @@ const AdminMaps = () => {
           name: location.name || location.state,
           state: location.name || location.state,
           country: country,
-          city: '' // Limpar cidade se for estado
+          city: ''
         };
         break;
       case 'country':
@@ -216,8 +218,8 @@ const AdminMaps = () => {
           ...newFormData,
           name: location.name || location.country,
           country: location.name || location.country,
-          state: '', // Limpar estado se for país
-          city: '' // Limpar cidade se for país
+          state: '',
+          city: ''
         };
         break;
     }
@@ -308,7 +310,7 @@ const AdminMaps = () => {
     setEditingRegion(region);
     setFormData({
       name: region.name,
-      type: region.type,
+      type: region.type as RegionType,
       country: region.country || '',
       state: region.state || '',
       city: region.city || '',
@@ -409,7 +411,7 @@ const AdminMaps = () => {
           value={searchType} 
           onValueChange={(value: SearchType) => {
             setSearchType(value);
-            setFormData({...formData, type: value});
+            setFormData({...formData, type: value as RegionType});
             setSearchTerm('');
             setSearchResults([]);
             setShowResults(false);
