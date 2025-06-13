@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -429,7 +428,7 @@ const AdminMaps = () => {
         </Select>
       </div>
 
-      {searchType !== 'custom' && (
+      {(searchType as string) !== 'custom' && (
         <div className="relative">
           <Label htmlFor="search">
             Buscar {searchType === 'city' ? 'Cidade' : searchType === 'state' ? 'Estado' : 'País'}
@@ -506,7 +505,7 @@ const AdminMaps = () => {
         </div>
       </div>
 
-      {searchType !== 'custom' && (
+      {(searchType as string) !== 'custom' && (
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="country">País</Label>
@@ -515,11 +514,11 @@ const AdminMaps = () => {
               value={formData.country}
               onChange={(e) => setFormData({...formData, country: e.target.value})}
               placeholder="Ex: Brasil"
-              readOnly={searchType !== 'custom'}
-              className={searchType !== 'custom' ? 'bg-gray-50' : ''}
+              readOnly={(searchType as string) !== 'custom'}
+              className={(searchType as string) !== 'custom' ? 'bg-gray-50' : ''}
             />
           </div>
-          {(searchType === 'state' || searchType === 'city') && (
+          {((searchType as string) === 'state' || (searchType as string) === 'city') && (
             <div>
               <Label htmlFor="state">Estado</Label>
               <Input
@@ -527,8 +526,8 @@ const AdminMaps = () => {
                 value={formData.state}
                 onChange={(e) => setFormData({...formData, state: e.target.value})}
                 placeholder="Ex: SP"
-                readOnly={searchType !== 'custom'}
-                className={searchType !== 'custom' ? 'bg-gray-50' : ''}
+                readOnly={(searchType as string) !== 'custom'}
+                className={(searchType as string) !== 'custom' ? 'bg-gray-50' : ''}
               />
             </div>
           )}
