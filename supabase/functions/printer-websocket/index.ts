@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -45,9 +44,9 @@ serve(async (req) => {
     return new Response("Missing restaurantId parameter", { status: 400, headers: corsHeaders });
   }
 
-  // Fazer a apiKey opcional para teste inicial
   if (!apiKey) {
-    console.log('Missing apiKey parameter - using default for testing');
+    console.log('Missing apiKey parameter');
+    return new Response("Missing apiKey parameter", { status: 400, headers: corsHeaders });
   }
 
   // Inicializar Supabase client
@@ -184,7 +183,7 @@ serve(async (req) => {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey || 'default'}`
+                    'Authorization': `Bearer ${apiKey}`
                   },
                   body: JSON.stringify({
                     jobId: job.id,
