@@ -3,7 +3,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MapPin, Navigation } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { MapPin, Navigation, AlertTriangle, ExternalLink } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useGoogleMaps } from '@/hooks/useGoogleMaps';
 
@@ -37,21 +38,26 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 
   const { isLoaded, loadError } = useGoogleMaps(apiKey);
 
-  console.log('MapComponent render:', { isLoaded, loadError, apiKey: !!apiKey, hasMapRef: !!mapRef.current });
+  console.log('MapComponent render:', { 
+    isLoaded, 
+    loadError: loadError?.message, 
+    apiKey: !!apiKey, 
+    hasMapRef: !!mapRef.current 
+  });
 
   // Initialize map when Google Maps is loaded
   useEffect(() => {
-    if (!isLoaded || !mapRef.current || !apiKey || mapInstanceRef.current) {
+    if (!isLoaded || !mapRef.current || !apiKey || mapInstanceRef.current || loadError) {
       console.log('MapComponent - Skipping initialization:', { 
         isLoaded, 
         hasMapRef: !!mapRef.current, 
         hasApiKey: !!apiKey, 
-        hasMapInstance: !!mapInstanceRef.current 
+        hasMapInstance: !!mapInstanceRef.current,
+        hasError: !!loadError
       });
       return;
     }
 
-    // Verificar se window.google está disponível
     if (typeof window === 'undefined' || !window.google || !window.google.maps) {
       console.log('MapComponent - Google Maps not available on window');
       return;
@@ -100,12 +106,11 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         variant: 'destructive'
       });
     }
-  }, [isLoaded, apiKey, center, zoom, onLocationSelect]);
+  }, [isLoaded, apiKey, center, zoom, onLocationSelect, loadError]);
 
   // Add markers to map
   useEffect(() => {
-    if (!isMapReady || !mapInstanceRef.current || !window.google) {
-      console.log('MapComponent - Skipping markers, map not ready');
+    if (!isMapReady || !mapInstanceRef.current || !window.google || markers.length === 0) {
       return;
     }
 
@@ -244,9 +249,12 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-600">
-            Configure a API do Google Maps nas configurações do sistema para habilitar o mapa.
-          </p>
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Configure a API do Google Maps nas configurações do sistema para habilitar o mapa.
+            </AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
     );
@@ -262,9 +270,31 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-red-600">
-            Erro ao carregar o Google Maps: {loadError.message}
-          </p>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="space-y-2">
+              <div>
+                <strong>Erro ao carregar o Google Maps:</strong> {loadError.message}
+              </div>
+              {loadError.message.includes('REFERER_NOT_ALLOWED') && (
+                <div className="text-sm space-y-1">
+                  <p>Para corrigir este erro:</p>
+                  <ol className="list-decimal list-inside space-y-1 ml-2">
+                    <li>Acesse o <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline inline-flex items-center">Google Cloud Console <ExternalLink className="h-3 w-3 ml-1" /></a></li>
+                    <li>Vá para "APIs e Serviços" → "Credenciais"</li>
+                    <li>Clique na sua chave da API do Google Maps</li>
+                    <li>Em "Restrições do aplicativo", adicione o domínio: <code className="bg-gray-100 px-1 rounded">https://461a9ff6-1914-4ee3-a428-7ec8659f4b5a.lovableproject.com/*</code></li>
+                    <li>Salve as alterações</li>
+                  </ol>
+                </div>
+              )}
+              {loadError.message.includes('INVALID_KEY') && (
+                <div className="text-sm">
+                  <p>Verifique se a chave da API está correta nas configurações do sistema.</p>
+                </div>
+              )}
+            </AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
     );
@@ -299,7 +329,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           }}
         />
         
-        {!isLoaded && (
+        {!isLoaded && !loadError && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg z-10">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
@@ -308,7 +338,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           </div>
         )}
 
-        {isLoaded && !isMapReady && (
+        {isLoaded && !isMapReady && !loadError && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg z-10">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
