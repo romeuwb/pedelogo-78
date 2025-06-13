@@ -22,7 +22,7 @@ interface MapComponentProps {
 }
 
 export const MapComponent: React.FC<MapComponentProps> = ({
-  center = { lat: -23.5505, lng: -46.6333 }, // São Paulo default
+  center = { lat: -23.5505, lng: -46.6333 },
   zoom = 13,
   markers = [],
   onLocationSelect,
@@ -30,20 +30,30 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   apiKey
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<any>(null);
-  const [searchAddress, setSearchAddress] = useState('');
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [mapMarkers, setMapMarkers] = useState<any[]>([]);
   const mapInstanceRef = useRef<any>(null);
+  const markersRef = useRef<any[]>([]);
+  const [searchAddress, setSearchAddress] = useState('');
+  const [isMapReady, setIsMapReady] = useState(false);
 
   const { isLoaded, loadError } = useGoogleMaps(apiKey);
 
-  console.log('MapComponent - isLoaded:', isLoaded, 'loadError:', loadError, 'apiKey:', !!apiKey);
+  console.log('MapComponent render:', { isLoaded, loadError, apiKey: !!apiKey, hasMapRef: !!mapRef.current });
 
   // Initialize map when Google Maps is loaded
   useEffect(() => {
     if (!isLoaded || !mapRef.current || !apiKey || mapInstanceRef.current) {
-      console.log('MapComponent - Skipping initialization:', { isLoaded, hasMapRef: !!mapRef.current, hasApiKey: !!apiKey, hasInstance: !!mapInstanceRef.current });
+      console.log('MapComponent - Skipping initialization:', { 
+        isLoaded, 
+        hasMapRef: !!mapRef.current, 
+        hasApiKey: !!apiKey, 
+        hasMapInstance: !!mapInstanceRef.current 
+      });
+      return;
+    }
+
+    // Verificar se window.google está disponível
+    if (typeof window === 'undefined' || !window.google || !window.google.maps) {
+      console.log('MapComponent - Google Maps not available on window');
       return;
     }
 
@@ -55,13 +65,12 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         zoom,
         mapTypeControl: false,
         streetViewControl: false,
-        fullscreenControl: false
+        fullscreenControl: false,
+        zoomControl: true
       });
 
-      console.log('MapComponent - Map created successfully');
-
       mapInstanceRef.current = mapInstance;
-      setMap(mapInstance);
+      setIsMapReady(true);
 
       // Add click listener for location selection
       if (onLocationSelect) {
@@ -69,7 +78,6 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           const lat = event.latLng.lat();
           const lng = event.latLng.lng();
           
-          // Reverse geocoding to get address
           const geocoder = new window.google.maps.Geocoder();
           geocoder.geocode({ location: { lat, lng } }, (results: any[], status: any) => {
             if (status === 'OK' && results[0]) {
@@ -96,25 +104,27 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 
   // Add markers to map
   useEffect(() => {
-    if (!map || !isLoaded) {
-      console.log('MapComponent - Skipping markers:', { hasMap: !!map, isLoaded });
+    if (!isMapReady || !mapInstanceRef.current || !window.google) {
+      console.log('MapComponent - Skipping markers, map not ready');
       return;
     }
 
     console.log('MapComponent - Adding markers:', markers.length);
 
     // Clear existing markers
-    mapMarkers.forEach(marker => {
+    markersRef.current.forEach(marker => {
       if (marker && marker.setMap) {
         marker.setMap(null);
       }
     });
+    markersRef.current = [];
 
+    // Add new markers
     const newMarkers = markers.map(marker => {
       try {
         const mapMarker = new window.google.maps.Marker({
           position: marker.position,
-          map,
+          map: mapInstanceRef.current,
           title: marker.title,
           icon: getMarkerIcon(marker.type)
         });
@@ -124,7 +134,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         });
 
         mapMarker.addListener('click', () => {
-          infoWindow.open(map, mapMarker);
+          infoWindow.open(mapInstanceRef.current, mapMarker);
         });
 
         return mapMarker;
@@ -134,8 +144,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       }
     }).filter(Boolean);
 
-    setMapMarkers(newMarkers);
-  }, [map, markers, isLoaded]);
+    markersRef.current = newMarkers;
+  }, [isMapReady, markers]);
 
   const getMarkerIcon = (type: string) => {
     const icons = {
@@ -162,15 +172,14 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           lat: position.coords.latitude,
           lng: position.coords.longitude
         };
-        setUserLocation(location);
         
-        if (map) {
-          map.setCenter(location);
-          map.setZoom(15);
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setCenter(location);
+          mapInstanceRef.current.setZoom(15);
           
           new window.google.maps.Marker({
             position: location,
-            map,
+            map: mapInstanceRef.current,
             title: 'Sua localização',
             icon: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png'
           });
@@ -193,18 +202,18 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   };
 
   const searchLocation = () => {
-    if (!searchAddress || !map || !isLoaded) return;
+    if (!searchAddress || !mapInstanceRef.current || !window.google) return;
 
     const geocoder = new window.google.maps.Geocoder();
     geocoder.geocode({ address: searchAddress }, (results: any[], status: any) => {
       if (status === 'OK' && results[0]) {
         const location = results[0].geometry.location;
-        map.setCenter(location);
-        map.setZoom(15);
+        mapInstanceRef.current.setCenter(location);
+        mapInstanceRef.current.setZoom(15);
         
         new window.google.maps.Marker({
           position: location,
-          map,
+          map: mapInstanceRef.current,
           title: searchAddress
         });
         
@@ -254,7 +263,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         </CardHeader>
         <CardContent>
           <p className="text-red-600">
-            Erro ao carregar o Google Maps. Verifique sua chave de API.
+            Erro ao carregar o Google Maps: {loadError.message}
           </p>
         </CardContent>
       </Card>
@@ -271,18 +280,23 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           onKeyPress={(e) => e.key === 'Enter' && searchLocation()}
           className="flex-1"
         />
-        <Button onClick={searchLocation} variant="outline" size="sm">
+        <Button onClick={searchLocation} variant="outline" size="sm" disabled={!isMapReady}>
           <MapPin className="h-4 w-4" />
         </Button>
-        <Button onClick={getCurrentLocation} variant="outline" size="sm">
+        <Button onClick={getCurrentLocation} variant="outline" size="sm" disabled={!isMapReady}>
           <Navigation className="h-4 w-4" />
         </Button>
       </div>
       
-      <div className="relative flex-1 min-h-[400px]">
+      <div className="relative flex-1" style={{ minHeight: '400px' }}>
         <div
           ref={mapRef}
-          className="w-full h-full min-h-[400px] rounded-lg border bg-gray-100"
+          className="w-full h-full rounded-lg border"
+          style={{ 
+            minHeight: '400px',
+            height: '100%',
+            width: '100%'
+          }}
         />
         
         {!isLoaded && (
@@ -290,6 +304,15 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
               <p className="text-gray-600">Carregando Google Maps...</p>
+            </div>
+          </div>
+        )}
+
+        {isLoaded && !isMapReady && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg z-10">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
+              <p className="text-gray-600">Inicializando mapa...</p>
             </div>
           </div>
         )}
