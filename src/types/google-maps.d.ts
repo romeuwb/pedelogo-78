@@ -24,6 +24,7 @@ declare namespace google {
       mapTypeControl?: boolean;
       streetViewControl?: boolean;
       fullscreenControl?: boolean;
+      zoomControl?: boolean;
       styles?: MapTypeStyle[];
     }
 
