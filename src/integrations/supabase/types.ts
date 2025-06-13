@@ -2348,6 +2348,44 @@ export type Database = {
           },
         ]
       }
+      restaurant_api_keys: {
+        Row: {
+          api_key: string
+          created_by: string | null
+          generated_at: string
+          id: string
+          is_active: boolean
+          restaurant_id: string
+          revoked_at: string | null
+        }
+        Insert: {
+          api_key: string
+          created_by?: string | null
+          generated_at?: string
+          id?: string
+          is_active?: boolean
+          restaurant_id: string
+          revoked_at?: string | null
+        }
+        Update: {
+          api_key?: string
+          created_by?: string | null
+          generated_at?: string
+          id?: string
+          is_active?: boolean
+          restaurant_id?: string
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_api_keys_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurant_details: {
         Row: {
           aceita_delivery: boolean | null
@@ -2636,6 +2674,7 @@ export type Database = {
         Row: {
           api_endpoint: string | null
           api_key: string | null
+          api_key_generated_at: string | null
           config_data: Json | null
           connection_type: string
           created_at: string
@@ -2653,6 +2692,7 @@ export type Database = {
         Insert: {
           api_endpoint?: string | null
           api_key?: string | null
+          api_key_generated_at?: string | null
           config_data?: Json | null
           connection_type: string
           created_at?: string
@@ -2670,6 +2710,7 @@ export type Database = {
         Update: {
           api_endpoint?: string | null
           api_key?: string | null
+          api_key_generated_at?: string | null
           config_data?: Json | null
           connection_type?: string
           created_at?: string
@@ -3724,6 +3765,14 @@ export type Database = {
           p_dados_anteriores?: Json
           p_dados_novos?: Json
         }
+        Returns: string
+      }
+      generate_restaurant_api_key: {
+        Args: { p_restaurant_id: string }
+        Returns: string
+      }
+      get_restaurant_api_key: {
+        Args: { p_restaurant_id: string }
         Returns: string
       }
       is_admin: {
