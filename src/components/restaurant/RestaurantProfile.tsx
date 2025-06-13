@@ -1,64 +1,42 @@
-
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Store, Clock, MapPin, Phone, Mail, Settings, LogOut, Edit2 } from 'lucide-react';
+import { User, Store, Settings, LogOut, Edit2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useRestaurantData } from '@/hooks/useRestaurantData';
+import { supabase } from '@/integrations/supabase/client';
 
 const RestaurantProfile = () => {
   const { user, signOut } = useAuth();
-  const [profile, setProfile] = useState(null);
-  const [restaurantDetails, setRestaurantDetails] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { restaurantData, updateRestaurant, isLoading } = useRestaurantData();
   const [editing, setEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState('profile');
 
-  useEffect(() => {
-    if (user) {
-      fetchUserData();
-    } else {
-      // If no user, reset loading state
-      setLoading(false);
-    }
-  }, [user]);
+  const tabs = [
+    { id: 'profile', label: 'Perfil', icon: User },
+    { id: 'restaurant', label: 'Restaurante', icon: Store },
+    { id: 'settings', label: 'Configurações', icon: Settings }
+  ];
 
-  const fetchUserData = async () => {
-    if (!user) return;
-    
-    try {
-      // Fetch profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+  const currentTabIndex = tabs.findIndex(tab => tab.id === activeTab);
 
-      if (profileError && profileError.code !== 'PGRST116') throw profileError;
-
-      // Fetch restaurant details
-      const { data: restaurantData, error: restaurantError } = await supabase
-        .from('restaurant_details')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (restaurantError && restaurantError.code !== 'PGRST116') throw restaurantError;
-
-      setProfile(profileData);
-      setRestaurantDetails(restaurantData);
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-    } finally {
-      setLoading(false);
+  const goToPreviousTab = () => {
+    if (currentTabIndex > 0) {
+      setActiveTab(tabs[currentTabIndex - 1].id);
     }
   };
 
-  const updateProfile = async (updates) => {
+  const goToNextTab = () => {
+    if (currentTabIndex < tabs.length - 1) {
+      setActiveTab(tabs[currentTabIndex + 1].id);
+    }
+  };
+
+  const updateProfile = async (updates: any) => {
     if (!user) return;
     
     try {
@@ -71,33 +49,13 @@ const RestaurantProfile = () => {
 
       if (error) throw error;
       
-      setProfile({ ...profile, ...updates });
+      // setProfile({ ...profile, ...updates }); // No setProfile anymore
       setEditing(false);
     } catch (error) {
       console.error('Error updating profile:', error);
     }
   };
 
-  const updateRestaurantDetails = async (updates) => {
-    if (!user) return;
-    
-    try {
-      const { error } = await supabase
-        .from('restaurant_details')
-        .upsert({
-          user_id: user.id,
-          ...updates
-        });
-
-      if (error) throw error;
-      
-      setRestaurantDetails({ ...restaurantDetails, ...updates });
-    } catch (error) {
-      console.error('Error updating restaurant details:', error);
-    }
-  };
-
-  // Early return if no user to prevent null reference errors
   if (!user) {
     return (
       <div className="p-4">
@@ -108,7 +66,7 @@ const RestaurantProfile = () => {
     );
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-4">
         <div className="animate-pulse space-y-4">
@@ -130,12 +88,64 @@ const RestaurantProfile = () => {
         </Button>
       </div>
 
-      <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="profile">Perfil</TabsTrigger>
-          <TabsTrigger value="restaurant">Restaurante</TabsTrigger>
-          <TabsTrigger value="settings">Configurações</TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        {/* Desktop Tabs */}
+        <div className="hidden md:block">
+          <TabsList className="grid w-full grid-cols-3">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <TabsTrigger key={tab.id} value={tab.id} className="flex items-center gap-2">
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </div>
+
+        {/* Mobile Navigation */}
+        <div className="md:hidden">
+          <div className="flex items-center justify-between mb-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToPreviousTab}
+              disabled={currentTabIndex === 0}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <div className="flex items-center gap-2">
+              {(() => {
+                const Icon = tabs[currentTabIndex].icon;
+                return <Icon className="h-4 w-4" />;
+              })()}
+              <span className="font-medium">{tabs[currentTabIndex].label}</span>
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToNextTab}
+              disabled={currentTabIndex === tabs.length - 1}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Mobile Tab Indicators */}
+          <div className="flex justify-center gap-2 mb-4">
+            {tabs.map((_, index) => (
+              <div
+                key={index}
+                className={`h-2 w-2 rounded-full transition-colors ${
+                  index === currentTabIndex ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
 
         <TabsContent value="profile" className="space-y-4">
           <Card>
@@ -170,7 +180,7 @@ const RestaurantProfile = () => {
                       <Input
                         id="nome"
                         name="nome"
-                        defaultValue={profile?.nome || ''}
+                        defaultValue={user?.user_metadata?.nome || ''}
                         required
                       />
                     </div>
@@ -191,7 +201,7 @@ const RestaurantProfile = () => {
                         id="telefone"
                         name="telefone"
                         type="tel"
-                        defaultValue={profile?.telefone || ''}
+                        defaultValue={user?.user_metadata?.telefone || ''}
                       />
                     </div>
                     
@@ -207,7 +217,7 @@ const RestaurantProfile = () => {
                 <div className="space-y-4">
                   <div>
                     <Label>Nome completo</Label>
-                    <p className="text-gray-900">{profile?.nome || 'Não informado'}</p>
+                    <p className="text-gray-900">{user?.user_metadata?.nome || 'Não informado'}</p>
                   </div>
                   
                   <div>
@@ -217,13 +227,13 @@ const RestaurantProfile = () => {
                   
                   <div>
                     <Label>Telefone</Label>
-                    <p className="text-gray-900">{profile?.telefone || 'Não informado'}</p>
+                    <p className="text-gray-900">{user?.user_metadata?.telefone || 'Não informado'}</p>
                   </div>
                   
                   <div>
                     <Label>Membro desde</Label>
                     <p className="text-gray-500">
-                      {new Date(profile?.created_at || user.created_at).toLocaleDateString('pt-BR')}
+                      {new Date(user.created_at).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
                 </div>
@@ -241,30 +251,53 @@ const RestaurantProfile = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label>Nome do Restaurante</Label>
-                <p className="text-gray-900">{restaurantDetails?.nome || 'Não informado'}</p>
-              </div>
-              
-              <div>
-                <Label>Endereço</Label>
-                <p className="text-gray-900">{restaurantDetails?.endereco || 'Não informado'}</p>
-              </div>
-              
-              <div>
-                <Label>Telefone</Label>
-                <p className="text-gray-900">{restaurantDetails?.telefone || 'Não informado'}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Nome Fantasia</Label>
+                  <p className="text-gray-900">{restaurantData?.nome_fantasia || 'Não informado'}</p>
+                </div>
+                
+                <div>
+                  <Label>Razão Social</Label>
+                  <p className="text-gray-900">{restaurantData?.razao_social || 'Não informado'}</p>
+                </div>
+                
+                <div>
+                  <Label>CNPJ</Label>
+                  <p className="text-gray-900">{restaurantData?.cnpj || 'Não informado'}</p>
+                </div>
+                
+                <div>
+                  <Label>Categoria</Label>
+                  <p className="text-gray-900">{restaurantData?.categoria || 'Não informado'}</p>
+                </div>
+                
+                <div>
+                  <Label>Endereço</Label>
+                  <p className="text-gray-900">{restaurantData?.endereco || 'Não informado'}</p>
+                </div>
+                
+                <div>
+                  <Label>Telefone</Label>
+                  <p className="text-gray-900">{restaurantData?.telefone || 'Não informado'}</p>
+                </div>
               </div>
               
               <div>
                 <Label>Descrição</Label>
-                <p className="text-gray-900">{restaurantDetails?.descricao || 'Não informado'}</p>
+                <p className="text-gray-900">{restaurantData?.descricao || 'Não informado'}</p>
               </div>
 
               <div>
                 <Label>Status</Label>
-                <p className={`text-sm ${restaurantDetails?.ativo ? 'text-green-600' : 'text-red-600'}`}>
-                  {restaurantDetails?.ativo ? 'Ativo' : 'Inativo'}
+                <p className={`text-sm font-medium ${
+                  restaurantData?.status_aprovacao === 'aprovado' ? 'text-green-600' :
+                  restaurantData?.status_aprovacao === 'rejeitado' ? 'text-red-600' :
+                  'text-yellow-600'
+                }`}>
+                  {restaurantData?.status_aprovacao === 'aprovado' ? 'Aprovado' :
+                   restaurantData?.status_aprovacao === 'rejeitado' ? 'Rejeitado' :
+                   'Pendente'}
                 </p>
               </div>
             </CardContent>
@@ -311,9 +344,9 @@ const RestaurantProfile = () => {
                     <p className="text-xs text-gray-500">Aceitar novos pedidos</p>
                   </div>
                   <Switch 
-                    checked={restaurantDetails?.ativo || false}
+                    checked={restaurantData?.ativo || false}
                     onCheckedChange={(checked) => 
-                      updateRestaurantDetails({ ativo: checked })
+                      updateRestaurant({ ativo: checked })
                     }
                   />
                 </div>
