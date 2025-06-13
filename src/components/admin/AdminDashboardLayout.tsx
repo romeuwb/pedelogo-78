@@ -9,7 +9,7 @@ import { AdminProducts } from './AdminProducts';
 import { AdminCoupons } from './AdminCoupons';
 import AdminBanners from './AdminBanners';
 import { AdminSupport } from './AdminSupport';
-import { AdminSettings } from './AdminSettings';
+import AdminSettings from './AdminSettings';
 import AdminMaps from './AdminMaps';
 import AdminReports from './AdminReports';
 import AdminAuditLogs from './AdminAuditLogs';

@@ -60,9 +60,9 @@ export const useRestaurantData = () => {
       const updateData = { ...updates };
       
       // Remove fields that don't exist in the database schema or are auto-generated
-      delete updateData.id;
-      delete updateData.created_at;
-      delete updateData.updated_at;
+      delete (updateData as any).id;
+      delete (updateData as any).created_at;
+      delete (updateData as any).updated_at;
       
       // Ensure categoria exists for upsert - use existing data or default
       if (!updateData.categoria && restaurantData?.categoria) {
@@ -75,6 +75,7 @@ export const useRestaurantData = () => {
         .from('restaurant_details')
         .upsert({
           user_id: user.id,
+          categoria: updateData.categoria, // Ensure categoria is always present
           ...updateData
         });
       

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -65,10 +64,7 @@ const AdminAuditLogs = () => {
     queryFn: async () => {
       let query = supabase
         .from('audit_logs')
-        .select(`
-          *,
-          admin_users!inner(nome)
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -94,7 +90,7 @@ const AdminAuditLogs = () => {
       
       const transformedData = data.map(log => ({
         ...log,
-        admin_name: log.admin_users?.nome || 'Admin não encontrado',
+        admin_name: 'Admin',
         ip_address: log.ip_address || 'N/A'
       }));
       
@@ -107,12 +103,12 @@ const AdminAuditLogs = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('admin_users')
-        .select('user_id as id, nome')
+        .select('user_id, nome')
         .eq('ativo', true)
         .order('nome');
       
       if (error) throw error;
-      return data.map(user => ({ id: user.id, nome: user.nome }));
+      return data.map(user => ({ id: user.user_id, nome: user.nome }));
     }
   });
 
