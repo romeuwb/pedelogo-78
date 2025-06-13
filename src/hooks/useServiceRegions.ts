@@ -11,7 +11,7 @@ export interface ServiceRegion {
   state?: string;
   city?: string;
   parent_region_id?: string;
-  coordinates?: { lat: number; lng: number };
+  coordinates?: any;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -24,7 +24,7 @@ export interface CreateRegionData {
   state?: string;
   city?: string;
   parent_region_id?: string;
-  coordinates?: { lat: number; lng: number };
+  coordinates?: any;
   active?: boolean;
 }
 

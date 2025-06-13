@@ -3326,6 +3326,56 @@ export type Database = {
           },
         ]
       }
+      service_regions: {
+        Row: {
+          active: boolean | null
+          city: string | null
+          coordinates: Json | null
+          country: string | null
+          created_at: string | null
+          id: string
+          name: string
+          parent_region_id: string | null
+          state: string | null
+          type: Database["public"]["Enums"]["region_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          city?: string | null
+          coordinates?: Json | null
+          country?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          parent_region_id?: string | null
+          state?: string | null
+          type?: Database["public"]["Enums"]["region_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          city?: string | null
+          coordinates?: Json | null
+          country?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          parent_region_id?: string | null
+          state?: string | null
+          type?: Database["public"]["Enums"]["region_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_regions_parent_region_id_fkey"
+            columns: ["parent_region_id"]
+            isOneToOne: false
+            referencedRelation: "service_regions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscription_plans: {
         Row: {
           ativo: boolean
@@ -3810,6 +3860,7 @@ export type Database = {
         | "aprovado"
         | "rejeitado"
         | "expirado"
+      region_type: "country" | "state" | "city" | "custom"
       user_type: "cliente" | "restaurante" | "entregador" | "admin"
       vehicle_type: "moto" | "carro" | "bicicleta" | "patinete" | "a_pe"
     }
@@ -3937,6 +3988,7 @@ export const Constants = {
         "rejeitado",
         "expirado",
       ],
+      region_type: ["country", "state", "city", "custom"],
       user_type: ["cliente", "restaurante", "entregador", "admin"],
       vehicle_type: ["moto", "carro", "bicicleta", "patinete", "a_pe"],
     },

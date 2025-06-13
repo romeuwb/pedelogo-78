@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,7 +32,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Map, Plus, Edit, Trash2, MapPin, Globe, Search, Loader2 } from 'lucide-react';
+import { Map, Plus, Edit, Trash2, MapPin, Globe, Search, Loader2, Power, PowerOff } from 'lucide-react';
 import { useServiceRegions, ServiceRegion, CreateRegionData } from '@/hooks/useServiceRegions';
 import { useGeographySearch } from '@/hooks/useGeographySearch';
 import { useGoogleMaps } from '@/hooks/useGoogleMaps';
@@ -47,6 +48,7 @@ const AdminMaps = () => {
   const [citySearchTerm, setCitySearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchType, setSearchType] = useState<'city' | 'state' | 'country'>('city');
 
   const [formData, setFormData] = useState<CreateRegionData>({
     name: '',
@@ -70,7 +72,9 @@ const AdminMaps = () => {
     countries, 
     getStates, 
     getCities, 
-    searchCities 
+    searchCities,
+    searchCountries,
+    searchStates
   } = useGeographySearch();
 
   const { isLoaded: isGoogleMapsLoaded } = useGoogleMaps(googleMapsApiKey);
@@ -97,14 +101,27 @@ const AdminMaps = () => {
     }
   }, [systemConfigs]);
 
-  // Busca inteligente de cidades
+  // Busca inteligente
   useEffect(() => {
     const searchTimer = setTimeout(async () => {
       if (citySearchTerm.length >= 2) {
         setIsSearching(true);
         try {
-          const cities = await searchCities(citySearchTerm);
-          setSearchResults(cities);
+          let results: any[] = [];
+          
+          switch (searchType) {
+            case 'city':
+              results = await searchCities(citySearchTerm);
+              break;
+            case 'state':
+              results = await searchStates(citySearchTerm);
+              break;
+            case 'country':
+              results = await searchCountries(citySearchTerm);
+              break;
+          }
+          
+          setSearchResults(results);
         } catch (error) {
           console.error('Erro na busca:', error);
         } finally {
@@ -116,18 +133,44 @@ const AdminMaps = () => {
     }, 300);
 
     return () => clearTimeout(searchTimer);
-  }, [citySearchTerm, searchCities]);
+  }, [citySearchTerm, searchType, searchCities, searchCountries, searchStates]);
 
-  const handleCitySelect = (city: any) => {
-    setFormData({
+  const handleLocationSelect = (location: any) => {
+    let newFormData: CreateRegionData = {
       ...formData,
-      name: city.name,
-      country: city.country === 'BR' ? 'Brasil' : city.country,
-      state: city.state,
-      city: city.name,
-      coordinates: city.coordinates
-    });
-    setCitySearchTerm(city.name);
+      type: searchType,
+      coordinates: location.coordinates
+    };
+
+    switch (searchType) {
+      case 'city':
+        newFormData = {
+          ...newFormData,
+          name: location.name,
+          city: location.name,
+          state: location.state,
+          country: location.country === 'BR' ? 'Brasil' : location.country
+        };
+        break;
+      case 'state':
+        newFormData = {
+          ...newFormData,
+          name: location.name,
+          state: location.name || location.code,
+          country: location.country === 'BR' ? 'Brasil' : location.country
+        };
+        break;
+      case 'country':
+        newFormData = {
+          ...newFormData,
+          name: location.name,
+          country: location.name
+        };
+        break;
+    }
+
+    setFormData(newFormData);
+    setCitySearchTerm(location.name);
     setSearchResults([]);
   };
 
@@ -174,6 +217,7 @@ const AdminMaps = () => {
       active: region.active
     });
     setCitySearchTerm(region.name);
+    setSearchType(region.type as any);
     setIsEditOpen(true);
   };
 
@@ -224,8 +268,13 @@ const AdminMaps = () => {
     }
   };
 
-  const handleLocationSelect = (location: { lat: number; lng: number; address: string }) => {
+  const handleMapLocationSelect = (location: { lat: number; lng: number; address: string }) => {
     console.log('Localização selecionada:', location);
+    setFormData({
+      ...formData,
+      coordinates: { lat: location.lat, lng: location.lng },
+      name: formData.name || location.address
+    });
   };
 
   // Preparar marcadores para o mapa
@@ -233,7 +282,7 @@ const AdminMaps = () => {
     .filter(region => region.coordinates && region.active)
     .map(region => ({
       id: region.id,
-      position: region.coordinates!,
+      position: region.coordinates,
       title: region.name,
       type: 'restaurant' as const
     }));
@@ -241,78 +290,15 @@ const AdminMaps = () => {
   const RegionForm = () => (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <Label htmlFor="search">Buscar Cidade</Label>
-        <div className="relative">
-          <Input
-            id="search"
-            value={citySearchTerm}
-            onChange={(e) => setCitySearchTerm(e.target.value)}
-            placeholder="Digite o nome da cidade..."
-            className="pr-10"
-          />
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          {isSearching && (
-            <Loader2 className="absolute right-10 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
-          )}
-        </div>
-        
-        {searchResults.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
-            {searchResults.map((city, index) => (
-              <button
-                key={index}
-                type="button"
-                className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center justify-between"
-                onClick={() => handleCitySelect(city)}
-              >
-                <span>{city.name}</span>
-                <span className="text-sm text-gray-500">{city.state}, {city.country}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="country">País</Label>
-          <Input
-            id="country"
-            value={formData.country}
-            onChange={(e) => setFormData({...formData, country: e.target.value})}
-            placeholder="Ex: Brasil"
-            readOnly
-          />
-        </div>
-        <div>
-          <Label htmlFor="state">Estado</Label>
-          <Input
-            id="state"
-            value={formData.state}
-            onChange={(e) => setFormData({...formData, state: e.target.value})}
-            placeholder="Ex: SP"
-            readOnly
-          />
-        </div>
-      </div>
-
-      <div>
-        <Label htmlFor="name">Nome da Região</Label>
-        <Input
-          id="name"
-          value={formData.name}
-          onChange={(e) => setFormData({...formData, name: e.target.value})}
-          placeholder="Nome será preenchido automaticamente"
-          required
-          readOnly
-        />
-      </div>
-
-      <div>
         <Label htmlFor="type">Tipo de Região</Label>
         <Select 
-          value={formData.type} 
-          onValueChange={(value: any) => setFormData({...formData, type: value})}
+          value={searchType} 
+          onValueChange={(value: any) => {
+            setSearchType(value);
+            setFormData({...formData, type: value});
+            setCitySearchTerm('');
+            setSearchResults([]);
+          }}
         >
           <SelectTrigger>
             <SelectValue />
@@ -326,7 +312,89 @@ const AdminMaps = () => {
         </Select>
       </div>
 
+      <div>
+        <Label htmlFor="search">
+          Buscar {searchType === 'city' ? 'Cidade' : searchType === 'state' ? 'Estado' : 'País'}
+        </Label>
+        <div className="relative">
+          <Input
+            id="search"
+            value={citySearchTerm}
+            onChange={(e) => setCitySearchTerm(e.target.value)}
+            placeholder={`Digite o nome ${searchType === 'city' ? 'da cidade' : searchType === 'state' ? 'do estado' : 'do país'}...`}
+            className="pr-10"
+          />
+          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          {isSearching && (
+            <Loader2 className="absolute right-10 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+          )}
+        </div>
+        
+        {searchResults.length > 0 && (
+          <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
+            {searchResults.map((location, index) => (
+              <button
+                key={index}
+                type="button"
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center justify-between"
+                onClick={() => handleLocationSelect(location)}
+              >
+                <span>{location.name}</span>
+                <span className="text-sm text-gray-500">
+                  {searchType === 'city' && `${location.state}, ${location.country}`}
+                  {searchType === 'state' && location.country}
+                  {searchType === 'country' && location.code}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        <div>
+          <Label htmlFor="name">Nome da Região</Label>
+          <Input
+            id="name"
+            value={formData.name}
+            onChange={(e) => setFormData({...formData, name: e.target.value})}
+            placeholder="Nome da região"
+            required
+          />
+        </div>
+      </div>
+
+      {searchType !== 'custom' && (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="country">País</Label>
+            <Input
+              id="country"
+              value={formData.country}
+              onChange={(e) => setFormData({...formData, country: e.target.value})}
+              placeholder="Ex: Brasil"
+              readOnly={searchType !== 'custom'}
+            />
+          </div>
+          {(searchType === 'state' || searchType === 'city') && (
+            <div>
+              <Label htmlFor="state">Estado</Label>
+              <Input
+                id="state"
+                value={formData.state}
+                onChange={(e) => setFormData({...formData, state: e.target.value})}
+                placeholder="Ex: SP"
+                readOnly={searchType !== 'custom'}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
       <Button type="submit" className="w-full" disabled={createRegion.isPending || updateRegion.isPending}>
+        {createRegion.isPending || updateRegion.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        ) : null}
         {editingRegion ? 'Atualizar Região' : 'Criar Região'}
       </Button>
     </form>
@@ -356,6 +424,54 @@ const AdminMaps = () => {
         </Dialog>
       </div>
 
+      {/* Estatísticas */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <Globe className="h-5 w-5 text-purple-600" />
+              <div>
+                <p className="text-sm text-gray-600">Países</p>
+                <p className="text-lg font-semibold">{regions.filter(r => r.type === 'country').length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <Map className="h-5 w-5 text-blue-600" />
+              <div>
+                <p className="text-sm text-gray-600">Estados</p>
+                <p className="text-lg font-semibold">{regions.filter(r => r.type === 'state').length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <MapPin className="h-5 w-5 text-green-600" />
+              <div>
+                <p className="text-sm text-gray-600">Cidades</p>
+                <p className="text-lg font-semibold">{regions.filter(r => r.type === 'city').length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <Power className="h-5 w-5 text-emerald-600" />
+              <div>
+                <p className="text-sm text-gray-600">Ativas</p>
+                <p className="text-lg font-semibold">{regions.filter(r => r.active).length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Mapa Interativo */}
       <Card>
         <CardHeader>
@@ -372,7 +488,7 @@ const AdminMaps = () => {
                 center={{ lat: -14.2350, lng: -51.9253 }}
                 zoom={5}
                 markers={mapMarkers}
-                onLocationSelect={handleLocationSelect}
+                onLocationSelect={handleMapLocationSelect}
                 apiKey={googleMapsApiKey}
               />
             </div>
@@ -414,7 +530,7 @@ const AdminMaps = () => {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Tipo</TableHead>
-                  <TableHead>País/Estado</TableHead>
+                  <TableHead>Localização</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Data de Criação</TableHead>
                   <TableHead>Ações</TableHead>
@@ -435,7 +551,11 @@ const AdminMaps = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {region.country && region.state ? `${region.country}, ${region.state}` : region.country || '-'}
+                      <div className="text-sm">
+                        {region.country && <div>{region.country}</div>}
+                        {region.state && <div className="text-gray-500">{region.state}</div>}
+                        {region.city && <div className="text-gray-400">{region.city}</div>}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge className={region.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
@@ -451,19 +571,25 @@ const AdminMaps = () => {
                           size="sm"
                           variant="outline"
                           onClick={() => toggleRegionStatus.mutate(region.id)}
+                          className="h-8 w-8 p-0"
                         >
-                          {region.active ? 'Desativar' : 'Ativar'}
+                          {region.active ? (
+                            <PowerOff className="h-4 w-4" />
+                          ) : (
+                            <Power className="h-4 w-4" />
+                          )}
                         </Button>
                         <Button 
                           size="sm" 
                           variant="outline"
                           onClick={() => handleEdit(region)}
+                          className="h-8 w-8 p-0"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="destructive">
+                            <Button size="sm" variant="destructive" className="h-8 w-8 p-0">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>
@@ -472,7 +598,7 @@ const AdminMaps = () => {
                               <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
                               <AlertDialogDescription>
                                 Tem certeza que deseja excluir a região "{region.name}"? 
-                                Esta ação não pode ser desfeita.
+                                Esta ação não pode ser desfeita e pode afetar o funcionamento da plataforma.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -494,7 +620,7 @@ const AdminMaps = () => {
                 {regions.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                      Nenhuma região configurada ainda.
+                      Nenhuma região configurada ainda. Clique em "Nova Região" para começar.
                     </TableCell>
                   </TableRow>
                 )}
@@ -523,24 +649,24 @@ const AdminMaps = () => {
             </div>
             <div>
               <h3 className="text-lg font-medium text-blue-900 mb-2">
-                Sobre a Gestão de Regiões
+                Sistema de Zonas de Entrega
               </h3>
               <div className="text-blue-700 space-y-2">
                 <p>
-                  • <strong>Países:</strong> Defina em quais países a plataforma estará disponível
+                  • <strong>Busca Inteligente:</strong> Pesquise e selecione países, estados ou cidades
                 </p>
                 <p>
-                  • <strong>Estados:</strong> Configure estados/províncias específicas dentro de cada país
+                  • <strong>Gestão Completa:</strong> Crie, edite, ative/desative e exclua regiões
                 </p>
                 <p>
-                  • <strong>Cidades:</strong> Selecione cidades específicas para atendimento
+                  • <strong>Visualização no Mapa:</strong> Veja todas as regiões ativas plotadas no mapa
                 </p>
                 <p>
-                  • <strong>Regiões Personalizadas:</strong> Crie áreas customizadas com base em coordenadas
+                  • <strong>Hierarquia:</strong> Organize regiões por país → estado → cidade
                 </p>
                 <p className="text-sm mt-3 text-blue-600">
-                  <strong>Nota:</strong> Esta funcionalidade não interfere com as áreas de entrega 
-                  individuais que cada restaurante pode configurar.
+                  <strong>Nota:</strong> Estas configurações definem onde a plataforma está disponível. 
+                  Cada restaurante ainda pode configurar suas próprias áreas de entrega específicas.
                 </p>
               </div>
             </div>
