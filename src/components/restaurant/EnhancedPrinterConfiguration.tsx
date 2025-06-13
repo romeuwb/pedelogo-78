@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -356,7 +355,6 @@ export const EnhancedPrinterConfiguration = ({ restaurantId }: EnhancedPrinterCo
           <PrinterApiIntegrationGuide 
             restaurantId={restaurantId}
             apiEndpoint={firstPrinter?.api_endpoint}
-            apiKey={firstPrinter?.api_key}
           />
         </TabsContent>
 
