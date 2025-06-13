@@ -17,9 +17,12 @@ import {
   Settings 
 } from 'lucide-react';
 
-const AdminSidebar = () => {
-  const [activeTab, setActiveTab] = React.useState('overview');
+interface AdminSidebarProps {
+  activeTab: string;
+  onTabChange: (tabId: string) => void;
+}
 
+const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
   const menuItems = [
     { id: 'overview', label: 'Visão Geral', icon: BarChart3 },
     { id: 'users', label: 'Usuários', icon: Users },
@@ -36,12 +39,7 @@ const AdminSidebar = () => {
   ];
 
   const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
-    // Trigger the tab change in the parent component
-    const tabTrigger = document.querySelector(`[value="${tabId}"]`) as HTMLButtonElement;
-    if (tabTrigger) {
-      tabTrigger.click();
-    }
+    onTabChange(tabId);
   };
 
   return (
