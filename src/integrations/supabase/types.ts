@@ -2067,6 +2067,119 @@ export type Database = {
           },
         ]
       }
+      print_jobs: {
+        Row: {
+          content: string
+          copies: number
+          created_at: string
+          error_message: string | null
+          id: string
+          job_type: string
+          max_retries: number
+          order_id: string | null
+          printer_id: string | null
+          priority: string
+          processed_at: string | null
+          restaurant_id: string
+          retries: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          copies?: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          job_type: string
+          max_retries?: number
+          order_id?: string | null
+          printer_id?: string | null
+          priority?: string
+          processed_at?: string | null
+          restaurant_id: string
+          retries?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          copies?: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          job_type?: string
+          max_retries?: number
+          order_id?: string | null
+          printer_id?: string | null
+          priority?: string
+          processed_at?: string | null
+          restaurant_id?: string
+          retries?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_jobs_printer_id_fkey"
+            columns: ["printer_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_printers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      printer_connections: {
+        Row: {
+          api_endpoint: string
+          connection_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          last_heartbeat: string | null
+          restaurant_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          api_endpoint: string
+          connection_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_heartbeat?: string | null
+          restaurant_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          api_endpoint?: string
+          connection_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_heartbeat?: string | null
+          restaurant_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "printer_connections_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_categories: {
         Row: {
           ativo: boolean | null
@@ -2512,6 +2625,68 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "restaurant_payouts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_printers: {
+        Row: {
+          api_endpoint: string | null
+          api_key: string | null
+          config_data: Json | null
+          connection_type: string
+          created_at: string
+          enabled: boolean
+          id: string
+          ip_address: string | null
+          is_default: boolean
+          name: string
+          port: number | null
+          restaurant_id: string
+          type: string
+          updated_at: string
+          width: number
+        }
+        Insert: {
+          api_endpoint?: string | null
+          api_key?: string | null
+          config_data?: Json | null
+          connection_type: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          ip_address?: string | null
+          is_default?: boolean
+          name: string
+          port?: number | null
+          restaurant_id: string
+          type: string
+          updated_at?: string
+          width?: number
+        }
+        Update: {
+          api_endpoint?: string | null
+          api_key?: string | null
+          config_data?: Json | null
+          connection_type?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          ip_address?: string | null
+          is_default?: boolean
+          name?: string
+          port?: number | null
+          restaurant_id?: string
+          type?: string
+          updated_at?: string
+          width?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_printers_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurant_details"

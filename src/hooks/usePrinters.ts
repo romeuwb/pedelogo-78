@@ -1,75 +1,71 @@
 
-import { useState, useEffect } from 'react';
-import { printerService, type PrinterConfig, type PrintJob } from '@/services/printerService';
+import { useEnhancedPrinters } from './useEnhancedPrinters';
 
-export const usePrinters = () => {
-  const [printers, setPrinters] = useState<PrinterConfig[]>([]);
-  const [loading, setLoading] = useState(false);
+export const usePrinters = (restaurantId?: string) => {
+  // Se não tiver restaurantId, usar comportamento legacy
+  if (!restaurantId) {
+    return {
+      printers: [],
+      loading: false,
+      detectPrinters: async () => [],
+      testPrinter: async () => false,
+      configurePrinter: async () => false,
+      setDefaultPrinter: async () => false,
+      print: async () => false,
+      printOrder: async () => false,
+      refreshPrinters: () => {}
+    };
+  }
 
-  useEffect(() => {
-    loadPrinters();
-  }, []);
+  // Usar o novo sistema
+  const {
+    printers: enhancedPrinters,
+    loading,
+    configurePrinter: configureEnhancedPrinter,
+    setDefaultPrinter: setEnhancedDefaultPrinter,
+    testPrinter: testEnhancedPrinter,
+    printOrder: printEnhancedOrder,
+    refreshPrinters: refreshEnhanced
+  } = useEnhancedPrinters(restaurantId);
 
-  const loadPrinters = () => {
-    const configuredPrinters = printerService.getPrinters();
-    setPrinters(configuredPrinters);
-  };
-
-  const detectPrinters = async () => {
-    setLoading(true);
-    try {
-      const detectedPrinters = await printerService.detectPrinters();
-      setPrinters(detectedPrinters);
-      return detectedPrinters;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const testPrinter = async (printerId: string) => {
-    return await printerService.testPrinter(printerId);
-  };
-
-  const configurePrinter = async (config: PrinterConfig) => {
-    const success = await printerService.configurePrinter(config);
-    if (success) {
-      loadPrinters();
-    }
-    return success;
-  };
-
-  const setDefaultPrinter = async (printerId: string) => {
-    const success = await printerService.setDefaultPrinter(printerId);
-    if (success) {
-      loadPrinters();
-    }
-    return success;
-  };
-
-  const print = async (job: PrintJob) => {
-    return await printerService.print(job);
-  };
-
-  const printOrder = async (order: any, type: 'kitchen' | 'receipt') => {
-    const content = printerService.formatOrderForPrint(order, type);
-    return await print({
-      id: `${type}-${order.id}-${Date.now()}`,
-      content,
-      type,
-      copies: 1,
-      priority: 'normal'
-    });
-  };
+  // Adaptar interface para compatibilidade
+  const printers = enhancedPrinters.map(p => ({
+    id: p.id,
+    name: p.name,
+    type: p.type,
+    connection: p.connection_type,
+    ipAddress: p.ip_address,
+    port: p.port,
+    width: p.width,
+    enabled: p.enabled,
+    defaultPrinter: p.is_default
+  }));
 
   return {
     printers,
     loading,
-    detectPrinters,
-    testPrinter,
-    configurePrinter,
-    setDefaultPrinter,
-    print,
-    printOrder,
-    refreshPrinters: loadPrinters
+    detectPrinters: async () => enhancedPrinters,
+    testPrinter: testEnhancedPrinter,
+    configurePrinter: async (config: any) => {
+      try {
+        await configureEnhancedPrinter({
+          name: config.name,
+          type: config.type,
+          connection_type: config.connection,
+          ip_address: config.ipAddress,
+          port: config.port,
+          width: config.width,
+          enabled: config.enabled,
+          is_default: config.defaultPrinter
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    setDefaultPrinter: setEnhancedDefaultPrinter,
+    print: async () => true, // Legacy
+    printOrder: printEnhancedOrder,
+    refreshPrinters: refreshEnhanced
   };
 };
