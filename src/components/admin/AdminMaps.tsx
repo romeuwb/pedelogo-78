@@ -1,7 +1,4 @@
-
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,36 +20,62 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Map, Plus, Edit, Trash2, MapPin, Globe } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Map, Plus, Edit, Trash2, MapPin, Globe, Search, Loader2 } from 'lucide-react';
+import { useServiceRegions, ServiceRegion, CreateRegionData } from '@/hooks/useServiceRegions';
+import { useGeographySearch } from '@/hooks/useGeographySearch';
 import { useGoogleMaps } from '@/hooks/useGoogleMaps';
 import MapComponent from '@/components/maps/MapComponent';
-
-interface ServiceRegion {
-  id: string;
-  name: string;
-  type: 'country' | 'state' | 'city' | 'custom';
-  parent_region_id: string | null;
-  coordinates?: any;
-  active: boolean;
-  created_at: string;
-}
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const AdminMaps = () => {
-  const [regions, setRegions] = useState<ServiceRegion[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingRegion, setEditingRegion] = useState<ServiceRegion | null>(null);
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>('');
-  const [formData, setFormData] = useState({
+  const [citySearchTerm, setCitySearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const [formData, setFormData] = useState<CreateRegionData>({
     name: '',
-    type: 'city' as const,
-    parent_region_id: '',
+    type: 'city',
+    country: '',
+    state: '',
+    city: '',
     active: true
   });
 
-  const queryClient = useQueryClient();
+  const { 
+    regions, 
+    isLoading, 
+    createRegion, 
+    updateRegion, 
+    deleteRegion, 
+    toggleRegionStatus 
+  } = useServiceRegions();
+
+  const { 
+    countries, 
+    getStates, 
+    getCities, 
+    searchCities 
+  } = useGeographySearch();
+
   const { isLoaded: isGoogleMapsLoaded } = useGoogleMaps(googleMapsApiKey);
 
-  // Buscar a chave da API do Google Maps das configurações do sistema
+  // Buscar configuração da API do Google Maps
   const { data: systemConfigs } = useQuery({
     queryKey: ['system-configurations'],
     queryFn: async () => {
@@ -69,46 +92,94 @@ const AdminMaps = () => {
 
   useEffect(() => {
     if (systemConfigs?.valor) {
-      // Garantir que o valor seja uma string
       const apiKey = typeof systemConfigs.valor === 'string' ? systemConfigs.valor : String(systemConfigs.valor);
       setGoogleMapsApiKey(apiKey);
     }
   }, [systemConfigs]);
 
-  // Mock data para demonstração
-  const mockRegions: ServiceRegion[] = [
-    {
-      id: '1',
-      name: 'Brasil',
-      type: 'country',
-      parent_region_id: null,
-      coordinates: { lat: -14.2350, lng: -51.9253 },
-      active: true,
-      created_at: new Date().toISOString()
-    },
-    {
-      id: '2',
-      name: 'São Paulo',
-      type: 'state',
-      parent_region_id: '1',
-      coordinates: { lat: -23.5505, lng: -46.6333 },
-      active: true,
-      created_at: new Date().toISOString()
-    },
-    {
-      id: '3',
-      name: 'Rio de Janeiro',
-      type: 'city',
-      parent_region_id: '2',
-      coordinates: { lat: -22.9068, lng: -43.1729 },
-      active: true,
-      created_at: new Date().toISOString()
-    }
-  ];
-
+  // Busca inteligente de cidades
   useEffect(() => {
-    setRegions(mockRegions);
-  }, []);
+    const searchTimer = setTimeout(async () => {
+      if (citySearchTerm.length >= 2) {
+        setIsSearching(true);
+        try {
+          const cities = await searchCities(citySearchTerm);
+          setSearchResults(cities);
+        } catch (error) {
+          console.error('Erro na busca:', error);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setSearchResults([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(searchTimer);
+  }, [citySearchTerm, searchCities]);
+
+  const handleCitySelect = (city: any) => {
+    setFormData({
+      ...formData,
+      name: city.name,
+      country: city.country === 'BR' ? 'Brasil' : city.country,
+      state: city.state,
+      city: city.name,
+      coordinates: city.coordinates
+    });
+    setCitySearchTerm(city.name);
+    setSearchResults([]);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (editingRegion) {
+      updateRegion.mutate({
+        id: editingRegion.id,
+        ...formData
+      });
+      setIsEditOpen(false);
+      setEditingRegion(null);
+    } else {
+      createRegion.mutate(formData);
+      setIsCreateOpen(false);
+    }
+
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      type: 'city',
+      country: '',
+      state: '',
+      city: '',
+      active: true
+    });
+    setCitySearchTerm('');
+    setSearchResults([]);
+  };
+
+  const handleEdit = (region: ServiceRegion) => {
+    setEditingRegion(region);
+    setFormData({
+      name: region.name,
+      type: region.type,
+      country: region.country || '',
+      state: region.state || '',
+      city: region.city || '',
+      coordinates: region.coordinates,
+      active: region.active
+    });
+    setCitySearchTerm(region.name);
+    setIsEditOpen(true);
+  };
+
+  const handleDelete = (regionId: string) => {
+    deleteRegion.mutate(regionId);
+  };
 
   const getRegionIcon = (type: string) => {
     switch (type) {
@@ -153,58 +224,8 @@ const AdminMaps = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const newRegion: ServiceRegion = {
-      id: Date.now().toString(),
-      name: formData.name,
-      type: formData.type,
-      parent_region_id: formData.parent_region_id || null,
-      active: formData.active,
-      created_at: new Date().toISOString()
-    };
-
-    setRegions(prev => [...prev, newRegion]);
-    setIsCreateOpen(false);
-    setFormData({
-      name: '',
-      type: 'city',
-      parent_region_id: '',
-      active: true
-    });
-
-    toast({
-      title: 'Sucesso',
-      description: 'Região criada com sucesso'
-    });
-  };
-
-  const toggleRegionStatus = (regionId: string) => {
-    setRegions(prev => 
-      prev.map(region => 
-        region.id === regionId 
-          ? { ...region, active: !region.active }
-          : region
-      )
-    );
-
-    toast({
-      title: 'Sucesso',
-      description: 'Status da região atualizado'
-    });
-  };
-
   const handleLocationSelect = (location: { lat: number; lng: number; address: string }) => {
     console.log('Localização selecionada:', location);
-    toast({
-      title: 'Localização selecionada',
-      description: `${location.address}`
-    });
-  };
-
-  const getParentRegions = () => {
-    return regions.filter(region => region.type !== 'custom');
   };
 
   // Preparar marcadores para o mapa
@@ -212,10 +233,104 @@ const AdminMaps = () => {
     .filter(region => region.coordinates && region.active)
     .map(region => ({
       id: region.id,
-      position: region.coordinates,
+      position: region.coordinates!,
       title: region.name,
       type: 'restaurant' as const
     }));
+
+  const RegionForm = () => (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="search">Buscar Cidade</Label>
+        <div className="relative">
+          <Input
+            id="search"
+            value={citySearchTerm}
+            onChange={(e) => setCitySearchTerm(e.target.value)}
+            placeholder="Digite o nome da cidade..."
+            className="pr-10"
+          />
+          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          {isSearching && (
+            <Loader2 className="absolute right-10 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+          )}
+        </div>
+        
+        {searchResults.length > 0 && (
+          <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
+            {searchResults.map((city, index) => (
+              <button
+                key={index}
+                type="button"
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center justify-between"
+                onClick={() => handleCitySelect(city)}
+              >
+                <span>{city.name}</span>
+                <span className="text-sm text-gray-500">{city.state}, {city.country}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="country">País</Label>
+          <Input
+            id="country"
+            value={formData.country}
+            onChange={(e) => setFormData({...formData, country: e.target.value})}
+            placeholder="Ex: Brasil"
+            readOnly
+          />
+        </div>
+        <div>
+          <Label htmlFor="state">Estado</Label>
+          <Input
+            id="state"
+            value={formData.state}
+            onChange={(e) => setFormData({...formData, state: e.target.value})}
+            placeholder="Ex: SP"
+            readOnly
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="name">Nome da Região</Label>
+        <Input
+          id="name"
+          value={formData.name}
+          onChange={(e) => setFormData({...formData, name: e.target.value})}
+          placeholder="Nome será preenchido automaticamente"
+          required
+          readOnly
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="type">Tipo de Região</Label>
+        <Select 
+          value={formData.type} 
+          onValueChange={(value: any) => setFormData({...formData, type: value})}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="country">País</SelectItem>
+            <SelectItem value="state">Estado</SelectItem>
+            <SelectItem value="city">Cidade</SelectItem>
+            <SelectItem value="custom">Região Personalizada</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Button type="submit" className="w-full" disabled={createRegion.isPending || updateRegion.isPending}>
+        {editingRegion ? 'Atualizar Região' : 'Criar Região'}
+      </Button>
+    </form>
+  );
 
   return (
     <div className="space-y-6">
@@ -236,60 +351,7 @@ const AdminMaps = () => {
             <DialogHeader>
               <DialogTitle>Criar Nova Região</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="name">Nome da Região</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  placeholder="Ex: São Paulo, Rio de Janeiro..."
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="type">Tipo de Região</Label>
-                <Select 
-                  value={formData.type} 
-                  onValueChange={(value: any) => setFormData({...formData, type: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="country">País</SelectItem>
-                    <SelectItem value="state">Estado</SelectItem>
-                    <SelectItem value="city">Cidade</SelectItem>
-                    <SelectItem value="custom">Região Personalizada</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="parent_region_id">Região Pai (Opcional)</Label>
-                <Select 
-                  value={formData.parent_region_id} 
-                  onValueChange={(value) => setFormData({...formData, parent_region_id: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecionar região pai..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nenhuma</SelectItem>
-                    {getParentRegions().map((region) => (
-                      <SelectItem key={region.id} value={region.id}>
-                        {region.name} ({getRegionTypeLabel(region.type)})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button type="submit" className="w-full">
-                Criar Região
-              </Button>
-            </form>
+            <RegionForm />
           </DialogContent>
         </Dialog>
       </div>
@@ -341,21 +403,25 @@ const AdminMaps = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Região Pai</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Data de Criação</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {regions.map((region) => {
-                const parentRegion = regions.find(r => r.id === region.parent_region_id);
-                return (
+          {isLoading ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <span className="ml-2">Carregando regiões...</span>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>País/Estado</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Data de Criação</TableHead>
+                  <TableHead>Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {regions.map((region) => (
                   <TableRow key={region.id}>
                     <TableCell>
                       <div className="flex items-center space-x-2">
@@ -369,7 +435,7 @@ const AdminMaps = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {parentRegion ? parentRegion.name : '-'}
+                      {region.country && region.state ? `${region.country}, ${region.state}` : region.country || '-'}
                     </TableCell>
                     <TableCell>
                       <Badge className={region.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
@@ -384,30 +450,69 @@ const AdminMaps = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => toggleRegionStatus(region.id)}
+                          onClick={() => toggleRegionStatus.mutate(region.id)}
                         >
                           {region.active ? 'Desativar' : 'Ativar'}
                         </Button>
-                        <Button size="sm" variant="outline">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleEdit(region)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir a região "{region.name}"? 
+                                Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(region.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>
-                );
-              })}
+                ))}
 
-              {regions.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                    Nenhuma região configurada ainda.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                {regions.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                      Nenhuma região configurada ainda.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      {/* Dialog de Edição */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Região</DialogTitle>
+          </DialogHeader>
+          <RegionForm />
+        </DialogContent>
+      </Dialog>
 
       {/* Informações sobre Integração */}
       <Card className="bg-blue-50 border-blue-200">
