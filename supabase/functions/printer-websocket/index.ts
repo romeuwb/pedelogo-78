@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -44,9 +45,16 @@ serve(async (req) => {
     return new Response("Missing restaurantId parameter", { status: 400, headers: corsHeaders });
   }
 
-  if (!apiKey) {
-    console.log('Missing apiKey parameter');
-    return new Response("Missing apiKey parameter", { status: 400, headers: corsHeaders });
+  // Validação mais robusta da API key
+  if (!apiKey || apiKey.trim() === '' || apiKey === 'default') {
+    console.log(`Invalid apiKey parameter: ${apiKey}`);
+    return new Response("Valid apiKey parameter is required", { status: 400, headers: corsHeaders });
+  }
+
+  // Verificar se a API key tem o formato esperado (rapi_)
+  if (!apiKey.startsWith('rapi_')) {
+    console.log(`Invalid apiKey format: ${apiKey.substring(0, 10)}...`);
+    return new Response("Invalid apiKey format", { status: 400, headers: corsHeaders });
   }
 
   // Inicializar Supabase client
@@ -70,6 +78,28 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error creating Supabase client:', error);
     return new Response("Database connection error", { status: 500, headers: corsHeaders });
+  }
+
+  // Validar a API key no banco de dados antes de fazer upgrade
+  try {
+    console.log(`Validating API key for restaurant: ${restaurantId}`);
+    const { data: apiKeyData, error: apiKeyError } = await supabase
+      .from('restaurant_api_keys')
+      .select('id, is_active')
+      .eq('restaurant_id', restaurantId)
+      .eq('api_key', apiKey)
+      .eq('is_active', true)
+      .single();
+
+    if (apiKeyError || !apiKeyData) {
+      console.error('Invalid or inactive API key:', apiKeyError?.message || 'Not found');
+      return new Response("Invalid or inactive API key", { status: 403, headers: corsHeaders });
+    }
+
+    console.log('API key validated successfully');
+  } catch (error) {
+    console.error('Error validating API key:', error);
+    return new Response("API key validation error", { status: 500, headers: corsHeaders });
   }
 
   try {
