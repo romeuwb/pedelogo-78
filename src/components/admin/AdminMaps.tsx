@@ -52,6 +52,7 @@ const AdminMaps = () => {
   const [searchType, setSearchType] = useState<SearchType>('city');
   const [showResults, setShowResults] = useState(false);
   const [isManualSearching, setIsManualSearching] = useState(false);
+  const [isResultsVisible, setIsResultsVisible] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -109,13 +110,13 @@ const AdminMaps = () => {
     }
   }, [systemConfigs]);
 
-  // Busca melhorada com mais tipos de localização
+  // Busca melhorada com tipos mais específicos para cada categoria
   useEffect(() => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    if (searchTerm.length >= 2 && searchType !== 'custom' && isGoogleMapsLoaded) {
+    if (searchTerm.length >= 2 && (searchType as string) !== 'custom' && isGoogleMapsLoaded) {
       setIsManualSearching(true);
       
       searchTimeoutRef.current = setTimeout(async () => {
@@ -124,29 +125,32 @@ const AdminMaps = () => {
           
           switch (searchType) {
             case 'city':
-              // Busca mais ampla para cidades incluindo localidades e sublocais
+              // Busca mais ampla para cidades
               results = await searchPlaces(searchTerm, [
                 'locality', 
                 'administrative_area_level_3',
                 'sublocality',
-                'sublocality_level_1'
+                'sublocality_level_1',
+                'administrative_area_level_4'
               ]);
               break;
             case 'state':
-              // Busca mais ampla para estados
+              // Busca expandida para estados brasileiros e internacionais
               results = await searchPlaces(searchTerm, [
                 'administrative_area_level_1',
-                'administrative_area_level_2'
+                'administrative_area_level_2',
+                'political'
               ]);
+              console.log(`Busca por estado "${searchTerm}":`, results);
               break;
             case 'country':
               results = await searchPlaces(searchTerm, ['country']);
               break;
           }
           
-          console.log(`Resultados da busca para "${searchTerm}":`, results);
+          console.log(`Resultados da busca para "${searchTerm}" (${searchType}):`, results);
           setSearchResults(results);
-          setShowResults(true);
+          setIsResultsVisible(true);
         } catch (error) {
           console.error('Erro na busca do Google Places:', error);
           setSearchResults([]);
@@ -156,7 +160,7 @@ const AdminMaps = () => {
       }, 300);
     } else {
       setSearchResults([]);
-      setShowResults(false);
+      setIsResultsVisible(false);
       setIsManualSearching(false);
     }
 
@@ -182,16 +186,20 @@ const AdminMaps = () => {
     
     if (placeTypes.includes('country')) {
       determinedType = 'country';
-    } else if (placeTypes.includes('administrative_area_level_1') || placeTypes.includes('administrative_area_level_2')) {
+    } else if (placeTypes.includes('administrative_area_level_1') || 
+               placeTypes.includes('administrative_area_level_2') ||
+               placeTypes.includes('political')) {
       determinedType = 'state';
-    } else if (placeTypes.includes('locality') || placeTypes.includes('administrative_area_level_3') || placeTypes.includes('sublocality')) {
+    } else if (placeTypes.includes('locality') || 
+               placeTypes.includes('administrative_area_level_3') || 
+               placeTypes.includes('sublocality')) {
       determinedType = 'city';
     }
 
     newFormData.type = determinedType;
 
-    // Preencher dados baseado no tipo determinado e garantir que o país seja preenchido
-    const country = location.country || 'Brasil'; // Default para Brasil se não encontrar
+    // Preencher dados baseado no tipo determinado
+    const country = location.country || 'Brasil';
 
     switch (determinedType) {
       case 'city':
@@ -227,7 +235,7 @@ const AdminMaps = () => {
     setFormData(newFormData);
     setSearchTerm(location.name);
     setSearchResults([]);
-    setShowResults(false);
+    setIsResultsVisible(false);
     setSearchType(determinedType);
   };
 
@@ -236,38 +244,26 @@ const AdminMaps = () => {
     setSearchTerm(value);
     
     if (value.length < 2) {
-      setShowResults(false);
+      setIsResultsVisible(false);
       setSearchResults([]);
     }
   };
 
-  // Melhor controle de foco para evitar que o campo perca foco
   const handleSearchInputFocus = () => {
     if (searchTerm.length >= 2 && searchResults.length > 0) {
-      setShowResults(true);
+      setIsResultsVisible(true);
     }
-  };
-
-  // Prevenção de perda de foco usando onMouseDown
-  const handleResultMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault(); // Previne a perda de foco
   };
 
   const handleResultClick = (location: any) => {
     handleLocationSelect(location);
   };
 
-  const handleSearchInputBlur = (e: React.FocusEvent) => {
-    // Verifica se o foco está indo para os resultados
-    const relatedTarget = e.relatedTarget as HTMLElement;
-    if (resultsRef.current?.contains(relatedTarget)) {
-      return; // Não fechar se o foco está nos resultados
-    }
-    
-    // Delay para permitir clique nos resultados
+  const handleSearchInputBlur = () => {
+    // Delay maior para permitir clique nos resultados
     setTimeout(() => {
-      setShowResults(false);
-    }, 150);
+      setIsResultsVisible(false);
+    }, 200);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -301,7 +297,7 @@ const AdminMaps = () => {
     });
     setSearchTerm('');
     setSearchResults([]);
-    setShowResults(false);
+    setIsResultsVisible(false);
     setSearchType('city');
   };
 
@@ -413,7 +409,7 @@ const AdminMaps = () => {
             setFormData({...formData, type: value as RegionType});
             setSearchTerm('');
             setSearchResults([]);
-            setShowResults(false);
+            setIsResultsVisible(false);
           }}
         >
           <SelectTrigger>
@@ -451,7 +447,7 @@ const AdminMaps = () => {
             )}
           </div>
           
-          {showResults && searchResults.length > 0 && (
+          {isResultsVisible && searchResults.length > 0 && (
             <div 
               ref={resultsRef}
               className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto"
@@ -461,7 +457,7 @@ const AdminMaps = () => {
                   key={index}
                   type="button"
                   className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center justify-between border-b border-gray-100 last:border-b-0"
-                  onMouseDown={handleResultMouseDown}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => handleResultClick(location)}
                 >
                   <div className="flex-1">
@@ -476,7 +472,9 @@ const AdminMaps = () => {
                   </div>
                   <div className="text-xs text-gray-400 ml-2">
                     {location.types?.includes('country') && '🌍'}
-                    {(location.types?.includes('administrative_area_level_1') || location.types?.includes('administrative_area_level_2')) && '🗺️'}
+                    {(location.types?.includes('administrative_area_level_1') || 
+                      location.types?.includes('administrative_area_level_2') ||
+                      location.types?.includes('political')) && '🗺️'}
                     {(location.types?.includes('locality') || location.types?.includes('sublocality')) && '🏙️'}
                   </div>
                 </button>
@@ -484,7 +482,7 @@ const AdminMaps = () => {
             </div>
           )}
 
-          {isGoogleMapsLoaded && showResults && searchResults.length === 0 && !isManualSearching && !isGoogleSearching && searchTerm.length >= 2 && (
+          {isGoogleMapsLoaded && isResultsVisible && searchResults.length === 0 && !isManualSearching && !isGoogleSearching && searchTerm.length >= 2 && (
             <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg p-4 text-center text-gray-500">
               Nenhum resultado encontrado para "{searchTerm}"
             </div>
