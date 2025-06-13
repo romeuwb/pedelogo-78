@@ -14,6 +14,7 @@ declare namespace google {
       setZoom(zoom: number): void;
       getCenter(): LatLng;
       getZoom(): number;
+      addListener(eventName: string, handler: Function): void;
     }
 
     interface MapOptions {
@@ -23,6 +24,13 @@ declare namespace google {
       mapTypeControl?: boolean;
       streetViewControl?: boolean;
       fullscreenControl?: boolean;
+      styles?: MapTypeStyle[];
+    }
+
+    interface MapTypeStyle {
+      featureType?: string;
+      elementType?: string;
+      stylers?: Array<{ [key: string]: any }>;
     }
 
     class LatLng {
@@ -47,6 +55,51 @@ declare namespace google {
       TOP_CENTER = 'TOP_CENTER',
       TOP_LEFT = 'TOP_LEFT',
       TOP_RIGHT = 'TOP_RIGHT'
+    }
+
+    class Marker {
+      constructor(opts?: MarkerOptions);
+      setMap(map: Map | null): void;
+      addListener(eventName: string, handler: Function): void;
+    }
+
+    interface MarkerOptions {
+      position?: LatLng | LatLngLiteral;
+      map?: Map;
+      title?: string;
+      icon?: string;
+    }
+
+    class InfoWindow {
+      constructor(opts?: InfoWindowOptions);
+      open(map: Map, marker?: Marker): void;
+      close(): void;
+    }
+
+    interface InfoWindowOptions {
+      content?: string | Element;
+    }
+
+    class Geocoder {
+      constructor();
+      geocode(request: GeocoderRequest, callback: (results: GeocoderResult[], status: GeocoderStatus) => void): void;
+    }
+
+    interface GeocoderRequest {
+      address?: string;
+      location?: LatLng | LatLngLiteral;
+    }
+
+    interface GeocoderResult {
+      formatted_address: string;
+      geometry: {
+        location: LatLng;
+      };
+    }
+
+    enum GeocoderStatus {
+      OK = 'OK',
+      ERROR = 'ERROR'
     }
 
     namespace drawing {
