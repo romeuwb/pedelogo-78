@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -5,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Dialog,
   DialogContent,
@@ -50,7 +52,6 @@ const AdminMaps = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchType, setSearchType] = useState<SearchType>('city');
-  const [showResults, setShowResults] = useState(false);
   const [isManualSearching, setIsManualSearching] = useState(false);
   const [isResultsVisible, setIsResultsVisible] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -116,7 +117,7 @@ const AdminMaps = () => {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    if (searchTerm.length >= 2 && (searchType as string) !== 'custom' && isGoogleMapsLoaded) {
+    if (searchTerm.length >= 2 && searchType !== 'custom' && isGoogleMapsLoaded) {
       setIsManualSearching(true);
       
       searchTimeoutRef.current = setTimeout(async () => {
@@ -257,13 +258,6 @@ const AdminMaps = () => {
 
   const handleResultClick = (location: any) => {
     handleLocationSelect(location);
-  };
-
-  const handleSearchInputBlur = () => {
-    // Delay maior para permitir clique nos resultados
-    setTimeout(() => {
-      setIsResultsVisible(false);
-    }, 200);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -424,7 +418,7 @@ const AdminMaps = () => {
         </Select>
       </div>
 
-      {(searchType as string) !== 'custom' && (
+      {searchType !== 'custom' && (
         <div className="relative">
           <Label htmlFor="search">
             Buscar {searchType === 'city' ? 'Cidade' : searchType === 'state' ? 'Estado' : 'País'}
@@ -436,7 +430,6 @@ const AdminMaps = () => {
               value={searchTerm}
               onChange={handleSearchInputChange}
               onFocus={handleSearchInputFocus}
-              onBlur={handleSearchInputBlur}
               placeholder={`Digite o nome ${searchType === 'city' ? 'da cidade' : searchType === 'state' ? 'do estado' : 'do país'}...`}
               className="pr-10"
               autoComplete="off"
@@ -457,8 +450,10 @@ const AdminMaps = () => {
                   key={index}
                   type="button"
                   className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center justify-between border-b border-gray-100 last:border-b-0"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => handleResultClick(location)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleResultClick(location);
+                  }}
                 >
                   <div className="flex-1">
                     <span className="font-medium block">{location.name}</span>
@@ -503,7 +498,7 @@ const AdminMaps = () => {
         </div>
       </div>
 
-      {(searchType as string) !== 'custom' && (
+      {searchType !== 'custom' && (
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="country">País</Label>
@@ -512,11 +507,11 @@ const AdminMaps = () => {
               value={formData.country}
               onChange={(e) => setFormData({...formData, country: e.target.value})}
               placeholder="Ex: Brasil"
-              readOnly={(searchType as string) !== 'custom'}
-              className={(searchType as string) !== 'custom' ? 'bg-gray-50' : ''}
+              readOnly={searchType !== 'custom'}
+              className={searchType !== 'custom' ? 'bg-gray-50' : ''}
             />
           </div>
-          {((searchType as string) === 'state' || (searchType as string) === 'city') && (
+          {(searchType === 'state' || searchType === 'city') && (
             <div>
               <Label htmlFor="state">Estado</Label>
               <Input
@@ -524,8 +519,8 @@ const AdminMaps = () => {
                 value={formData.state}
                 onChange={(e) => setFormData({...formData, state: e.target.value})}
                 placeholder="Ex: SP"
-                readOnly={(searchType as string) !== 'custom'}
-                className={(searchType as string) !== 'custom' ? 'bg-gray-50' : ''}
+                readOnly={searchType !== 'custom'}
+                className={searchType !== 'custom' ? 'bg-gray-50' : ''}
               />
             </div>
           )}
@@ -676,7 +671,7 @@ const AdminMaps = () => {
         </CardContent>
       </Card>
 
-      {/* Lista de Regiões com dados reais */}
+      {/* Lista de Regiões com dados reais e ScrollArea */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -692,117 +687,119 @@ const AdminMaps = () => {
               <span className="ml-2">Carregando regiões...</span>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Localização</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Data de Criação</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {regions.map((region) => (
-                  <TableRow key={region.id}>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        {getRegionIcon(region.type)}
-                        <span className="font-medium">{region.name}</span>
-                        {region.coordinates && (
-                          <Badge variant="outline" className="text-xs">
-                            Mapeada
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getRegionTypeBadgeColor(region.type)}>
-                        {getRegionTypeLabel(region.type)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {region.country && <div>{region.country}</div>}
-                        {region.state && <div className="text-gray-500">{region.state}</div>}
-                        {region.city && <div className="text-gray-400">{region.city}</div>}
-                        {region.coordinates && (
-                          <div className="text-xs text-gray-400 mt-1">
-                            {region.coordinates.lat.toFixed(4)}, {region.coordinates.lng.toFixed(4)}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={region.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                        {region.active ? 'Ativa' : 'Inativa'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(region.created_at).toLocaleDateString('pt-BR')}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => toggleRegionStatus.mutate(region.id)}
-                          className="h-8 w-8 p-0"
-                        >
-                          {region.active ? (
-                            <PowerOff className="h-4 w-4" />
-                          ) : (
-                            <Power className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleEdit(region)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="destructive" className="h-8 w-8 p-0">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Tem certeza que deseja excluir a região "{region.name}"? 
-                                Esta ação não pode ser desfeita e pode afetar o funcionamento da plataforma.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDelete(region.id)}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                Excluir
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-
-                {regions.length === 0 && (
+            <ScrollArea className="h-[400px] w-full">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                      Nenhuma região configurada ainda. Clique em "Nova Região" para começar.
-                    </TableCell>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Localização</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Data de Criação</TableHead>
+                    <TableHead>Ações</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {regions.map((region) => (
+                    <TableRow key={region.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          {getRegionIcon(region.type)}
+                          <span className="font-medium">{region.name}</span>
+                          {region.coordinates && (
+                            <Badge variant="outline" className="text-xs">
+                              Mapeada
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getRegionTypeBadgeColor(region.type)}>
+                          {getRegionTypeLabel(region.type)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {region.country && <div>{region.country}</div>}
+                          {region.state && <div className="text-gray-500">{region.state}</div>}
+                          {region.city && <div className="text-gray-400">{region.city}</div>}
+                          {region.coordinates && (
+                            <div className="text-xs text-gray-400 mt-1">
+                              {region.coordinates.lat.toFixed(4)}, {region.coordinates.lng.toFixed(4)}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={region.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                          {region.active ? 'Ativa' : 'Inativa'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(region.created_at).toLocaleDateString('pt-BR')}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => toggleRegionStatus.mutate(region.id)}
+                            className="h-8 w-8 p-0"
+                          >
+                            {region.active ? (
+                              <PowerOff className="h-4 w-4" />
+                            ) : (
+                              <Power className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleEdit(region)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="sm" variant="destructive" className="h-8 w-8 p-0">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja excluir a região "{region.name}"? 
+                                  Esta ação não pode ser desfeita e pode afetar o funcionamento da plataforma.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete(region.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+
+                  {regions.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                        Nenhuma região configurada ainda. Clique em "Nova Região" para começar.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </ScrollArea>
           )}
         </CardContent>
       </Card>
