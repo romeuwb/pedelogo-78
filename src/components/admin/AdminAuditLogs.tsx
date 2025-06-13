@@ -1,75 +1,68 @@
 
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { DatePickerWithRange } from '@/components/ui/date-picker';
 import { 
-  Shield, 
-  Search, 
-  Filter, 
-  Eye, 
-  AlertTriangle, 
-  CheckCircle, 
-  XCircle,
-  Clock,
-  User,
-  Settings
-} from 'lucide-react';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Shield, Search, Eye, Download, Filter } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { DateRange } from 'react-day-picker';
 
 interface AuditLog {
   id: string;
   admin_id: string;
-  admin_name?: string;
   acao: string;
-  tabela_afetada?: string;
-  registro_id?: string;
-  dados_anteriores?: any;
-  dados_novos?: any;
-  ip_address?: string;
-  user_agent?: string;
+  tabela_afetada: string | null;
+  registro_id: string | null;
+  dados_anteriores: any;
+  dados_novos: any;
+  ip_address: string | null;
+  user_agent: string | null;
   created_at: string;
+  admin_name?: string;
 }
 
-interface AuditFilters {
-  dateRange: DateRange | undefined;
-  adminUser: string;
-  action: string;
-  table: string;
-  searchTerm: string;
+interface AdminUser {
+  id: string;
+  nome: string;
 }
 
 const AdminAuditLogs = () => {
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [filters, setFilters] = useState<AuditFilters>({
-    dateRange: undefined,
-    adminUser: 'all',
-    action: 'all',
-    table: 'all',
-    searchTerm: ''
-  });
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [adminUsers, setAdminUsers] = useState<Array<{ id: string; nome: string }>>([]);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    admin_id: '',
+    acao: '',
+    tabela: '',
+    data_inicio: '',
+    data_fim: ''
+  });
+
   const { toast } = useToast();
 
-  const actionTypes = [
-    { value: 'CREATE', label: 'Criação', icon: CheckCircle, color: 'text-green-600' },
-    { value: 'UPDATE', label: 'Atualização', icon: Settings, color: 'text-blue-600' },
-    { value: 'DELETE', label: 'Exclusão', icon: XCircle, color: 'text-red-600' },
-    { value: 'LOGIN', label: 'Login', icon: User, color: 'text-purple-600' },
-    { value: 'SECURITY', label: 'Segurança', icon: Shield, color: 'text-orange-600' }
-  ];
-
-  const loadAuditLogs = async () => {
-    setIsLoading(true);
-    try {
+  const { data: auditLogs, isLoading } = useQuery({
+    queryKey: ['auditLogs', filters],
+    queryFn: async () => {
       let query = supabase
         .from('audit_logs')
         .select(`
@@ -79,95 +72,135 @@ const AdminAuditLogs = () => {
         .order('created_at', { ascending: false })
         .limit(100);
 
-      // Apply filters
-      if (filters.dateRange?.from) {
-        query = query.gte('created_at', filters.dateRange.from.toISOString());
+      if (filters.admin_id) {
+        query = query.eq('admin_id', filters.admin_id);
       }
-      if (filters.dateRange?.to) {
-        query = query.lte('created_at', filters.dateRange.to.toISOString());
+      if (filters.acao) {
+        query = query.ilike('acao', `%${filters.acao}%`);
       }
-      if (filters.adminUser !== 'all') {
-        query = query.eq('admin_id', filters.adminUser);
+      if (filters.tabela) {
+        query = query.eq('tabela_afetada', filters.tabela);
       }
-      if (filters.action !== 'all') {
-        query = query.eq('acao', filters.action);
+      if (filters.data_inicio) {
+        query = query.gte('created_at', filters.data_inicio);
       }
-      if (filters.table !== 'all') {
-        query = query.eq('tabela_afetada', filters.table);
-      }
-      if (filters.searchTerm) {
-        query = query.or(`acao.ilike.%${filters.searchTerm}%,tabela_afetada.ilike.%${filters.searchTerm}%`);
+      if (filters.data_fim) {
+        query = query.lte('created_at', filters.data_fim);
       }
 
       const { data, error } = await query;
-
+      
       if (error) throw error;
       
-      // Transform data to include admin name
-      const logsWithAdminName = (data || []).map(log => ({
+      const transformedData = data.map(log => ({
         ...log,
-        admin_name: log.admin_users?.nome || 'Usuário não encontrado'
+        admin_name: log.admin_users?.nome || 'Admin não encontrado',
+        ip_address: log.ip_address || 'N/A'
       }));
       
-      setAuditLogs(logsWithAdminName);
-    } catch (error) {
-      console.error('Erro ao carregar logs de auditoria:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os logs de auditoria.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
+      return transformedData;
     }
-  };
+  });
 
-  const loadAdminUsers = async () => {
-    try {
+  const { data: adminUsers } = useQuery({
+    queryKey: ['adminUsers'],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('admin_users')
-        .select('user_id, nome')
-        .eq('ativo', true);
-
+        .select('user_id as id, nome')
+        .eq('ativo', true)
+        .order('nome');
+      
       if (error) throw error;
-      setAdminUsers(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar usuários admin:', error);
+      return data.map(user => ({ id: user.id, nome: user.nome }));
     }
-  };
-
-  const getActionIcon = (action: string) => {
-    const actionType = actionTypes.find(type => action.includes(type.value));
-    return actionType ? actionType.icon : AlertTriangle;
-  };
-
-  const getActionColor = (action: string) => {
-    const actionType = actionTypes.find(type => action.includes(type.value));
-    return actionType ? actionType.color : 'text-gray-600';
-  };
-
-  const formatLogData = (data: any) => {
-    if (!data) return 'N/A';
-    
-    try {
-      return JSON.stringify(data, null, 2);
-    } catch {
-      return String(data);
-    }
-  };
+  });
 
   useEffect(() => {
-    loadAuditLogs();
-    loadAdminUsers();
-  }, [filters]);
+    if (auditLogs) {
+      setLogs(auditLogs);
+    }
+  }, [auditLogs]);
+
+  useEffect(() => {
+    if (adminUsers) {
+      setAdmins(adminUsers);
+    }
+  }, [adminUsers]);
+
+  const getActionBadgeColor = (action: string) => {
+    switch (action.toLowerCase()) {
+      case 'create':
+      case 'insert':
+        return 'bg-green-100 text-green-800';
+      case 'update':
+        return 'bg-blue-100 text-blue-800';
+      case 'delete':
+        return 'bg-red-100 text-red-800';
+      case 'login':
+        return 'bg-purple-100 text-purple-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('pt-BR');
+  };
+
+  const viewLogDetails = (log: AuditLog) => {
+    setSelectedLog(log);
+    setIsDetailOpen(true);
+  };
+
+  const exportLogs = () => {
+    const csvContent = [
+      ['Data', 'Admin', 'Ação', 'Tabela', 'IP', 'User Agent'].join(','),
+      ...logs.map(log => [
+        formatDate(log.created_at),
+        log.admin_name,
+        log.acao,
+        log.tabela_afetada || '',
+        log.ip_address || '',
+        log.user_agent || ''
+      ].map(field => `"${field}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `audit_logs_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      admin_id: '',
+      acao: '',
+      tabela: '',
+      data_inicio: '',
+      data_fim: ''
+    });
+  };
+
+  if (isLoading) {
+    return <div>Carregando logs de auditoria...</div>;
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Logs de Auditoria</h1>
-          <p className="text-gray-600">Monitore todas as ações administrativas da plataforma</p>
+          <p className="text-gray-600">Acompanhe todas as ações realizadas pelos administradores</p>
         </div>
+        
+        <Button onClick={exportLogs}>
+          <Download className="h-4 w-4 mr-2" />
+          Exportar CSV
+        </Button>
       </div>
 
       {/* Filtros */}
@@ -175,33 +208,25 @@ const AdminAuditLogs = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
-            Filtros de Auditoria
+            Filtros
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
-              <Label>Período</Label>
-              <DatePickerWithRange
-                date={filters.dateRange}
-                onDateChange={(range) => setFilters(prev => ({ ...prev, dateRange: range }))}
-              />
-            </div>
-            
-            <div>
-              <Label>Usuário Admin</Label>
+              <Label>Administrador</Label>
               <Select 
-                value={filters.adminUser} 
-                onValueChange={(value) => setFilters(prev => ({ ...prev, adminUser: value }))}
+                value={filters.admin_id} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, admin_id: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos os Usuários</SelectItem>
-                  {adminUsers.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.nome}
+                  <SelectItem value="">Todos</SelectItem>
+                  {admins.map((admin) => (
+                    <SelectItem key={admin.id} value={admin.id}>
+                      {admin.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -209,198 +234,177 @@ const AdminAuditLogs = () => {
             </div>
 
             <div>
-              <Label>Tipo de Ação</Label>
-              <Select 
-                value={filters.action} 
-                onValueChange={(value) => setFilters(prev => ({ ...prev, action: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as Ações</SelectItem>
-                  {actionTypes.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Ação</Label>
+              <Input
+                placeholder="Buscar ação..."
+                value={filters.acao}
+                onChange={(e) => setFilters(prev => ({ ...prev, acao: e.target.value }))}
+              />
             </div>
 
             <div>
               <Label>Tabela</Label>
-              <Select 
-                value={filters.table} 
-                onValueChange={(value) => setFilters(prev => ({ ...prev, table: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as Tabelas</SelectItem>
-                  <SelectItem value="users">Usuários</SelectItem>
-                  <SelectItem value="restaurants">Restaurantes</SelectItem>
-                  <SelectItem value="orders">Pedidos</SelectItem>
-                  <SelectItem value="products">Produtos</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                placeholder="Nome da tabela..."
+                value={filters.tabela}
+                onChange={(e) => setFilters(prev => ({ ...prev, tabela: e.target.value }))}
+              />
             </div>
 
             <div>
-              <Label>Buscar</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Buscar logs..."
-                  value={filters.searchTerm}
-                  onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-                  className="pl-9"
-                />
-              </div>
+              <Label>Data Início</Label>
+              <Input
+                type="datetime-local"
+                value={filters.data_inicio}
+                onChange={(e) => setFilters(prev => ({ ...prev, data_inicio: e.target.value }))}
+              />
             </div>
+
+            <div>
+              <Label>Data Fim</Label>
+              <Input
+                type="datetime-local"
+                value={filters.data_fim}
+                onChange={(e) => setFilters(prev => ({ ...prev, data_fim: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end mt-4">
+            <Button variant="outline" onClick={clearFilters}>
+              Limpar Filtros
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Lista de Logs */}
+      {/* Tabela de Logs */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
-            Registros de Auditoria ({auditLogs.length})
+            Logs de Auditoria
+            <Badge variant="secondary">{logs.length}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {auditLogs.map((log) => {
-              const ActionIcon = getActionIcon(log.acao);
-              const actionColor = getActionColor(log.acao);
-              
-              return (
-                <div
-                  key={log.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                  onClick={() => setSelectedLog(log)}
-                >
-                  <div className="flex items-center space-x-4">
-                    <ActionIcon className={`h-6 w-6 ${actionColor}`} />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-medium">{log.acao}</h3>
-                        {log.tabela_afetada && (
-                          <Badge variant="outline">{log.tabela_afetada}</Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {log.admin_name}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {new Date(log.created_at).toLocaleString()}
-                        </span>
-                        {log.ip_address && (
-                          <span>IP: {log.ip_address}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data/Hora</TableHead>
+                <TableHead>Administrador</TableHead>
+                <TableHead>Ação</TableHead>
+                <TableHead>Tabela</TableHead>
+                <TableHead>IP</TableHead>
+                <TableHead>Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {logs.map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell className="font-mono text-sm">
+                    {formatDate(log.created_at)}
+                  </TableCell>
+                  <TableCell>{log.admin_name}</TableCell>
+                  <TableCell>
+                    <Badge className={getActionBadgeColor(log.acao)}>
+                      {log.acao}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{log.tabela_afetada || '-'}</TableCell>
+                  <TableCell className="font-mono text-sm">
+                    {log.ip_address || '-'}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => viewLogDetails(log)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
 
-                  <Button variant="ghost" size="sm">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </div>
-              );
-            })}
-
-            {auditLogs.length === 0 && !isLoading && (
-              <div className="text-center py-8 text-gray-500">
-                <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum log de auditoria encontrado.</p>
-                <p className="text-sm">Ajuste os filtros para ver mais resultados.</p>
-              </div>
-            )}
-          </div>
+              {logs.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                    Nenhum log encontrado com os filtros aplicados.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
-      {/* Modal de Detalhes do Log */}
-      {selectedLog && (
-        <Card className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Detalhes do Log de Auditoria
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedLog(null)}
-                >
-                  ✕
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
+      {/* Modal de Detalhes */}
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Log de Auditoria</DialogTitle>
+          </DialogHeader>
+          
+          {selectedLog && (
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Ação</Label>
-                  <p className="font-medium">{selectedLog.acao}</p>
+                  <Label className="font-semibold">Data/Hora</Label>
+                  <p className="font-mono">{formatDate(selectedLog.created_at)}</p>
                 </div>
                 <div>
-                  <Label>Usuário</Label>
-                  <p className="font-medium">{selectedLog.admin_name}</p>
+                  <Label className="font-semibold">Administrador</Label>
+                  <p>{selectedLog.admin_name}</p>
                 </div>
                 <div>
-                  <Label>Tabela Afetada</Label>
-                  <p className="font-medium">{selectedLog.tabela_afetada || 'N/A'}</p>
+                  <Label className="font-semibold">Ação</Label>
+                  <Badge className={getActionBadgeColor(selectedLog.acao)}>
+                    {selectedLog.acao}
+                  </Badge>
                 </div>
                 <div>
-                  <Label>ID do Registro</Label>
-                  <p className="font-medium font-mono text-sm">{selectedLog.registro_id || 'N/A'}</p>
+                  <Label className="font-semibold">Tabela Afetada</Label>
+                  <p>{selectedLog.tabela_afetada || 'N/A'}</p>
                 </div>
                 <div>
-                  <Label>Data/Hora</Label>
-                  <p className="font-medium">{new Date(selectedLog.created_at).toLocaleString()}</p>
+                  <Label className="font-semibold">IP</Label>
+                  <p className="font-mono">{selectedLog.ip_address || 'N/A'}</p>
                 </div>
                 <div>
-                  <Label>Endereço IP</Label>
-                  <p className="font-medium">{selectedLog.ip_address || 'N/A'}</p>
+                  <Label className="font-semibold">Registro ID</Label>
+                  <p className="font-mono">{selectedLog.registro_id || 'N/A'}</p>
                 </div>
               </div>
 
+              {selectedLog.user_agent && (
+                <div>
+                  <Label className="font-semibold">User Agent</Label>
+                  <p className="text-sm break-all">{selectedLog.user_agent}</p>
+                </div>
+              )}
+
               {selectedLog.dados_anteriores && (
                 <div>
-                  <Label>Dados Anteriores</Label>
-                  <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
-                    {formatLogData(selectedLog.dados_anteriores)}
+                  <Label className="font-semibold">Dados Anteriores</Label>
+                  <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto max-h-40">
+                    {JSON.stringify(selectedLog.dados_anteriores, null, 2)}
                   </pre>
                 </div>
               )}
 
               {selectedLog.dados_novos && (
                 <div>
-                  <Label>Dados Novos</Label>
-                  <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
-                    {formatLogData(selectedLog.dados_novos)}
+                  <Label className="font-semibold">Dados Novos</Label>
+                  <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto max-h-40">
+                    {JSON.stringify(selectedLog.dados_novos, null, 2)}
                   </pre>
                 </div>
               )}
-
-              {selectedLog.user_agent && (
-                <div>
-                  <Label>User Agent</Label>
-                  <p className="text-sm text-gray-600 break-all">{selectedLog.user_agent}</p>
-                </div>
-              )}
-            </CardContent>
-          </div>
-        </Card>
-      )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

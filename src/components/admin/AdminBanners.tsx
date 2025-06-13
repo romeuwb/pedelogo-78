@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,7 +24,7 @@ import {
 import { Image, Plus, Edit, Trash2, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-export const AdminBanners = () => {
+const AdminBanners = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [formData, setFormData] = useState({
     titulo: '',
@@ -329,3 +328,5 @@ export const AdminBanners = () => {
     </div>
   );
 };
+
+export default AdminBanners;
