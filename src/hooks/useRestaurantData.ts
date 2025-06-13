@@ -56,12 +56,19 @@ export const useRestaurantData = () => {
     mutationFn: async (updates: Partial<RestaurantData>) => {
       if (!user?.id) throw new Error('User not authenticated');
       
+      // Ensure categoria is provided if it's in the updates
+      const updateData = { ...updates };
+      
+      // Remove fields that don't exist in the database schema
+      delete updateData.id;
+      delete updateData.created_at;
+      delete updateData.updated_at;
+      
       const { error } = await supabase
         .from('restaurant_details')
         .upsert({
           user_id: user.id,
-          ...updates,
-          updated_at: new Date().toISOString()
+          ...updateData
         });
       
       if (error) throw error;

@@ -48,7 +48,7 @@ const ClientApp = () => {
     <div className="min-h-screen bg-gray-50">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {/* Main Content */}
-        <div className="pb-20 md:pb-6">
+        <div className="pb-20 md:pb-6 md:ml-64">
           <TabsContent value="home" className="m-0">
             <ClientHome />
           </TabsContent>
@@ -155,15 +155,6 @@ const ClientApp = () => {
             })}
           </TabsList>
         </div>
-
-        {/* Content offset for desktop sidebar */}
-        <style jsx>{`
-          @media (min-width: 768px) {
-            .md\\:pb-6 {
-              margin-left: 16rem;
-            }
-          }
-        `}</style>
       </Tabs>
     </div>
   );
