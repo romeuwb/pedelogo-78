@@ -82,7 +82,15 @@ export const useEnhancedPrinters = (restaurantId: string) => {
         .order('name');
 
       if (error) throw error;
-      setPrinters(data || []);
+      
+      // Type assertion para garantir compatibilidade
+      const typedData = (data || []).map(item => ({
+        ...item,
+        type: item.type as 'thermal' | 'laser' | 'inkjet',
+        connection_type: item.connection_type as 'usb' | 'network' | 'bluetooth'
+      }));
+      
+      setPrinters(typedData);
     } catch (error) {
       console.error('Error loading printers:', error);
       toast.error('Erro ao carregar impressoras');
@@ -100,7 +108,16 @@ export const useEnhancedPrinters = (restaurantId: string) => {
         .limit(50);
 
       if (error) throw error;
-      setPrintJobs(data || []);
+      
+      // Type assertion para garantir compatibilidade
+      const typedData = (data || []).map(item => ({
+        ...item,
+        job_type: item.job_type as 'order' | 'receipt' | 'kitchen' | 'bar' | 'test',
+        priority: item.priority as 'low' | 'normal' | 'high' | 'urgent',
+        status: item.status as 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
+      }));
+      
+      setPrintJobs(typedData);
     } catch (error) {
       console.error('Error loading print jobs:', error);
     }
@@ -115,7 +132,14 @@ export const useEnhancedPrinters = (restaurantId: string) => {
         .eq('restaurant_id', restaurantId);
 
       if (error) throw error;
-      setConnections(data || []);
+      
+      // Type assertion para garantir compatibilidade
+      const typedData = (data || []).map(item => ({
+        ...item,
+        status: item.status as 'connecting' | 'connected' | 'disconnected' | 'error'
+      }));
+      
+      setConnections(typedData);
     } catch (error) {
       console.error('Error loading connections:', error);
     }
@@ -129,7 +153,14 @@ export const useEnhancedPrinters = (restaurantId: string) => {
       const printerData = {
         ...printer,
         restaurant_id: restaurantId,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        // Garantir que os campos obrigatórios estejam presentes
+        name: printer.name || '',
+        type: printer.type || 'thermal',
+        connection_type: printer.connection_type || 'usb',
+        width: printer.width || 80,
+        enabled: printer.enabled ?? true,
+        is_default: printer.is_default ?? false
       };
 
       let result;

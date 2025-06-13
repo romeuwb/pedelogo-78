@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Printer, 
   Settings, 
@@ -23,9 +24,12 @@ import {
   Activity,
   Clock,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Code,
+  Book
 } from 'lucide-react';
 import { useEnhancedPrinters, type RestaurantPrinter } from '@/hooks/useEnhancedPrinters';
+import { PrinterApiIntegrationGuide } from './PrinterApiIntegrationGuide';
 import { toast } from 'sonner';
 
 interface EnhancedPrinterConfigurationProps {
@@ -83,6 +87,7 @@ export const EnhancedPrinterConfiguration = ({ restaurantId }: EnhancedPrinterCo
 
   const recentJobs = printJobs.slice(0, 5);
   const currentConnection = connections.find(c => c.restaurant_id === restaurantId);
+  const firstPrinter = printers.find(p => p.api_endpoint);
 
   return (
     <div className="space-y-6">
@@ -130,204 +135,266 @@ export const EnhancedPrinterConfiguration = ({ restaurantId }: EnhancedPrinterCo
         )}
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Configuração de Impressoras */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Impressoras Configuradas</CardTitle>
-                <Button onClick={() => setIsEditing(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nova Impressora
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {printers.map((printer) => (
-                  <Card key={printer.id} className="border">
-                    <CardContent className="pt-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2">
-                            {getConnectionIcon(printer.connection_type)}
-                            <div>
-                              <h3 className="font-semibold">{printer.name}</h3>
-                              <p className="text-sm text-gray-600">
-                                {printer.type} • {printer.connection_type} • {printer.width}mm
-                              </p>
-                              {printer.ip_address && (
-                                <p className="text-xs text-gray-500">
-                                  {printer.ip_address}:{printer.port}
-                                </p>
+      <Tabs defaultValue="printers" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="printers" className="flex items-center gap-2">
+            <Printer className="h-4 w-4" />
+            Impressoras
+          </TabsTrigger>
+          <TabsTrigger value="integration" className="flex items-center gap-2">
+            <Code className="h-4 w-4" />
+            Integração API
+          </TabsTrigger>
+          <TabsTrigger value="guide" className="flex items-center gap-2">
+            <Book className="h-4 w-4" />
+            Guia Completo
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="printers" className="mt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Configuração de Impressoras */}
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Impressoras Configuradas</CardTitle>
+                    <Button onClick={() => setIsEditing(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nova Impressora
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {printers.map((printer) => (
+                      <Card key={printer.id} className="border">
+                        <CardContent className="pt-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div className="flex items-center space-x-2">
+                                {getConnectionIcon(printer.connection_type)}
+                                <div>
+                                  <h3 className="font-semibold">{printer.name}</h3>
+                                  <p className="text-sm text-gray-600">
+                                    {printer.type} • {printer.connection_type} • {printer.width}mm
+                                  </p>
+                                  {printer.ip_address && (
+                                    <p className="text-xs text-gray-500">
+                                      {printer.ip_address}:{printer.port}
+                                    </p>
+                                  )}
+                                  {printer.api_endpoint && (
+                                    <p className="text-xs text-blue-600">
+                                      API: {printer.api_endpoint}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="flex space-x-2">
+                                {printer.is_default && (
+                                  <Badge variant="default">Padrão</Badge>
+                                )}
+                                {printer.enabled ? (
+                                  <Badge variant="outline" className="text-green-600 border-green-600">
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Ativa
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-red-600 border-red-600">
+                                    <AlertCircle className="h-3 w-3 mr-1" />
+                                    Inativa
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleTestPrinter(printer.id)}
+                                disabled={testingPrinter === printer.id || !isConnected}
+                              >
+                                <TestTube className="h-4 w-4 mr-2" />
+                                {testingPrinter === printer.id ? 'Testando...' : 'Testar'}
+                              </Button>
+                              
+                              {!printer.is_default && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setDefaultPrinter(printer.id)}
+                                >
+                                  Definir Padrão
+                                </Button>
                               )}
-                              {printer.api_endpoint && (
-                                <p className="text-xs text-blue-600">
-                                  API: {printer.api_endpoint}
-                                </p>
-                              )}
+
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedPrinter(printer);
+                                  setIsEditing(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => deletePrinter(printer.id)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
-                          
-                          <div className="flex space-x-2">
-                            {printer.is_default && (
-                              <Badge variant="default">Padrão</Badge>
-                            )}
-                            {printer.enabled ? (
-                              <Badge variant="outline" className="text-green-600 border-green-600">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Ativa
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-red-600 border-red-600">
-                                <AlertCircle className="h-3 w-3 mr-1" />
-                                Inativa
-                              </Badge>
-                            )}
+                        </CardContent>
+                      </Card>
+                    ))}
+
+                    {printers.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <Printer className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>Nenhuma impressora configurada</p>
+                        <p className="text-sm">Clique em "Nova Impressora" para começar</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Status e Histórico */}
+            <div className="space-y-6">
+              {/* Status da Conexão */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Status da Conexão</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {currentConnection ? (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Status:</span>
+                          <Badge variant="outline" className={getStatusColor(currentConnection.status)}>
+                            {currentConnection.status}
+                          </Badge>
+                        </div>
+                        {currentConnection.last_heartbeat && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm">Último heartbeat:</span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(currentConnection.last_heartbeat).toLocaleTimeString('pt-BR')}
+                            </span>
                           </div>
-                        </div>
-
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleTestPrinter(printer.id)}
-                            disabled={testingPrinter === printer.id || !isConnected}
-                          >
-                            <TestTube className="h-4 w-4 mr-2" />
-                            {testingPrinter === printer.id ? 'Testando...' : 'Testar'}
-                          </Button>
-                          
-                          {!printer.is_default && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setDefaultPrinter(printer.id)}
-                            >
-                              Definir Padrão
-                            </Button>
-                          )}
-
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedPrinter(printer);
-                              setIsEditing(true);
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => deletePrinter(printer.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {printers.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <Printer className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Nenhuma impressora configurada</p>
-                    <p className="text-sm">Clique em "Nova Impressora" para começar</p>
+                        )}
+                        {currentConnection.error_message && (
+                          <div className="text-sm text-red-600">
+                            <strong>Erro:</strong> {currentConnection.error_message}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-500">Nenhuma conexão ativa</p>
+                    )}
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                </CardContent>
+              </Card>
 
-        {/* Status e Histórico */}
-        <div className="space-y-6">
-          {/* Status da Conexão */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Status da Conexão</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {currentConnection ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Status:</span>
-                      <Badge variant="outline" className={getStatusColor(currentConnection.status)}>
-                        {currentConnection.status}
-                      </Badge>
-                    </div>
-                    {currentConnection.last_heartbeat && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Último heartbeat:</span>
-                        <span className="text-xs text-gray-500">
-                          {new Date(currentConnection.last_heartbeat).toLocaleTimeString('pt-BR')}
-                        </span>
+              {/* Trabalhos Recentes */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">Trabalhos Recentes</CardTitle>
+                    <Button variant="ghost" size="sm" onClick={refreshPrinters}>
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {recentJobs.map((job) => (
+                      <div key={job.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <div>
+                          <p className="text-sm font-medium">{job.job_type}</p>
+                          <p className="text-xs text-gray-500">
+                            <Clock className="h-3 w-3 inline mr-1" />
+                            {new Date(job.created_at).toLocaleTimeString('pt-BR')}
+                          </p>
+                        </div>
+                        <Badge 
+                          variant="outline" 
+                          className={
+                            job.status === 'completed' ? 'text-green-600 border-green-600' :
+                            job.status === 'failed' ? 'text-red-600 border-red-600' :
+                            'text-yellow-600 border-yellow-600'
+                          }
+                        >
+                          {job.status}
+                        </Badge>
                       </div>
-                    )}
-                    {currentConnection.error_message && (
-                      <div className="text-sm text-red-600">
-                        <strong>Erro:</strong> {currentConnection.error_message}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-sm text-gray-500">Nenhuma conexão ativa</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                    ))}
 
-          {/* Trabalhos Recentes */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Trabalhos Recentes</CardTitle>
-                <Button variant="ghost" size="sm" onClick={refreshPrinters}>
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {recentJobs.map((job) => (
-                  <div key={job.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <div>
-                      <p className="text-sm font-medium">{job.job_type}</p>
-                      <p className="text-xs text-gray-500">
-                        <Clock className="h-3 w-3 inline mr-1" />
-                        {new Date(job.created_at).toLocaleTimeString('pt-BR')}
+                    {recentJobs.length === 0 && (
+                      <p className="text-sm text-gray-500 text-center py-4">
+                        Nenhum trabalho de impressão
                       </p>
-                    </div>
-                    <Badge 
-                      variant="outline" 
-                      className={
-                        job.status === 'completed' ? 'text-green-600 border-green-600' :
-                        job.status === 'failed' ? 'text-red-600 border-red-600' :
-                        'text-yellow-600 border-yellow-600'
-                      }
-                    >
-                      {job.status}
-                    </Badge>
+                    )}
                   </div>
-                ))}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
 
-                {recentJobs.length === 0 && (
-                  <p className="text-sm text-gray-500 text-center py-4">
-                    Nenhum trabalho de impressão
-                  </p>
-                )}
+        <TabsContent value="integration" className="mt-6">
+          <PrinterApiIntegrationGuide 
+            restaurantId={restaurantId}
+            apiEndpoint={firstPrinter?.api_endpoint}
+            apiKey={firstPrinter?.api_key}
+          />
+        </TabsContent>
+
+        <TabsContent value="guide" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Guia Completo de Configuração</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="prose max-w-none">
+                <h3>Como configurar o sistema de impressão:</h3>
+                <ol className="list-decimal list-inside space-y-2">
+                  <li>Configure sua API REST local usando os dados da aba "Integração API"</li>
+                  <li>Adicione uma nova impressora na aba "Impressoras"</li>
+                  <li>Configure o endpoint da API local na impressora</li>
+                  <li>Teste a conexão usando o botão "Testar"</li>
+                  <li>Defina uma impressora como padrão para pedidos automáticos</li>
+                </ol>
+
+                <h3 className="mt-6">Fluxo de comunicação:</h3>
+                <p className="text-sm text-gray-600">
+                  SaaS → WebSocket (Supabase) → API REST Local → Impressora Física
+                </p>
+
+                <h3 className="mt-6">Recursos disponíveis:</h3>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>Conexão WebSocket em tempo real</li>
+                  <li>Configuração individual por restaurante</li>
+                  <li>Múltiplos tipos de impressora (térmica, laser, jato de tinta)</li>
+                  <li>Queue de impressão com retry automático</li>
+                  <li>Monitoramento de status em tempo real</li>
+                  <li>Logs detalhados de impressão</li>
+                </ul>
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Modal de Edição */}
       {isEditing && (
