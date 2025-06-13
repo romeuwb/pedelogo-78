@@ -29,11 +29,11 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   apiKey
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [map, setMap] = useState<any>(null);
   const [searchAddress, setSearchAddress] = useState('');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [mapMarkers, setMapMarkers] = useState<google.maps.Marker[]>([]);
+  const [mapMarkers, setMapMarkers] = useState<any[]>([]);
 
   // Initialize map
   useEffect(() => {
@@ -108,8 +108,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         
         // Reverse geocoding to get address
         const geocoder = new window.google.maps.Geocoder();
-        geocoder.geocode({ location: { lat, lng } }, (results: google.maps.GeocoderResult[], status: google.maps.GeocoderStatus) => {
-          if (status === google.maps.GeocoderStatus.OK && results[0]) {
+        geocoder.geocode({ location: { lat, lng } }, (results: any[], status: any) => {
+          if (status === window.google.maps.GeocoderStatus.OK && results[0]) {
             onLocationSelect({
               lat,
               lng,
@@ -202,8 +202,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     if (!searchAddress || !map || !window.google) return;
 
     const geocoder = new window.google.maps.Geocoder();
-    geocoder.geocode({ address: searchAddress }, (results: google.maps.GeocoderResult[], status: google.maps.GeocoderStatus) => {
-      if (status === google.maps.GeocoderStatus.OK && results[0]) {
+    geocoder.geocode({ address: searchAddress }, (results: any[], status: any) => {
+      if (status === window.google.maps.GeocoderStatus.OK && results[0]) {
         const location = results[0].geometry.location;
         map.setCenter(location);
         map.setZoom(15);
