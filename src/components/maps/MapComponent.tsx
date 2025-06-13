@@ -3,8 +3,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MapPin, Navigation, Route } from 'lucide-react';
+import { MapPin, Navigation } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useGoogleMaps } from '@/hooks/useGoogleMaps';
 
 interface MapComponentProps {
   center?: { lat: number; lng: number };
@@ -32,131 +33,75 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   const [map, setMap] = useState<any>(null);
   const [searchAddress, setSearchAddress] = useState('');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [mapMarkers, setMapMarkers] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const mapInitialized = useRef(false);
+  const mapInstanceRef = useRef<any>(null);
 
-  // Check if Google Maps is already loaded
-  const isGoogleMapsLoaded = () => {
-    return typeof window !== 'undefined' && window.google && window.google.maps;
-  };
+  const { isLoaded, loadError } = useGoogleMaps(apiKey);
 
-  // Initialize map
+  console.log('MapComponent - isLoaded:', isLoaded, 'loadError:', loadError, 'apiKey:', !!apiKey);
+
+  // Initialize map when Google Maps is loaded
   useEffect(() => {
-    if (!mapRef.current || !apiKey || mapInitialized.current) return;
+    if (!isLoaded || !mapRef.current || !apiKey || mapInstanceRef.current) {
+      console.log('MapComponent - Skipping initialization:', { isLoaded, hasMapRef: !!mapRef.current, hasApiKey: !!apiKey, hasInstance: !!mapInstanceRef.current });
+      return;
+    }
 
-    const initializeMap = () => {
-      if (!mapRef.current || !isGoogleMapsLoaded()) return;
+    console.log('MapComponent - Initializing map...');
 
-      try {
-        const mapInstance = new window.google.maps.Map(mapRef.current, {
-          center,
-          zoom,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false
-        });
+    try {
+      const mapInstance = new window.google.maps.Map(mapRef.current, {
+        center,
+        zoom,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false
+      });
 
-        setMap(mapInstance);
-        setIsLoaded(true);
-        mapInitialized.current = true;
+      console.log('MapComponent - Map created successfully');
 
-        // Add click listener for location selection
-        if (onLocationSelect) {
-          mapInstance.addListener('click', (event: any) => {
-            const lat = event.latLng.lat();
-            const lng = event.latLng.lng();
-            
-            // Reverse geocoding to get address
-            const geocoder = new window.google.maps.Geocoder();
-            geocoder.geocode({ location: { lat, lng } }, (results: any[], status: any) => {
-              if (status === window.google.maps.GeocoderStatus.OK && results[0]) {
-                onLocationSelect({
-                  lat,
-                  lng,
-                  address: results[0].formatted_address
-                });
-              }
-            });
+      mapInstanceRef.current = mapInstance;
+      setMap(mapInstance);
+
+      // Add click listener for location selection
+      if (onLocationSelect) {
+        mapInstance.addListener('click', (event: any) => {
+          const lat = event.latLng.lat();
+          const lng = event.latLng.lng();
+          
+          // Reverse geocoding to get address
+          const geocoder = new window.google.maps.Geocoder();
+          geocoder.geocode({ location: { lat, lng } }, (results: any[], status: any) => {
+            if (status === 'OK' && results[0]) {
+              onLocationSelect({
+                lat,
+                lng,
+                address: results[0].formatted_address
+              });
+            }
           });
-        }
-
-        console.log('Google Maps inicializado com sucesso');
-      } catch (error) {
-        console.error('Erro ao inicializar o mapa:', error);
-        toast({
-          title: 'Erro',
-          description: 'Falha ao inicializar o Google Maps',
-          variant: 'destructive'
         });
       }
-    };
 
-    // If Google Maps is already loaded, initialize immediately
-    if (isGoogleMapsLoaded()) {
-      initializeMap();
-      return;
-    }
-
-    // Check if script is already being loaded
-    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-    if (existingScript) {
-      const handleLoad = () => {
-        if (isGoogleMapsLoaded()) {
-          initializeMap();
-        }
-      };
-
-      if (existingScript.getAttribute('data-loaded') === 'true') {
-        handleLoad();
-      } else {
-        existingScript.addEventListener('load', handleLoad);
-        return () => existingScript.removeEventListener('load', handleLoad);
-      }
-      return;
-    }
-
-    // Load Google Maps script
-    setIsLoading(true);
-    const script = document.createElement('script');
-    const callbackName = `initGoogleMaps_${Date.now()}`;
-    
-    (window as any)[callbackName] = () => {
-      setIsLoading(false);
-      initializeMap();
-      script.setAttribute('data-loaded', 'true');
-      // Clean up callback
-      delete (window as any)[callbackName];
-    };
-
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry&callback=${callbackName}`;
-    script.async = true;
-    script.defer = true;
-    
-    script.onerror = () => {
-      setIsLoading(false);
-      console.error('Erro ao carregar Google Maps');
+      console.log('MapComponent - Map initialized successfully');
+    } catch (error) {
+      console.error('MapComponent - Error initializing map:', error);
       toast({
         title: 'Erro',
-        description: 'Falha ao carregar o Google Maps',
+        description: 'Falha ao inicializar o Google Maps',
         variant: 'destructive'
       });
-    };
-
-    document.head.appendChild(script);
-
-    return () => {
-      // Only cleanup if we're unmounting and the script isn't being used elsewhere
-      if ((window as any)[callbackName]) {
-        delete (window as any)[callbackName];
-      }
-    };
-  }, [apiKey, center, zoom]);
+    }
+  }, [isLoaded, apiKey, center, zoom, onLocationSelect]);
 
   // Add markers to map
   useEffect(() => {
-    if (!map || !isLoaded || !isGoogleMapsLoaded()) return;
+    if (!map || !isLoaded) {
+      console.log('MapComponent - Skipping markers:', { hasMap: !!map, isLoaded });
+      return;
+    }
+
+    console.log('MapComponent - Adding markers:', markers.length);
 
     // Clear existing markers
     mapMarkers.forEach(marker => {
@@ -164,7 +109,6 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         marker.setMap(null);
       }
     });
-    setMapMarkers([]);
 
     const newMarkers = markers.map(marker => {
       try {
@@ -185,7 +129,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 
         return mapMarker;
       } catch (error) {
-        console.error('Erro ao criar marcador:', error);
+        console.error('MapComponent - Error creating marker:', error);
         return null;
       }
     }).filter(Boolean);
@@ -249,11 +193,11 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   };
 
   const searchLocation = () => {
-    if (!searchAddress || !map || !isGoogleMapsLoaded()) return;
+    if (!searchAddress || !map || !isLoaded) return;
 
     const geocoder = new window.google.maps.Geocoder();
     geocoder.geocode({ address: searchAddress }, (results: any[], status: any) => {
-      if (status === window.google.maps.GeocoderStatus.OK && results[0]) {
+      if (status === 'OK' && results[0]) {
         const location = results[0].geometry.location;
         map.setCenter(location);
         map.setZoom(15);
@@ -299,6 +243,24 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     );
   }
 
+  if (loadError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <MapPin className="h-5 w-5 mr-2" />
+            Erro no Mapa
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-600">
+            Erro ao carregar o Google Maps. Verifique sua chave de API.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="w-full h-full flex flex-col">
       <div className="flex space-x-2 mb-4 flex-shrink-0">
@@ -320,21 +282,14 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       <div className="relative flex-1 min-h-[400px]">
         <div
           ref={mapRef}
-          className="absolute inset-0 w-full h-full rounded-lg border bg-gray-100"
-          style={{ 
-            minHeight: '400px',
-            width: '100%',
-            height: '100%'
-          }}
+          className="w-full h-full min-h-[400px] rounded-lg border bg-gray-100"
         />
         
-        {(isLoading || !isLoaded) && (
+        {!isLoaded && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg z-10">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
-              <p className="text-gray-600">
-                {isLoading ? 'Carregando Google Maps...' : 'Inicializando mapa...'}
-              </p>
+              <p className="text-gray-600">Carregando Google Maps...</p>
             </div>
           </div>
         )}
