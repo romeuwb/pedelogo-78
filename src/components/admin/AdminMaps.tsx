@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +48,8 @@ const AdminMaps = () => {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchType, setSearchType] = useState<'city' | 'state' | 'country' | 'custom'>('city');
+  const [showResults, setShowResults] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<CreateRegionData>({
     name: '',
@@ -57,26 +59,6 @@ const AdminMaps = () => {
     city: '',
     active: true
   });
-
-  const { 
-    regions, 
-    isLoading, 
-    createRegion, 
-    updateRegion, 
-    deleteRegion, 
-    toggleRegionStatus 
-  } = useServiceRegions();
-
-  const { 
-    countries, 
-    getStates, 
-    getCities, 
-    searchCities,
-    searchCountries,
-    searchStates
-  } = useGeographySearch();
-
-  const { isLoaded: isGoogleMapsLoaded } = useGoogleMaps(googleMapsApiKey);
 
   // Buscar configuração da API do Google Maps
   const { data: systemConfigs } = useQuery({
@@ -100,11 +82,12 @@ const AdminMaps = () => {
     }
   }, [systemConfigs]);
 
-  // Busca inteligente
+  // Busca inteligente melhorada
   useEffect(() => {
     const searchTimer = setTimeout(async () => {
       if (citySearchTerm.length >= 2 && searchType !== 'custom') {
         setIsSearching(true);
+        setShowResults(true);
         try {
           let results: any[] = [];
           
@@ -128,6 +111,7 @@ const AdminMaps = () => {
         }
       } else {
         setSearchResults([]);
+        setShowResults(false);
       }
     }, 300);
 
@@ -171,6 +155,14 @@ const AdminMaps = () => {
     setFormData(newFormData);
     setCitySearchTerm(location.name);
     setSearchResults([]);
+    setShowResults(false);
+  };
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCitySearchTerm(e.target.value);
+    if (e.target.value.length < 2) {
+      setShowResults(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -202,6 +194,7 @@ const AdminMaps = () => {
     });
     setCitySearchTerm('');
     setSearchResults([]);
+    setShowResults(false);
   };
 
   const handleEdit = (region: ServiceRegion) => {
@@ -297,6 +290,7 @@ const AdminMaps = () => {
             setFormData({...formData, type: value});
             setCitySearchTerm('');
             setSearchResults([]);
+            setShowResults(false);
           }}
         >
           <SelectTrigger>
@@ -312,17 +306,24 @@ const AdminMaps = () => {
       </div>
 
       {searchType !== 'custom' && (
-        <div>
+        <div className="relative">
           <Label htmlFor="search">
             Buscar {searchType === 'city' ? 'Cidade' : searchType === 'state' ? 'Estado' : 'País'}
           </Label>
           <div className="relative">
             <Input
+              ref={searchInputRef}
               id="search"
               value={citySearchTerm}
-              onChange={(e) => setCitySearchTerm(e.target.value)}
+              onChange={handleSearchInputChange}
+              onFocus={() => {
+                if (citySearchTerm.length >= 2) {
+                  setShowResults(true);
+                }
+              }}
               placeholder={`Digite o nome ${searchType === 'city' ? 'da cidade' : searchType === 'state' ? 'do estado' : 'do país'}...`}
               className="pr-10"
+              autoComplete="off"
             />
             <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             {isSearching && (
@@ -330,16 +331,17 @@ const AdminMaps = () => {
             )}
           </div>
           
-          {searchResults.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
+          {showResults && searchResults.length > 0 && (
+            <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
               {searchResults.map((location, index) => (
                 <button
                   key={index}
                   type="button"
-                  className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center justify-between"
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center justify-between border-b border-gray-100 last:border-b-0"
                   onClick={() => handleLocationSelect(location)}
+                  onMouseDown={(e) => e.preventDefault()} // Previne perda de foco
                 >
-                  <span>{location.name}</span>
+                  <span className="font-medium">{location.name}</span>
                   <span className="text-sm text-gray-500">
                     {searchType === 'city' && `${location.state}, ${location.country}`}
                     {searchType === 'state' && location.country}

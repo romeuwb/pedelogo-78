@@ -31,18 +31,33 @@ const mockGeographyData = {
   ],
   states: {
     BR: [
-      { name: 'São Paulo', code: 'SP' },
-      { name: 'Rio de Janeiro', code: 'RJ' },
-      { name: 'Minas Gerais', code: 'MG' },
+      { name: 'Acre', code: 'AC' },
+      { name: 'Alagoas', code: 'AL' },
+      { name: 'Amapá', code: 'AP' },
+      { name: 'Amazonas', code: 'AM' },
       { name: 'Bahia', code: 'BA' },
-      { name: 'Paraná', code: 'PR' },
-      { name: 'Rio Grande do Sul', code: 'RS' },
-      { name: 'Santa Catarina', code: 'SC' },
-      { name: 'Goiás', code: 'GO' },
-      { name: 'Pernambuco', code: 'PE' },
       { name: 'Ceará', code: 'CE' },
+      { name: 'Distrito Federal', code: 'DF' },
       { name: 'Espírito Santo', code: 'ES' },
-      { name: 'Distrito Federal', code: 'DF' }
+      { name: 'Goiás', code: 'GO' },
+      { name: 'Maranhão', code: 'MA' },
+      { name: 'Mato Grosso', code: 'MT' },
+      { name: 'Mato Grosso do Sul', code: 'MS' },
+      { name: 'Minas Gerais', code: 'MG' },
+      { name: 'Pará', code: 'PA' },
+      { name: 'Paraíba', code: 'PB' },
+      { name: 'Paraná', code: 'PR' },
+      { name: 'Pernambuco', code: 'PE' },
+      { name: 'Piauí', code: 'PI' },
+      { name: 'Rio de Janeiro', code: 'RJ' },
+      { name: 'Rio Grande do Norte', code: 'RN' },
+      { name: 'Rio Grande do Sul', code: 'RS' },
+      { name: 'Rondônia', code: 'RO' },
+      { name: 'Roraima', code: 'RR' },
+      { name: 'Santa Catarina', code: 'SC' },
+      { name: 'São Paulo', code: 'SP' },
+      { name: 'Sergipe', code: 'SE' },
+      { name: 'Tocantins', code: 'TO' }
     ],
     US: [
       { name: 'California', code: 'CA' },
@@ -86,6 +101,12 @@ const mockGeographyData = {
       { name: 'Caxias do Sul', coordinates: { lat: -29.1634, lng: -51.1797 } },
       { name: 'Pelotas', coordinates: { lat: -31.7654, lng: -52.3376 } },
       { name: 'Canoas', coordinates: { lat: -29.9177, lng: -51.1844 } }
+    ],
+    'BR-PA': [
+      { name: 'Belém', coordinates: { lat: -1.4558, lng: -48.5044 } },
+      { name: 'Ananindeua', coordinates: { lat: -1.3656, lng: -48.3722 } },
+      { name: 'Santarém', coordinates: { lat: -2.4448, lng: -54.7081 } },
+      { name: 'Marabá', coordinates: { lat: -5.3581, lng: -49.1178 } }
     ]
   }
 };
