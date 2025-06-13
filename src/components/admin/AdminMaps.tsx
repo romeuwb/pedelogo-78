@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,7 +47,7 @@ const AdminMaps = () => {
   const [citySearchTerm, setCitySearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [searchType, setSearchType] = useState<'city' | 'state' | 'country'>('city');
+  const [searchType, setSearchType] = useState<'city' | 'state' | 'country' | 'custom'>('city');
 
   const [formData, setFormData] = useState<CreateRegionData>({
     name: '',
@@ -104,7 +103,7 @@ const AdminMaps = () => {
   // Busca inteligente
   useEffect(() => {
     const searchTimer = setTimeout(async () => {
-      if (citySearchTerm.length >= 2) {
+      if (citySearchTerm.length >= 2 && searchType !== 'custom') {
         setIsSearching(true);
         try {
           let results: any[] = [];
@@ -138,7 +137,7 @@ const AdminMaps = () => {
   const handleLocationSelect = (location: any) => {
     let newFormData: CreateRegionData = {
       ...formData,
-      type: searchType,
+      type: searchType as 'country' | 'state' | 'city' | 'custom',
       coordinates: location.coordinates
     };
 
@@ -217,7 +216,7 @@ const AdminMaps = () => {
       active: region.active
     });
     setCitySearchTerm(region.name);
-    setSearchType(region.type as any);
+    setSearchType(region.type as 'city' | 'state' | 'country' | 'custom');
     setIsEditOpen(true);
   };
 
@@ -293,7 +292,7 @@ const AdminMaps = () => {
         <Label htmlFor="type">Tipo de Região</Label>
         <Select 
           value={searchType} 
-          onValueChange={(value: any) => {
+          onValueChange={(value: 'city' | 'state' | 'country' | 'custom') => {
             setSearchType(value);
             setFormData({...formData, type: value});
             setCitySearchTerm('');
@@ -312,44 +311,46 @@ const AdminMaps = () => {
         </Select>
       </div>
 
-      <div>
-        <Label htmlFor="search">
-          Buscar {searchType === 'city' ? 'Cidade' : searchType === 'state' ? 'Estado' : 'País'}
-        </Label>
-        <div className="relative">
-          <Input
-            id="search"
-            value={citySearchTerm}
-            onChange={(e) => setCitySearchTerm(e.target.value)}
-            placeholder={`Digite o nome ${searchType === 'city' ? 'da cidade' : searchType === 'state' ? 'do estado' : 'do país'}...`}
-            className="pr-10"
-          />
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          {isSearching && (
-            <Loader2 className="absolute right-10 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+      {searchType !== 'custom' && (
+        <div>
+          <Label htmlFor="search">
+            Buscar {searchType === 'city' ? 'Cidade' : searchType === 'state' ? 'Estado' : 'País'}
+          </Label>
+          <div className="relative">
+            <Input
+              id="search"
+              value={citySearchTerm}
+              onChange={(e) => setCitySearchTerm(e.target.value)}
+              placeholder={`Digite o nome ${searchType === 'city' ? 'da cidade' : searchType === 'state' ? 'do estado' : 'do país'}...`}
+              className="pr-10"
+            />
+            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            {isSearching && (
+              <Loader2 className="absolute right-10 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+            )}
+          </div>
+          
+          {searchResults.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
+              {searchResults.map((location, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center justify-between"
+                  onClick={() => handleLocationSelect(location)}
+                >
+                  <span>{location.name}</span>
+                  <span className="text-sm text-gray-500">
+                    {searchType === 'city' && `${location.state}, ${location.country}`}
+                    {searchType === 'state' && location.country}
+                    {searchType === 'country' && location.code}
+                  </span>
+                </button>
+              ))}
+            </div>
           )}
         </div>
-        
-        {searchResults.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
-            {searchResults.map((location, index) => (
-              <button
-                key={index}
-                type="button"
-                className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center justify-between"
-                onClick={() => handleLocationSelect(location)}
-              >
-                <span>{location.name}</span>
-                <span className="text-sm text-gray-500">
-                  {searchType === 'city' && `${location.state}, ${location.country}`}
-                  {searchType === 'state' && location.country}
-                  {searchType === 'country' && location.code}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4">
         <div>
