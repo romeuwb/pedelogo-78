@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminOverview } from './AdminOverview';
 import { AdminUsers } from './AdminUsers';
@@ -17,9 +16,11 @@ import { AdminHeader } from './AdminHeader';
 import AdminSidebar from './AdminSidebar';
 
 const AdminDashboardLayout = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <AdminHeader />
+      <AdminHeader sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       
       <div className="flex">
         <AdminSidebar />

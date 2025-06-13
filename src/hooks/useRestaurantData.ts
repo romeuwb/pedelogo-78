@@ -25,7 +25,7 @@ export interface RestaurantData {
   tempo_entrega_min?: number;
   taxa_entrega?: number;
   horario_funcionamento?: any;
-  status_aprovacao: string;
+  status_aprovacao: 'pendente' | 'aprovado' | 'rejeitado';
   ativo?: boolean;
   created_at: string;
   updated_at: string;
@@ -70,12 +70,18 @@ export const useRestaurantData = () => {
       } else if (!updateData.categoria) {
         updateData.categoria = 'restaurante'; // Default value
       }
+
+      // Ensure status_aprovacao has a valid value
+      if (updateData.status_aprovacao && !['pendente', 'aprovado', 'rejeitado'].includes(updateData.status_aprovacao)) {
+        updateData.status_aprovacao = 'pendente';
+      }
       
       const { error } = await supabase
         .from('restaurant_details')
         .upsert({
           user_id: user.id,
-          categoria: updateData.categoria, // Ensure categoria is always present
+          categoria: updateData.categoria,
+          status_aprovacao: updateData.status_aprovacao || 'pendente',
           ...updateData
         });
       
