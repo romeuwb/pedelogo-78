@@ -34,23 +34,26 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Map, Plus, Edit, Trash2, MapPin, Globe, Search, Loader2, Power, PowerOff } from 'lucide-react';
 import { useServiceRegions, CreateRegionData } from '@/hooks/useServiceRegions';
-import { useGeographySearch } from '@/hooks/useGeographySearch';
+import { useGooglePlacesSearch } from '@/hooks/useGooglePlacesSearch';
 import { useGoogleMaps } from '@/hooks/useGoogleMaps';
 import MapComponent from '@/components/maps/MapComponent';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+
+type SearchType = 'city' | 'state' | 'country' | 'custom';
 
 const AdminMaps = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingRegion, setEditingRegion] = useState<any>(null);
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>('');
-  const [citySearchTerm, setCitySearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchType, setSearchType] = useState<'city' | 'state' | 'country' | 'custom'>('city');
+  const [searchType, setSearchType] = useState<SearchType>('city');
   const [showResults, setShowResults] = useState(false);
+  const [isManualSearching, setIsManualSearching] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Hooks para dados do banco
   const {
@@ -62,13 +65,16 @@ const AdminMaps = () => {
     toggleRegionStatus
   } = useServiceRegions();
 
+  // Hook para busca no Google Places
   const {
     searchCities,
     searchStates,
-    searchCountries
-  } = useGeographySearch();
+    searchCountries,
+    isSearching: isGoogleSearching,
+    isLoaded: isGoogleMapsLoaded
+  } = useGooglePlacesSearch(googleMapsApiKey);
 
-  const { isLoaded: isGoogleMapsLoaded } = useGoogleMaps(googleMapsApiKey);
+  const { loadError } = useGoogleMaps(googleMapsApiKey);
 
   const [formData, setFormData] = useState<CreateRegionData>({
     name: '',
@@ -101,87 +107,135 @@ const AdminMaps = () => {
     }
   }, [systemConfigs]);
 
-  // Busca inteligente melhorada
+  // Busca com debounce usando Google Places API
   useEffect(() => {
-    const searchTimer = setTimeout(async () => {
-      if (citySearchTerm.length >= 2 && searchType !== 'custom') {
-        setIsSearching(true);
-        setShowResults(true);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (searchTerm.length >= 2 && searchType !== 'custom' && isGoogleMapsLoaded) {
+      setIsManualSearching(true);
+      
+      searchTimeoutRef.current = setTimeout(async () => {
         try {
           let results: any[] = [];
           
           switch (searchType) {
             case 'city':
-              results = await searchCities(citySearchTerm);
+              results = await searchCities(searchTerm);
               break;
             case 'state':
-              results = await searchStates(citySearchTerm);
+              results = await searchStates(searchTerm);
               break;
             case 'country':
-              results = await searchCountries(citySearchTerm);
+              results = await searchCountries(searchTerm);
               break;
           }
           
           setSearchResults(results);
+          setShowResults(true);
         } catch (error) {
-          console.error('Erro na busca:', error);
+          console.error('Erro na busca do Google Places:', error);
+          setSearchResults([]);
         } finally {
-          setIsSearching(false);
+          setIsManualSearching(false);
         }
-      } else {
-        setSearchResults([]);
-        setShowResults(false);
-      }
-    }, 300);
+      }, 500); // Debounce de 500ms
+    } else {
+      setSearchResults([]);
+      setShowResults(false);
+      setIsManualSearching(false);
+    }
 
-    return () => clearTimeout(searchTimer);
-  }, [citySearchTerm, searchType, searchCities, searchCountries, searchStates]);
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm, searchType, searchCities, searchStates, searchCountries, isGoogleMapsLoaded]);
 
   const handleLocationSelect = (location: any) => {
+    console.log('Localização selecionada:', location);
+    
     let newFormData: CreateRegionData = {
       ...formData,
-      type: searchType as 'country' | 'state' | 'city' | 'custom',
+      type: searchType,
       coordinates: location.coordinates
     };
 
-    switch (searchType) {
+    // Determinar o tipo baseado nos tipos do Google Places
+    const placeTypes = location.types || [];
+    let determinedType: SearchType = searchType;
+    
+    if (placeTypes.includes('country')) {
+      determinedType = 'country';
+    } else if (placeTypes.includes('administrative_area_level_1')) {
+      determinedType = 'state';
+    } else if (placeTypes.includes('locality')) {
+      determinedType = 'city';
+    }
+
+    newFormData.type = determinedType;
+
+    // Preencher dados baseado no tipo determinado
+    switch (determinedType) {
       case 'city':
         newFormData = {
           ...newFormData,
-          name: location.name,
-          city: location.name,
+          name: location.name || location.city,
+          city: location.name || location.city,
           state: location.state,
-          country: location.country === 'BR' ? 'Brasil' : location.country
+          country: location.country
         };
         break;
       case 'state':
         newFormData = {
           ...newFormData,
-          name: location.name,
-          state: location.name || location.code,
-          country: location.country === 'BR' ? 'Brasil' : location.country
+          name: location.name || location.state,
+          state: location.name || location.state,
+          country: location.country,
+          city: '' // Limpar cidade se for estado
         };
         break;
       case 'country':
         newFormData = {
           ...newFormData,
-          name: location.name,
-          country: location.name
+          name: location.name || location.country,
+          country: location.name || location.country,
+          state: '', // Limpar estado se for país
+          city: '' // Limpar cidade se for país
         };
         break;
     }
 
     setFormData(newFormData);
-    setCitySearchTerm(location.name);
+    setSearchTerm(location.name);
     setSearchResults([]);
     setShowResults(false);
+    setSearchType(determinedType);
   };
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCitySearchTerm(e.target.value);
-    if (e.target.value.length < 2) {
+    const value = e.target.value;
+    setSearchTerm(value);
+    
+    if (value.length < 2) {
       setShowResults(false);
+      setSearchResults([]);
     }
+  };
+
+  const handleSearchInputFocus = () => {
+    if (searchTerm.length >= 2 && searchResults.length > 0) {
+      setShowResults(true);
+    }
+  };
+
+  const handleSearchInputBlur = () => {
+    // Delay para permitir clique nos resultados
+    setTimeout(() => {
+      setShowResults(false);
+    }, 200);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -211,9 +265,10 @@ const AdminMaps = () => {
       city: '',
       active: true
     });
-    setCitySearchTerm('');
+    setSearchTerm('');
     setSearchResults([]);
     setShowResults(false);
+    setSearchType('city');
   };
 
   const handleEdit = (region: any) => {
@@ -227,8 +282,8 @@ const AdminMaps = () => {
       coordinates: region.coordinates,
       active: region.active
     });
-    setCitySearchTerm(region.name);
-    setSearchType(region.type as 'city' | 'state' | 'country' | 'custom');
+    setSearchTerm(region.name);
+    setSearchType(region.type as SearchType);
     setIsEditOpen(true);
   };
 
@@ -280,7 +335,7 @@ const AdminMaps = () => {
   };
 
   const handleMapLocationSelect = (location: { lat: number; lng: number; address: string }) => {
-    console.log('Localização selecionada:', location);
+    console.log('Localização selecionada no mapa:', location);
     setFormData({
       ...formData,
       coordinates: { lat: location.lat, lng: location.lng },
@@ -319,10 +374,10 @@ const AdminMaps = () => {
         <Label htmlFor="type">Tipo de Região</Label>
         <Select 
           value={searchType} 
-          onValueChange={(value: 'city' | 'state' | 'country' | 'custom') => {
+          onValueChange={(value: SearchType) => {
             setSearchType(value);
             setFormData({...formData, type: value});
-            setCitySearchTerm('');
+            setSearchTerm('');
             setSearchResults([]);
             setShowResults(false);
           }}
@@ -348,19 +403,16 @@ const AdminMaps = () => {
             <Input
               ref={searchInputRef}
               id="search"
-              value={citySearchTerm}
+              value={searchTerm}
               onChange={handleSearchInputChange}
-              onFocus={() => {
-                if (citySearchTerm.length >= 2) {
-                  setShowResults(true);
-                }
-              }}
+              onFocus={handleSearchInputFocus}
+              onBlur={handleSearchInputBlur}
               placeholder={`Digite o nome ${searchType === 'city' ? 'da cidade' : searchType === 'state' ? 'do estado' : 'do país'}...`}
               className="pr-10"
               autoComplete="off"
             />
             <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            {isSearching && (
+            {(isManualSearching || isGoogleSearching) && (
               <Loader2 className="absolute right-10 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
             )}
           </div>
@@ -372,17 +424,28 @@ const AdminMaps = () => {
                   key={index}
                   type="button"
                   className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center justify-between border-b border-gray-100 last:border-b-0"
-                  onClick={() => handleLocationSelect(location)}
-                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleLocationSelect(location);
+                  }}
                 >
-                  <span className="font-medium">{location.name}</span>
-                  <span className="text-sm text-gray-500">
-                    {searchType === 'city' && `${location.state}, ${location.country}`}
-                    {searchType === 'state' && location.country}
-                    {searchType === 'country' && location.code}
-                  </span>
+                  <div className="flex-1">
+                    <span className="font-medium block">{location.name}</span>
+                    <span className="text-sm text-gray-500 block">{location.address}</span>
+                  </div>
+                  <div className="text-xs text-gray-400 ml-2">
+                    {location.types?.includes('country') && '🌍'}
+                    {location.types?.includes('administrative_area_level_1') && '🗺️'}
+                    {location.types?.includes('locality') && '🏙️'}
+                  </div>
                 </button>
               ))}
+            </div>
+          )}
+
+          {isGoogleMapsLoaded && showResults && searchResults.length === 0 && !isManualSearching && !isGoogleSearching && searchTerm.length >= 2 && (
+            <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg p-4 text-center text-gray-500">
+              Nenhum resultado encontrado para "{searchTerm}"
             </div>
           )}
         </div>
@@ -411,6 +474,7 @@ const AdminMaps = () => {
               onChange={(e) => setFormData({...formData, country: e.target.value})}
               placeholder="Ex: Brasil"
               readOnly={searchType !== 'custom'}
+              className={searchType !== 'custom' ? 'bg-gray-50' : ''}
             />
           </div>
           {(searchType === 'state' || searchType === 'city') && (
@@ -422,9 +486,22 @@ const AdminMaps = () => {
                 onChange={(e) => setFormData({...formData, state: e.target.value})}
                 placeholder="Ex: SP"
                 readOnly={searchType !== 'custom'}
+                className={searchType !== 'custom' ? 'bg-gray-50' : ''}
               />
             </div>
           )}
+        </div>
+      )}
+
+      {formData.coordinates && (
+        <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+          <div className="flex items-center gap-2 text-green-800">
+            <MapPin className="h-4 w-4" />
+            <span className="text-sm font-medium">Coordenadas definidas</span>
+          </div>
+          <div className="text-xs text-green-600 mt-1">
+            Lat: {formData.coordinates.lat.toFixed(6)}, Lng: {formData.coordinates.lng.toFixed(6)}
+          </div>
         </div>
       )}
 
@@ -442,7 +519,7 @@ const AdminMaps = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Gestão de Regiões de Atendimento</h1>
-          <p className="text-gray-600">Defina as regiões onde a plataforma estará disponível</p>
+          <p className="text-gray-600">Defina as regiões onde a plataforma estará disponível usando busca real do Google Maps</p>
         </div>
         
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -460,6 +537,19 @@ const AdminMaps = () => {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Status da API do Google Maps */}
+      {loadError && (
+        <Card className="bg-red-50 border-red-200">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-800">
+              <MapPin className="h-4 w-4" />
+              <span className="text-sm font-medium">Erro na API do Google Maps</span>
+            </div>
+            <p className="text-sm text-red-600 mt-1">{loadError.message}</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Estatísticas baseadas em dados reais */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -515,7 +605,7 @@ const AdminMaps = () => {
           <CardTitle className="flex items-center gap-2">
             <Map className="h-5 w-5" />
             Mapa Interativo das Regiões
-            {isGoogleMapsLoaded && <Badge className="bg-green-100 text-green-800">Conectado</Badge>}
+            {isGoogleMapsLoaded && <Badge className="bg-green-100 text-green-800">Google Maps Conectado</Badge>}
             <Badge variant="secondary">{mapMarkers.length} regiões no mapa</Badge>
           </CardTitle>
         </CardHeader>
@@ -539,7 +629,7 @@ const AdminMaps = () => {
                 </h3>
                 <p className="text-gray-500 max-w-md">
                   Configure a chave da API do Google Maps nas configurações do sistema 
-                  para habilitar o mapa interativo.
+                  para habilitar o mapa interativo e busca de regiões.
                 </p>
               </div>
             </div>
@@ -697,26 +787,26 @@ const AdminMaps = () => {
             </div>
             <div>
               <h3 className="text-lg font-medium text-blue-900 mb-2">
-                Sistema de Zonas de Entrega Integrado
+                Sistema de Zonas de Entrega Integrado com Google Maps
               </h3>
               <div className="text-blue-700 space-y-2">
                 <p>
-                  • <strong>Dados Reais:</strong> Todas as regiões são armazenadas no banco de dados Supabase
+                  • <strong>Busca Real:</strong> Integração com Google Places API para busca precisa de países, estados e cidades
                 </p>
                 <p>
-                  • <strong>Mapa Dinâmico:</strong> O mapa exibe automaticamente as regiões ativas cadastradas
+                  • <strong>Coordenadas Automáticas:</strong> Localização geográfica obtida automaticamente do Google Maps
                 </p>
                 <p>
-                  • <strong>Busca Inteligente:</strong> Sistema de busca integrado para países, estados e cidades
+                  • <strong>Dados Persistentes:</strong> Todas as regiões são armazenadas no banco de dados Supabase
                 </p>
                 <p>
-                  • <strong>Gestão Completa:</strong> CRUD completo com persistência de dados em tempo real
+                  • <strong>Mapa Dinâmico:</strong> Visualização em tempo real das regiões ativas no mapa interativo
                 </p>
                 <p>
-                  • <strong>Coordenadas:</strong> Cada região pode ter coordenadas geográficas para localização precisa
+                  • <strong>Gestão Hierárquica:</strong> Suporte para países, estados, cidades e regiões personalizadas
                 </p>
                 <p className="text-sm mt-3 text-blue-600">
-                  <strong>Status:</strong> {regions.length} regiões cadastradas • {regions.filter(r => r.active).length} ativas • {mapMarkers.length} no mapa
+                  <strong>Status:</strong> {regions.length} regiões • {regions.filter(r => r.active).length} ativas • {mapMarkers.length} no mapa • API {isGoogleMapsLoaded ? 'Conectada' : 'Desconectada'}
                 </p>
               </div>
             </div>

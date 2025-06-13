@@ -103,6 +103,64 @@ declare namespace google {
       ERROR = 'ERROR'
     }
 
+    namespace places {
+      class PlacesService {
+        constructor(attrContainer: HTMLDivElement | Map);
+        textSearch(request: TextSearchRequest, callback: (results: PlaceResult[] | null, status: PlacesServiceStatus) => void): void;
+        getDetails(request: PlaceDetailsRequest, callback: (result: PlaceResult | null, status: PlacesServiceStatus) => void): void;
+      }
+
+      interface TextSearchRequest {
+        query: string;
+        bounds?: LatLngBounds;
+        location?: LatLng | LatLngLiteral;
+        radius?: number;
+        type?: string;
+        fields?: string[];
+      }
+
+      interface PlaceDetailsRequest {
+        placeId: string;
+        fields: string[];
+      }
+
+      interface PlaceResult {
+        place_id?: string;
+        name?: string;
+        formatted_address?: string;
+        geometry?: {
+          location: LatLng;
+          viewport?: LatLngBounds;
+        };
+        address_components?: AddressComponent[];
+        types?: string[];
+        rating?: number;
+        user_ratings_total?: number;
+      }
+
+      interface AddressComponent {
+        long_name: string;
+        short_name: string;
+        types: string[];
+      }
+
+      enum PlacesServiceStatus {
+        OK = 'OK',
+        ZERO_RESULTS = 'ZERO_RESULTS',
+        OVER_QUERY_LIMIT = 'OVER_QUERY_LIMIT',
+        REQUEST_DENIED = 'REQUEST_DENIED',
+        INVALID_REQUEST = 'INVALID_REQUEST',
+        NOT_FOUND = 'NOT_FOUND',
+        UNKNOWN_ERROR = 'UNKNOWN_ERROR'
+      }
+    }
+
+    class LatLngBounds {
+      constructor(sw?: LatLng | LatLngLiteral, ne?: LatLng | LatLngLiteral);
+      contains(latLng: LatLng | LatLngLiteral): boolean;
+      extend(point: LatLng | LatLngLiteral): LatLngBounds;
+    }
+
     namespace drawing {
       class DrawingManager {
         constructor(options?: DrawingManagerOptions);

@@ -61,7 +61,7 @@ export const useGoogleMaps = (apiKey?: string): UseGoogleMapsReturn => {
     const script = document.createElement('script');
     const callbackName = `initGoogleMaps_${Date.now()}`;
     
-    // Adicionar parâmetros de segurança e controle de versão
+    // Adicionar Places API e outras bibliotecas necessárias
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=drawing,geometry,places&callback=${callbackName}&v=3.55&loading=async`;
     script.async = true;
     script.defer = true;
@@ -70,13 +70,13 @@ export const useGoogleMaps = (apiKey?: string): UseGoogleMapsReturn => {
     (window as any)[callbackName] = () => {
       console.log('Callback do Google Maps executado');
       setTimeout(() => {
-        if (window.google && window.google.maps) {
+        if (window.google && window.google.maps && window.google.maps.places) {
           setIsLoaded(true);
           setLoadError(null);
           script.setAttribute('data-loaded', 'true');
-          console.log('Google Maps carregado com sucesso');
+          console.log('Google Maps com Places API carregado com sucesso');
         } else {
-          const error = new Error('Google Maps não carregou corretamente');
+          const error = new Error('Google Maps ou Places API não carregou corretamente');
           console.error('Erro:', error);
           setLoadError(error);
         }
