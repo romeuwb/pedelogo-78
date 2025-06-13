@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Map, Plus, Edit, Trash2, MapPin, Globe, Search, Loader2, Power, PowerOff } from 'lucide-react';
-import { useServiceRegions, ServiceRegion, CreateRegionData } from '@/hooks/useServiceRegions';
+import { useServiceRegions, CreateRegionData } from '@/hooks/useServiceRegions';
 import { useGeographySearch } from '@/hooks/useGeographySearch';
 import { useGoogleMaps } from '@/hooks/useGoogleMaps';
 import MapComponent from '@/components/maps/MapComponent';
@@ -42,7 +43,7 @@ import { supabase } from '@/integrations/supabase/client';
 const AdminMaps = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editingRegion, setEditingRegion] = useState<ServiceRegion | null>(null);
+  const [editingRegion, setEditingRegion] = useState<any>(null);
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>('');
   const [citySearchTerm, setCitySearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -50,6 +51,24 @@ const AdminMaps = () => {
   const [searchType, setSearchType] = useState<'city' | 'state' | 'country' | 'custom'>('city');
   const [showResults, setShowResults] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Hooks para dados do banco
+  const {
+    regions,
+    isLoading,
+    createRegion,
+    updateRegion,
+    deleteRegion,
+    toggleRegionStatus
+  } = useServiceRegions();
+
+  const {
+    searchCities,
+    searchStates,
+    searchCountries
+  } = useGeographySearch();
+
+  const { isLoaded: isGoogleMapsLoaded } = useGoogleMaps(googleMapsApiKey);
 
   const [formData, setFormData] = useState<CreateRegionData>({
     name: '',
@@ -197,7 +216,7 @@ const AdminMaps = () => {
     setShowResults(false);
   };
 
-  const handleEdit = (region: ServiceRegion) => {
+  const handleEdit = (region: any) => {
     setEditingRegion(region);
     setFormData({
       name: region.name,
@@ -269,7 +288,7 @@ const AdminMaps = () => {
     });
   };
 
-  // Preparar marcadores para o mapa
+  // Preparar marcadores para o mapa usando dados reais do banco
   const mapMarkers = regions
     .filter(region => region.coordinates && region.active)
     .map(region => ({
@@ -278,6 +297,21 @@ const AdminMaps = () => {
       title: region.name,
       type: 'restaurant' as const
     }));
+
+  // Calcular centro do mapa baseado nas regiões cadastradas
+  const getMapCenter = () => {
+    const activeRegionsWithCoords = regions.filter(r => r.coordinates && r.active);
+    
+    if (activeRegionsWithCoords.length === 0) {
+      // Centro do Brasil como padrão
+      return { lat: -14.2350, lng: -51.9253 };
+    }
+
+    const avgLat = activeRegionsWithCoords.reduce((sum, r) => sum + r.coordinates.lat, 0) / activeRegionsWithCoords.length;
+    const avgLng = activeRegionsWithCoords.reduce((sum, r) => sum + r.coordinates.lng, 0) / activeRegionsWithCoords.length;
+    
+    return { lat: avgLat, lng: avgLng };
+  };
 
   const RegionForm = () => (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -339,7 +373,7 @@ const AdminMaps = () => {
                   type="button"
                   className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center justify-between border-b border-gray-100 last:border-b-0"
                   onClick={() => handleLocationSelect(location)}
-                  onMouseDown={(e) => e.preventDefault()} // Previne perda de foco
+                  onMouseDown={(e) => e.preventDefault()}
                 >
                   <span className="font-medium">{location.name}</span>
                   <span className="text-sm text-gray-500">
@@ -427,7 +461,7 @@ const AdminMaps = () => {
         </Dialog>
       </div>
 
-      {/* Estatísticas */}
+      {/* Estatísticas baseadas em dados reais */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
@@ -475,21 +509,22 @@ const AdminMaps = () => {
         </Card>
       </div>
 
-      {/* Mapa Interativo */}
+      {/* Mapa Interativo com dados reais */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Map className="h-5 w-5" />
             Mapa Interativo das Regiões
             {isGoogleMapsLoaded && <Badge className="bg-green-100 text-green-800">Conectado</Badge>}
+            <Badge variant="secondary">{mapMarkers.length} regiões no mapa</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {googleMapsApiKey ? (
             <div className="h-96">
               <MapComponent
-                center={{ lat: -14.2350, lng: -51.9253 }}
-                zoom={5}
+                center={getMapCenter()}
+                zoom={regions.length > 0 ? 6 : 5}
                 markers={mapMarkers}
                 onLocationSelect={handleMapLocationSelect}
                 apiKey={googleMapsApiKey}
@@ -512,7 +547,7 @@ const AdminMaps = () => {
         </CardContent>
       </Card>
 
-      {/* Lista de Regiões */}
+      {/* Lista de Regiões com dados reais */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -546,6 +581,11 @@ const AdminMaps = () => {
                       <div className="flex items-center space-x-2">
                         {getRegionIcon(region.type)}
                         <span className="font-medium">{region.name}</span>
+                        {region.coordinates && (
+                          <Badge variant="outline" className="text-xs">
+                            Mapeada
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -558,6 +598,11 @@ const AdminMaps = () => {
                         {region.country && <div>{region.country}</div>}
                         {region.state && <div className="text-gray-500">{region.state}</div>}
                         {region.city && <div className="text-gray-400">{region.city}</div>}
+                        {region.coordinates && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            {region.coordinates.lat.toFixed(4)}, {region.coordinates.lng.toFixed(4)}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -643,7 +688,7 @@ const AdminMaps = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Informações sobre Integração */}
+      {/* Informações sobre Integração com dados reais */}
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="p-6">
           <div className="flex items-start space-x-3">
@@ -652,24 +697,26 @@ const AdminMaps = () => {
             </div>
             <div>
               <h3 className="text-lg font-medium text-blue-900 mb-2">
-                Sistema de Zonas de Entrega
+                Sistema de Zonas de Entrega Integrado
               </h3>
               <div className="text-blue-700 space-y-2">
                 <p>
-                  • <strong>Busca Inteligente:</strong> Pesquise e selecione países, estados ou cidades
+                  • <strong>Dados Reais:</strong> Todas as regiões são armazenadas no banco de dados Supabase
                 </p>
                 <p>
-                  • <strong>Gestão Completa:</strong> Crie, edite, ative/desative e exclua regiões
+                  • <strong>Mapa Dinâmico:</strong> O mapa exibe automaticamente as regiões ativas cadastradas
                 </p>
                 <p>
-                  • <strong>Visualização no Mapa:</strong> Veja todas as regiões ativas plotadas no mapa
+                  • <strong>Busca Inteligente:</strong> Sistema de busca integrado para países, estados e cidades
                 </p>
                 <p>
-                  • <strong>Hierarquia:</strong> Organize regiões por país → estado → cidade
+                  • <strong>Gestão Completa:</strong> CRUD completo com persistência de dados em tempo real
+                </p>
+                <p>
+                  • <strong>Coordenadas:</strong> Cada região pode ter coordenadas geográficas para localização precisa
                 </p>
                 <p className="text-sm mt-3 text-blue-600">
-                  <strong>Nota:</strong> Estas configurações definem onde a plataforma está disponível. 
-                  Cada restaurante ainda pode configurar suas próprias áreas de entrega específicas.
+                  <strong>Status:</strong> {regions.length} regiões cadastradas • {regions.filter(r => r.active).length} ativas • {mapMarkers.length} no mapa
                 </p>
               </div>
             </div>
