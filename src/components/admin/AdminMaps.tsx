@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -54,6 +53,7 @@ const AdminMaps = () => {
   const [isManualSearching, setIsManualSearching] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   // Hooks para dados do banco
   const {
@@ -70,6 +70,7 @@ const AdminMaps = () => {
     searchCities,
     searchStates,
     searchCountries,
+    searchPlaces,
     isSearching: isGoogleSearching,
     isLoaded: isGoogleMapsLoaded
   } = useGooglePlacesSearch(googleMapsApiKey);
@@ -107,7 +108,7 @@ const AdminMaps = () => {
     }
   }, [systemConfigs]);
 
-  // Busca com debounce usando Google Places API
+  // Busca melhorada com mais tipos de localização
   useEffect(() => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -122,16 +123,27 @@ const AdminMaps = () => {
           
           switch (searchType) {
             case 'city':
-              results = await searchCities(searchTerm);
+              // Busca mais ampla para cidades incluindo localidades e sublocais
+              results = await searchPlaces(searchTerm, [
+                'locality', 
+                'administrative_area_level_3',
+                'sublocality',
+                'sublocality_level_1'
+              ]);
               break;
             case 'state':
-              results = await searchStates(searchTerm);
+              // Busca mais ampla para estados
+              results = await searchPlaces(searchTerm, [
+                'administrative_area_level_1',
+                'administrative_area_level_2'
+              ]);
               break;
             case 'country':
-              results = await searchCountries(searchTerm);
+              results = await searchPlaces(searchTerm, ['country']);
               break;
           }
           
+          console.log(`Resultados da busca para "${searchTerm}":`, results);
           setSearchResults(results);
           setShowResults(true);
         } catch (error) {
@@ -140,7 +152,7 @@ const AdminMaps = () => {
         } finally {
           setIsManualSearching(false);
         }
-      }, 500); // Debounce de 500ms
+      }, 300); // Reduzido para 300ms para resposta mais rápida
     } else {
       setSearchResults([]);
       setShowResults(false);
@@ -152,7 +164,7 @@ const AdminMaps = () => {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchTerm, searchType, searchCities, searchStates, searchCountries, isGoogleMapsLoaded]);
+  }, [searchTerm, searchType, searchPlaces, isGoogleMapsLoaded]);
 
   const handleLocationSelect = (location: any) => {
     console.log('Localização selecionada:', location);
@@ -169,23 +181,25 @@ const AdminMaps = () => {
     
     if (placeTypes.includes('country')) {
       determinedType = 'country';
-    } else if (placeTypes.includes('administrative_area_level_1')) {
+    } else if (placeTypes.includes('administrative_area_level_1') || placeTypes.includes('administrative_area_level_2')) {
       determinedType = 'state';
-    } else if (placeTypes.includes('locality')) {
+    } else if (placeTypes.includes('locality') || placeTypes.includes('administrative_area_level_3') || placeTypes.includes('sublocality')) {
       determinedType = 'city';
     }
 
     newFormData.type = determinedType;
 
-    // Preencher dados baseado no tipo determinado
+    // Preencher dados baseado no tipo determinado e garantir que o país seja preenchido
+    const country = location.country || 'Brasil'; // Default para Brasil se não encontrar
+
     switch (determinedType) {
       case 'city':
         newFormData = {
           ...newFormData,
           name: location.name || location.city,
           city: location.name || location.city,
-          state: location.state,
-          country: location.country
+          state: location.state || '',
+          country: country
         };
         break;
       case 'state':
@@ -193,7 +207,7 @@ const AdminMaps = () => {
           ...newFormData,
           name: location.name || location.state,
           state: location.name || location.state,
-          country: location.country,
+          country: country,
           city: '' // Limpar cidade se for estado
         };
         break;
@@ -208,6 +222,7 @@ const AdminMaps = () => {
         break;
     }
 
+    console.log('FormData atualizado:', newFormData);
     setFormData(newFormData);
     setSearchTerm(location.name);
     setSearchResults([]);
@@ -225,21 +240,39 @@ const AdminMaps = () => {
     }
   };
 
+  // Melhor controle de foco para evitar que o campo perca foco
   const handleSearchInputFocus = () => {
     if (searchTerm.length >= 2 && searchResults.length > 0) {
       setShowResults(true);
     }
   };
 
-  const handleSearchInputBlur = () => {
+  // Prevenção de perda de foco usando onMouseDown
+  const handleResultMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault(); // Previne a perda de foco
+  };
+
+  const handleResultClick = (location: any) => {
+    handleLocationSelect(location);
+  };
+
+  const handleSearchInputBlur = (e: React.FocusEvent) => {
+    // Verifica se o foco está indo para os resultados
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (resultsRef.current?.contains(relatedTarget)) {
+      return; // Não fechar se o foco está nos resultados
+    }
+    
     // Delay para permitir clique nos resultados
     setTimeout(() => {
       setShowResults(false);
-    }, 200);
+    }, 150);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log('Dados do formulário antes de enviar:', formData);
     
     if (editingRegion) {
       updateRegion.mutate({
@@ -418,25 +451,32 @@ const AdminMaps = () => {
           </div>
           
           {showResults && searchResults.length > 0 && (
-            <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
+            <div 
+              ref={resultsRef}
+              className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto"
+            >
               {searchResults.map((location, index) => (
                 <button
                   key={index}
                   type="button"
                   className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center justify-between border-b border-gray-100 last:border-b-0"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleLocationSelect(location);
-                  }}
+                  onMouseDown={handleResultMouseDown}
+                  onClick={() => handleResultClick(location)}
                 >
                   <div className="flex-1">
                     <span className="font-medium block">{location.name}</span>
                     <span className="text-sm text-gray-500 block">{location.address}</span>
+                    {location.country && (
+                      <span className="text-xs text-gray-400 block">País: {location.country}</span>
+                    )}
+                    {location.state && (
+                      <span className="text-xs text-gray-400 block">Estado: {location.state}</span>
+                    )}
                   </div>
                   <div className="text-xs text-gray-400 ml-2">
                     {location.types?.includes('country') && '🌍'}
-                    {location.types?.includes('administrative_area_level_1') && '🗺️'}
-                    {location.types?.includes('locality') && '🏙️'}
+                    {(location.types?.includes('administrative_area_level_1') || location.types?.includes('administrative_area_level_2')) && '🗺️'}
+                    {(location.types?.includes('locality') || location.types?.includes('sublocality')) && '🏙️'}
                   </div>
                 </button>
               ))}
