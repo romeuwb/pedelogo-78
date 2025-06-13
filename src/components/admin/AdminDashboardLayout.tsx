@@ -1,160 +1,94 @@
 
-import React, { useState } from 'react';
-import { AdminHeader } from './AdminHeader';
-import { AdminSidebar } from './AdminSidebar';
-import { AdminOverview } from './AdminOverview';
-import { AdminUsers } from './AdminUsers';
-import { AdminSupport } from './AdminSupport';
-import { AdminProducts } from './AdminProducts';
+import React from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import AdminOverview from './AdminOverview';
+import AdminUsers from './AdminUsers';
+import AdminOrders from './AdminOrders';
+import AdminFinancial from './AdminFinancial';
+import AdminProducts from './AdminProducts';
+import AdminCoupons from './AdminCoupons';
+import AdminBanners from './AdminBanners';
+import AdminSupport from './AdminSupport';
 import AdminSettings from './AdminSettings';
-import { AdminDashboardAccess } from './AdminDashboardAccess';
-import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import AdminMaps from './AdminMaps';
+import AdminReports from './AdminReports';
+import AdminAuditLogs from './AdminAuditLogs';
+import AdminHeader from './AdminHeader';
+import AdminSidebar from './AdminSidebar';
 
 const AdminDashboardLayout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState('overview');
-  const { user, profile, loading } = useAuth();
-  const navigate = useNavigate();
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
-
-  if (!user || !profile || profile.tipo !== 'admin') {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Acesso Negado</h2>
-          <p className="text-gray-600">Você não tem permissão para acessar esta área.</p>
-        </div>
-      </div>
-    );
-  }
-
-  const handleAccessDashboard = (type: 'restaurant' | 'delivery' | 'client') => {
-    switch (type) {
-      case 'restaurant':
-        navigate('/restaurante/dashboard');
-        break;
-      case 'delivery':
-        navigate('/entregador/dashboard');
-        break;
-      case 'client':
-        navigate('/cliente/dashboard');
-        break;
-    }
-  };
-
-  const renderActiveSection = () => {
-    switch (activeSection) {
-      case 'overview':
-        return <AdminOverview />;
-      case 'users':
-        return <AdminUsers />;
-      case 'support':
-        return <AdminSupport />;
-      case 'settings':
-        return <AdminSettings />;
-      case 'dashboard-access':
-        return <AdminDashboardAccess onAccessDashboard={handleAccessDashboard} />;
-      case 'products':
-        return <AdminProducts />;
-      case 'orders':
-        return (
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Pedidos</h1>
-              <p className="text-gray-600">Visualize e gerencie todos os pedidos</p>
-            </div>
-            <div className="bg-white p-8 rounded-lg shadow text-center">
-              <p className="text-gray-500">Funcionalidade em desenvolvimento</p>
-            </div>
-          </div>
-        );
-      case 'financial':
-        return (
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Financeiro</h1>
-              <p className="text-gray-600">Gerencie transações e relatórios financeiros</p>
-            </div>
-            <div className="bg-white p-8 rounded-lg shadow text-center">
-              <p className="text-gray-500">Funcionalidade em desenvolvimento</p>
-            </div>
-          </div>
-        );
-      case 'coupons':
-        return (
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Cupons</h1>
-              <p className="text-gray-600">Crie e gerencie cupons de desconto</p>
-            </div>
-            <div className="bg-white p-8 rounded-lg shadow text-center">
-              <p className="text-gray-500">Funcionalidade em desenvolvimento</p>
-            </div>
-          </div>
-        );
-      case 'banners':
-        return (
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Banners</h1>
-              <p className="text-gray-600">Gerencie banners promocionais</p>
-            </div>
-            <div className="bg-white p-8 rounded-lg shadow text-center">
-              <p className="text-gray-500">Funcionalidade em desenvolvimento</p>
-            </div>
-          </div>
-        );
-      case 'reports':
-        return (
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Relatórios</h1>
-              <p className="text-gray-600">Visualize relatórios e análises do sistema</p>
-            </div>
-            <div className="bg-white p-8 rounded-lg shadow text-center">
-              <p className="text-gray-500">Funcionalidade em desenvolvimento</p>
-            </div>
-          </div>
-        );
-      case 'audit':
-        return (
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Auditoria</h1>
-              <p className="text-gray-600">Visualize logs de auditoria do sistema</p>
-            </div>
-            <div className="bg-white p-8 rounded-lg shadow text-center">
-              <p className="text-gray-500">Funcionalidade em desenvolvimento</p>
-            </div>
-          </div>
-        );
-      default:
-        return <AdminOverview />;
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <AdminHeader sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+      <AdminHeader />
       
       <div className="flex">
-        <AdminSidebar 
-          activeSection={activeSection}
-          setActiveSection={setActiveSection}
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-        />
+        <AdminSidebar />
         
-        <main className="flex-1 p-6">
-          {renderActiveSection()}
+        <main className="flex-1 ml-64 p-6">
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="hidden">
+              <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+              <TabsTrigger value="users">Usuários</TabsTrigger>
+              <TabsTrigger value="orders">Pedidos</TabsTrigger>
+              <TabsTrigger value="financial">Financeiro</TabsTrigger>
+              <TabsTrigger value="products">Produtos</TabsTrigger>
+              <TabsTrigger value="coupons">Cupons</TabsTrigger>
+              <TabsTrigger value="banners">Banners</TabsTrigger>
+              <TabsTrigger value="maps">Mapas</TabsTrigger>
+              <TabsTrigger value="reports">Relatórios</TabsTrigger>
+              <TabsTrigger value="audit">Auditoria</TabsTrigger>
+              <TabsTrigger value="support">Suporte</TabsTrigger>
+              <TabsTrigger value="settings">Configurações</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview">
+              <AdminOverview />
+            </TabsContent>
+
+            <TabsContent value="users">
+              <AdminUsers />
+            </TabsContent>
+
+            <TabsContent value="orders">
+              <AdminOrders />
+            </TabsContent>
+
+            <TabsContent value="financial">
+              <AdminFinancial />
+            </TabsContent>
+
+            <TabsContent value="products">
+              <AdminProducts />
+            </TabsContent>
+
+            <TabsContent value="coupons">
+              <AdminCoupons />
+            </TabsContent>
+
+            <TabsContent value="banners">
+              <AdminBanners />
+            </TabsContent>
+
+            <TabsContent value="maps">
+              <AdminMaps />
+            </TabsContent>
+
+            <TabsContent value="reports">
+              <AdminReports />
+            </TabsContent>
+
+            <TabsContent value="audit">
+              <AdminAuditLogs />
+            </TabsContent>
+
+            <TabsContent value="support">
+              <AdminSupport />
+            </TabsContent>
+
+            <TabsContent value="settings">
+              <AdminSettings />
+            </TabsContent>
+          </Tabs>
         </main>
       </div>
     </div>

@@ -1,96 +1,74 @@
 
+import React from 'react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { 
-  LayoutDashboard, 
-  Users, 
-  Package, 
-  DollarSign, 
-  Tag, 
-  HelpCircle, 
   BarChart3, 
-  Settings,
-  Image,
-  FileText,
-  ChevronLeft,
-  ChevronRight,
-  ShoppingCart,
-  Monitor
+  Users, 
+  ShoppingBag, 
+  DollarSign, 
+  Package, 
+  Gift, 
+  Image, 
+  Map, 
+  FileText, 
+  Shield, 
+  Headphones, 
+  Settings 
 } from 'lucide-react';
 
-interface AdminSidebarProps {
-  activeSection: string;
-  setActiveSection: (section: string) => void;
-  sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
-}
+const AdminSidebar = () => {
+  const [activeTab, setActiveTab] = React.useState('overview');
 
-const navigation = [
-  { id: 'overview', name: 'Dashboard', icon: LayoutDashboard },
-  { id: 'dashboard-access', name: 'Acessar Dashboards', icon: Monitor },
-  { id: 'users', name: 'Usuários', icon: Users },
-  { id: 'products', name: 'Produtos', icon: ShoppingCart },
-  { id: 'orders', name: 'Pedidos', icon: Package },
-  { id: 'financial', name: 'Financeiro', icon: DollarSign },
-  { id: 'coupons', name: 'Cupons', icon: Tag },
-  { id: 'banners', name: 'Banners', icon: Image },
-  { id: 'support', name: 'Suporte', icon: HelpCircle },
-  { id: 'reports', name: 'Relatórios', icon: BarChart3 },
-  { id: 'audit', name: 'Auditoria', icon: FileText },
-  { id: 'settings', name: 'Configurações', icon: Settings },
-];
+  const menuItems = [
+    { id: 'overview', label: 'Visão Geral', icon: BarChart3 },
+    { id: 'users', label: 'Usuários', icon: Users },
+    { id: 'orders', label: 'Pedidos', icon: ShoppingBag },
+    { id: 'financial', label: 'Financeiro', icon: DollarSign },
+    { id: 'products', label: 'Produtos', icon: Package },
+    { id: 'coupons', label: 'Cupons', icon: Gift },
+    { id: 'banners', label: 'Banners', icon: Image },
+    { id: 'maps', label: 'Mapas', icon: Map },
+    { id: 'reports', label: 'Relatórios', icon: FileText },
+    { id: 'audit', label: 'Auditoria', icon: Shield },
+    { id: 'support', label: 'Suporte', icon: Headphones },
+    { id: 'settings', label: 'Configurações', icon: Settings }
+  ];
 
-export const AdminSidebar = ({ 
-  activeSection, 
-  setActiveSection, 
-  sidebarOpen, 
-  setSidebarOpen 
-}: AdminSidebarProps) => {
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    // Trigger the tab change in the parent component
+    const tabTrigger = document.querySelector(`[value="${tabId}"]`) as HTMLButtonElement;
+    if (tabTrigger) {
+      tabTrigger.click();
+    }
+  };
+
   return (
-    <div className={cn(
-      "bg-white shadow-lg transition-all duration-300 relative",
-      sidebarOpen ? "w-64" : "w-16"
-    )}>
-      <div className="flex items-center justify-between p-4 border-b">
-        {sidebarOpen && (
-          <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
-        )}
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-lg hover:bg-gray-100"
-        >
-          {sidebarOpen ? (
-            <ChevronLeft className="h-5 w-5" />
-          ) : (
-            <ChevronRight className="h-5 w-5" />
-          )}
-        </button>
-      </div>
-
-      <nav className="mt-8">
-        <div className="px-2 space-y-1">
-          {navigation.map((item) => {
+    <div className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-white border-r border-gray-200 overflow-y-auto">
+      <div className="p-4">
+        <nav className="space-y-2">
+          {menuItems.map((item) => {
             const Icon = item.icon;
             return (
-              <button
+              <Button
                 key={item.id}
-                onClick={() => setActiveSection(item.id)}
+                variant={activeTab === item.id ? "default" : "ghost"}
                 className={cn(
-                  "group flex items-center w-full px-2 py-2 text-sm font-medium rounded-md transition-colors",
-                  activeSection === item.id
-                    ? "bg-blue-100 text-blue-900"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  "w-full justify-start gap-3 h-11",
+                  activeTab === item.id && "bg-blue-600 text-white hover:bg-blue-700"
                 )}
+                onClick={() => handleTabChange(item.id)}
               >
-                <Icon className={cn(
-                  "flex-shrink-0 h-5 w-5",
-                  sidebarOpen ? "mr-3" : "mx-auto"
-                )} />
-                {sidebarOpen && item.name}
-              </button>
+                <Icon className="h-5 w-5" />
+                {item.label}
+              </Button>
             );
           })}
-        </div>
-      </nav>
+        </nav>
+      </div>
     </div>
   );
 };
+
+export default AdminSidebar;

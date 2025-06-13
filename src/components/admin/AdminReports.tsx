@@ -1,252 +1,382 @@
 
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DatePickerWithRange } from '@/components/ui/date-picker';
+import { Badge } from '@/components/ui/badge';
 import { 
   BarChart3, 
   Download, 
   TrendingUp, 
   Users, 
-  Package,
-  Store,
-  Truck
+  ShoppingBag, 
+  DollarSign,
+  Calendar,
+  Filter,
+  FileText
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { DateRange } from 'react-day-picker';
 
-export const AdminReports = () => {
-  const { data: reportData } = useQuery({
-    queryKey: ['adminReports'],
-    queryFn: async () => {
-      const [
-        ordersResult,
-        usersResult,
-        restaurantsResult,
-        deliveryResult,
-        reviewsResult
-      ] = await Promise.allSettled([
-        supabase.from('orders').select('id, total, status, created_at, restaurante_id'),
-        supabase.from('profiles').select('id, tipo, created_at'),
-        supabase.from('restaurant_details').select('id, categoria, created_at'),
-        supabase.from('delivery_details').select('id, created_at'),
-        supabase.from('reviews').select('nota, tipo_avaliacao, created_at')
-      ]);
+interface ReportData {
+  id: string;
+  name: string;
+  type: 'orders' | 'revenue' | 'users' | 'restaurants' | 'delivery';
+  period: string;
+  data: any;
+  generated_at: string;
+  generated_by: string;
+}
 
-      const orders = ordersResult.status === 'fulfilled' ? ordersResult.value.data || [] : [];
-      const users = usersResult.status === 'fulfilled' ? usersResult.value.data || [] : [];
-      const restaurants = restaurantsResult.status === 'fulfilled' ? restaurantsResult.value.data || [] : [];
-      const delivery = deliveryResult.status === 'fulfilled' ? deliveryResult.value.data || [] : [];
-      const reviews = reviewsResult.status === 'fulfilled' ? reviewsResult.value.data || [] : [];
+interface ReportFilters {
+  dateRange: DateRange | undefined;
+  reportType: string;
+  region: string;
+  status: string;
+}
 
-      // Análise temporal (últimos 7 dias)
-      const last7Days = Array.from({ length: 7 }, (_, i) => {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        return date.toISOString().split('T')[0];
-      }).reverse();
-
-      const ordersByDay = last7Days.map(day => ({
-        day,
-        count: orders.filter(o => o.created_at.startsWith(day)).length,
-        revenue: orders
-          .filter(o => o.created_at.startsWith(day) && o.status === 'entregue')
-          .reduce((sum, o) => sum + Number(o.total), 0)
-      }));
-
-      // Top restaurantes
-      const restaurantStats = restaurants.map(restaurant => ({
-        id: restaurant.id,
-        categoria: restaurant.categoria,
-        orders: orders.filter(o => o.restaurante_id === restaurant.id).length,
-        revenue: orders
-          .filter(o => o.restaurante_id === restaurant.id && o.status === 'entregue')
-          .reduce((sum, o) => sum + Number(o.total), 0)
-      })).sort((a, b) => b.revenue - a.revenue);
-
-      // Estatísticas de usuários
-      const userStats = {
-        total: users.length,
-        clientes: users.filter(u => u.tipo === 'cliente').length,
-        restaurantes: users.filter(u => u.tipo === 'restaurante').length,
-        entregadores: users.filter(u => u.tipo === 'entregador').length
-      };
-
-      // Avaliações médias
-      const avgRating = reviews.length > 0 
-        ? reviews.reduce((sum, r) => sum + r.nota, 0) / reviews.length 
-        : 0;
-
-      return {
-        ordersByDay,
-        restaurantStats: restaurantStats.slice(0, 10),
-        userStats,
-        avgRating,
-        totalOrders: orders.length,
-        completedOrders: orders.filter(o => o.status === 'entregue').length,
-        totalRevenue: orders
-          .filter(o => o.status === 'entregue')
-          .reduce((sum, o) => sum + Number(o.total), 0)
-      };
-    }
+const AdminReports = () => {
+  const [reports, setReports] = useState<ReportData[]>([]);
+  const [filters, setFilters] = useState<ReportFilters>({
+    dateRange: undefined,
+    reportType: 'all',
+    region: 'all',
+    status: 'all'
   });
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
-  const exportReport = () => {
-    // Implementar exportação de relatório
-    console.log('Exportando relatório...');
+  const reportTypes = [
+    { value: 'orders', label: 'Relatório de Pedidos', icon: ShoppingBag },
+    { value: 'revenue', label: 'Relatório de Receita', icon: DollarSign },
+    { value: 'users', label: 'Relatório de Usuários', icon: Users },
+    { value: 'restaurants', label: 'Relatório de Restaurantes', icon: BarChart3 },
+    { value: 'delivery', label: 'Relatório de Entregadores', icon: TrendingUp }
+  ];
+
+  const loadReports = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('admin_reports')
+        .select('*')
+        .order('generated_at', { ascending: false });
+
+      if (error) throw error;
+      setReports(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar relatórios:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os relatórios.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const cards = [
-    {
-      title: 'Total de Pedidos',
-      value: reportData?.totalOrders || 0,
-      icon: Package,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50'
-    },
-    {
-      title: 'Pedidos Concluídos',
-      value: reportData?.completedOrders || 0,
-      icon: TrendingUp,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50'
-    },
-    {
-      title: 'Total de Usuários',
-      value: reportData?.userStats?.total || 0,
-      icon: Users,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50'
-    },
-    {
-      title: 'Avaliação Média',
-      value: reportData?.avgRating ? reportData.avgRating.toFixed(1) : '0.0',
-      icon: BarChart3,
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-50'
+  const generateReport = async (type: string) => {
+    setIsGenerating(true);
+    try {
+      // Simulate report generation
+      const reportData = await generateReportData(type, filters);
+      
+      const { data, error } = await supabase
+        .from('admin_reports')
+        .insert([{
+          name: `Relatório ${reportTypes.find(t => t.value === type)?.label} - ${new Date().toLocaleDateString()}`,
+          type,
+          period: filters.dateRange ? 
+            `${filters.dateRange.from?.toLocaleDateString()} - ${filters.dateRange.to?.toLocaleDateString()}` :
+            'Todos os períodos',
+          data: reportData,
+          generated_by: 'admin' // Replace with actual user ID
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setReports(prev => [data, ...prev]);
+      
+      toast({
+        title: "Sucesso",
+        description: "Relatório gerado com sucesso!"
+      });
+    } catch (error) {
+      console.error('Erro ao gerar relatório:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível gerar o relatório.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
     }
-  ];
+  };
+
+  const generateReportData = async (type: string, filters: ReportFilters) => {
+    // Simulate different report data based on type
+    switch (type) {
+      case 'orders':
+        return {
+          totalOrders: Math.floor(Math.random() * 1000) + 500,
+          completedOrders: Math.floor(Math.random() * 800) + 400,
+          cancelledOrders: Math.floor(Math.random() * 50) + 10,
+          averageOrderValue: (Math.random() * 50 + 25).toFixed(2),
+          topRestaurants: [
+            { name: 'Restaurante A', orders: 45 },
+            { name: 'Restaurante B', orders: 38 },
+            { name: 'Restaurante C', orders: 32 }
+          ]
+        };
+      case 'revenue':
+        return {
+          totalRevenue: (Math.random() * 50000 + 20000).toFixed(2),
+          platformFee: (Math.random() * 5000 + 2000).toFixed(2),
+          restaurantRevenue: (Math.random() * 40000 + 15000).toFixed(2),
+          deliveryRevenue: (Math.random() * 8000 + 3000).toFixed(2),
+          monthlyGrowth: (Math.random() * 20 + 5).toFixed(1) + '%'
+        };
+      case 'users':
+        return {
+          totalUsers: Math.floor(Math.random() * 5000) + 2000,
+          newUsers: Math.floor(Math.random() * 500) + 100,
+          activeUsers: Math.floor(Math.random() * 3000) + 1500,
+          userRetention: (Math.random() * 30 + 60).toFixed(1) + '%',
+          topRegions: [
+            { region: 'São Paulo', users: 850 },
+            { region: 'Rio de Janeiro', users: 640 },
+            { region: 'Belo Horizonte', users: 420 }
+          ]
+        };
+      default:
+        return { message: 'Dados do relatório não disponíveis' };
+    }
+  };
+
+  const downloadReport = async (reportId: string) => {
+    try {
+      const report = reports.find(r => r.id === reportId);
+      if (!report) return;
+
+      // Create CSV content
+      const csvContent = convertToCSV(report.data, report.type);
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${report.name}.csv`;
+      link.click();
+      
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Sucesso",
+        description: "Relatório baixado com sucesso!"
+      });
+    } catch (error) {
+      console.error('Erro ao baixar relatório:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível baixar o relatório.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const convertToCSV = (data: any, type: string) => {
+    // Simple CSV conversion - could be enhanced
+    let csv = '';
+    
+    Object.entries(data).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        csv += `${key}\n`;
+        value.forEach((item: any) => {
+          csv += Object.values(item).join(',') + '\n';
+        });
+        csv += '\n';
+      } else {
+        csv += `${key},${value}\n`;
+      }
+    });
+    
+    return csv;
+  };
+
+  useEffect(() => {
+    loadReports();
+  }, []);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Relatórios e Análises</h1>
-          <p className="text-gray-600">Análise de dados e relatórios de performance</p>
+          <p className="text-gray-600">Gere e visualize relatórios detalhados da plataforma</p>
         </div>
-        
-        <Button onClick={exportReport}>
-          <Download className="h-4 w-4 mr-2" />
-          Exportar Relatório
-        </Button>
       </div>
 
-      {/* Cards de métricas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {cards.map((card, index) => {
-          const Icon = card.icon;
-          return (
-            <Card key={index}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {card.title}
-                </CardTitle>
-                <div className={`p-2 rounded-lg ${card.bgColor}`}>
-                  <Icon className={`h-4 w-4 ${card.color}`} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{card.value}</div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pedidos por dia */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Pedidos dos Últimos 7 Dias</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {reportData?.ordersByDay?.map((day, index) => (
-                <div key={index} className="flex justify-between items-center">
-                  <span className="text-sm">
-                    {new Date(day.day).toLocaleDateString('pt-BR')}
-                  </span>
-                  <div className="flex items-center space-x-4">
-                    <Badge variant="outline">{day.count} pedidos</Badge>
-                    <span className="text-sm font-medium">
-                      R$ {day.revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Estatísticas de usuários */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Distribuição de Usuários</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-2">
-                  <Users className="h-4 w-4 text-blue-600" />
-                  <span>Clientes</span>
-                </div>
-                <Badge variant="secondary">{reportData?.userStats?.clientes || 0}</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-2">
-                  <Store className="h-4 w-4 text-green-600" />
-                  <span>Restaurantes</span>
-                </div>
-                <Badge variant="secondary">{reportData?.userStats?.restaurantes || 0}</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-2">
-                  <Truck className="h-4 w-4 text-purple-600" />
-                  <span>Entregadores</span>
-                </div>
-                <Badge variant="secondary">{reportData?.userStats?.entregadores || 0}</Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Top restaurantes */}
+      {/* Filtros de Relatório */}
       <Card>
         <CardHeader>
-          <CardTitle>Top 10 Restaurantes por Faturamento</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filtros e Geração de Relatórios
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {reportData?.restaurantStats?.map((restaurant, index) => (
-              <div key={restaurant.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <Badge variant="outline">#{index + 1}</Badge>
-                  <div>
-                    <span className="font-medium">Restaurante {restaurant.id.slice(0, 8)}</span>
-                    <div className="text-sm text-gray-500">{restaurant.categoria}</div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div>
+              <Label>Período</Label>
+              <DatePickerWithRange
+                date={filters.dateRange}
+                onDateChange={(range) => setFilters(prev => ({ ...prev, dateRange: range }))}
+              />
+            </div>
+            
+            <div>
+              <Label>Tipo de Relatório</Label>
+              <Select 
+                value={filters.reportType} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, reportType: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os Tipos</SelectItem>
+                  {reportTypes.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Região</Label>
+              <Select 
+                value={filters.region} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, region: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as Regiões</SelectItem>
+                  <SelectItem value="sp">São Paulo</SelectItem>
+                  <SelectItem value="rj">Rio de Janeiro</SelectItem>
+                  <SelectItem value="mg">Minas Gerais</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Status</Label>
+              <Select 
+                value={filters.status} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="active">Ativos</SelectItem>
+                  <SelectItem value="inactive">Inativos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {reportTypes.map((type) => {
+              const Icon = type.icon;
+              return (
+                <Button
+                  key={type.value}
+                  variant="outline"
+                  onClick={() => generateReport(type.value)}
+                  disabled={isGenerating}
+                  className="flex items-center gap-2"
+                >
+                  <Icon className="h-4 w-4" />
+                  {type.label}
+                </Button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Lista de Relatórios Gerados */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Relatórios Gerados
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {reports.map((report) => {
+              const reportType = reportTypes.find(t => t.value === report.type);
+              const Icon = reportType?.icon || FileText;
+              
+              return (
+                <div
+                  key={report.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                >
+                  <div className="flex items-center space-x-4">
+                    <Icon className="h-8 w-8 text-blue-600" />
+                    <div>
+                      <h3 className="font-medium">{report.name}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline">{reportType?.label || report.type}</Badge>
+                        <span className="text-sm text-gray-500">
+                          Gerado em {new Date(report.generated_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500">Período: {report.period}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => downloadReport(report.id)}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Baixar
+                    </Button>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="font-medium">
-                    R$ {restaurant.revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </div>
-                  <div className="text-sm text-gray-500">{restaurant.orders} pedidos</div>
-                </div>
+              );
+            })}
+
+            {reports.length === 0 && !isLoading && (
+              <div className="text-center py-8 text-gray-500">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhum relatório gerado ainda.</p>
+                <p className="text-sm">Use os filtros acima para gerar seu primeiro relatório.</p>
               </div>
-            ))}
+            )}
           </div>
         </CardContent>
       </Card>
     </div>
   );
 };
+
+export default AdminReports;

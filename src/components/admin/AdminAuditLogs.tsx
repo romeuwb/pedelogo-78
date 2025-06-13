@@ -1,207 +1,408 @@
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { 
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { DatePickerWithRange } from '@/components/ui/date-picker';
 import { 
   Shield, 
-  Search,
-  Calendar,
+  Search, 
+  Filter, 
+  Eye, 
+  AlertTriangle, 
+  CheckCircle, 
+  XCircle,
+  Clock,
   User,
-  FileText
+  Settings
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { DateRange } from 'react-day-picker';
 
-const actionTypes = [
-  { value: 'all', label: 'Todas as Ações' },
-  { value: 'CREATE', label: 'Criação' },
-  { value: 'UPDATE', label: 'Atualização' },
-  { value: 'DELETE', label: 'Exclusão' },
-  { value: 'LOGIN', label: 'Login' },
-  { value: 'LOGOUT', label: 'Logout' }
-];
+interface AuditLog {
+  id: string;
+  admin_id: string;
+  admin_name?: string;
+  acao: string;
+  tabela_afetada?: string;
+  registro_id?: string;
+  dados_anteriores?: any;
+  dados_novos?: any;
+  ip_address?: string;
+  user_agent?: string;
+  created_at: string;
+}
 
-export const AdminAuditLogs = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [actionFilter, setActionFilter] = useState('all');
+interface AuditFilters {
+  dateRange: DateRange | undefined;
+  adminUser: string;
+  action: string;
+  table: string;
+  searchTerm: string;
+}
 
-  const { data: auditLogs, isLoading } = useQuery({
-    queryKey: ['auditLogs', searchTerm, actionFilter],
-    queryFn: async () => {
+const AdminAuditLogs = () => {
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [filters, setFilters] = useState<AuditFilters>({
+    dateRange: undefined,
+    adminUser: 'all',
+    action: 'all',
+    table: 'all',
+    searchTerm: ''
+  });
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [adminUsers, setAdminUsers] = useState<Array<{ id: string; nome: string }>>([]);
+  const { toast } = useToast();
+
+  const actionTypes = [
+    { value: 'CREATE', label: 'Criação', icon: CheckCircle, color: 'text-green-600' },
+    { value: 'UPDATE', label: 'Atualização', icon: Settings, color: 'text-blue-600' },
+    { value: 'DELETE', label: 'Exclusão', icon: XCircle, color: 'text-red-600' },
+    { value: 'LOGIN', label: 'Login', icon: User, color: 'text-purple-600' },
+    { value: 'SECURITY', label: 'Segurança', icon: Shield, color: 'text-orange-600' }
+  ];
+
+  const loadAuditLogs = async () => {
+    setIsLoading(true);
+    try {
       let query = supabase
         .from('audit_logs')
         .select(`
-          id,
-          acao,
-          tabela_afetada,
-          registro_id,
-          dados_anteriores,
-          dados_novos,
-          ip_address,
-          user_agent,
-          created_at,
-          admin_user:admin_users!audit_logs_admin_id_fkey (
-            nome,
-            email
-          )
-        `);
+          *,
+          admin_users!inner(nome)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(100);
 
-      if (actionFilter !== 'all') {
-        query = query.eq('acao', actionFilter);
+      // Apply filters
+      if (filters.dateRange?.from) {
+        query = query.gte('created_at', filters.dateRange.from.toISOString());
+      }
+      if (filters.dateRange?.to) {
+        query = query.lte('created_at', filters.dateRange.to.toISOString());
+      }
+      if (filters.adminUser !== 'all') {
+        query = query.eq('admin_id', filters.adminUser);
+      }
+      if (filters.action !== 'all') {
+        query = query.eq('acao', filters.action);
+      }
+      if (filters.table !== 'all') {
+        query = query.eq('tabela_afetada', filters.table);
+      }
+      if (filters.searchTerm) {
+        query = query.or(`acao.ilike.%${filters.searchTerm}%,tabela_afetada.ilike.%${filters.searchTerm}%`);
       }
 
-      if (searchTerm) {
-        query = query.or(`acao.ilike.%${searchTerm}%,tabela_afetada.ilike.%${searchTerm}%`);
-      }
+      const { data, error } = await query;
 
-      const { data, error } = await query.order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
-    }
-  });
-
-  const getActionColor = (action: string) => {
-    switch (action) {
-      case 'CREATE': return 'bg-green-100 text-green-800';
-      case 'UPDATE': return 'bg-blue-100 text-blue-800';
-      case 'DELETE': return 'bg-red-100 text-red-800';
-      case 'LOGIN': return 'bg-purple-100 text-purple-800';
-      case 'LOGOUT': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-yellow-100 text-yellow-800';
+      
+      // Transform data to include admin name
+      const logsWithAdminName = (data || []).map(log => ({
+        ...log,
+        admin_name: log.admin_users?.nome || 'Usuário não encontrado'
+      }));
+      
+      setAuditLogs(logsWithAdminName);
+    } catch (error) {
+      console.error('Erro ao carregar logs de auditoria:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os logs de auditoria.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  if (isLoading) {
-    return <div>Carregando...</div>;
-  }
+  const loadAdminUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_users')
+        .select('user_id, nome')
+        .eq('ativo', true);
+
+      if (error) throw error;
+      setAdminUsers(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar usuários admin:', error);
+    }
+  };
+
+  const getActionIcon = (action: string) => {
+    const actionType = actionTypes.find(type => action.includes(type.value));
+    return actionType ? actionType.icon : AlertTriangle;
+  };
+
+  const getActionColor = (action: string) => {
+    const actionType = actionTypes.find(type => action.includes(type.value));
+    return actionType ? actionType.color : 'text-gray-600';
+  };
+
+  const formatLogData = (data: any) => {
+    if (!data) return 'N/A';
+    
+    try {
+      return JSON.stringify(data, null, 2);
+    } catch {
+      return String(data);
+    }
+  };
+
+  useEffect(() => {
+    loadAuditLogs();
+    loadAdminUsers();
+  }, [filters]);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Logs de Auditoria</h1>
-        <p className="text-gray-600">Monitore todas as ações realizadas no sistema</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Logs de Auditoria</h1>
+          <p className="text-gray-600">Monitore todas as ações administrativas da plataforma</p>
+        </div>
       </div>
 
       {/* Filtros */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Buscar por ação ou tabela..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filtros de Auditoria
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div>
+              <Label>Período</Label>
+              <DatePickerWithRange
+                date={filters.dateRange}
+                onDateChange={(range) => setFilters(prev => ({ ...prev, dateRange: range }))}
               />
             </div>
-            <Select value={actionFilter} onValueChange={setActionFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filtrar por ação" />
-              </SelectTrigger>
-              <SelectContent>
-                {actionTypes.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            
+            <div>
+              <Label>Usuário Admin</Label>
+              <Select 
+                value={filters.adminUser} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, adminUser: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os Usuários</SelectItem>
+                  {adminUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Tipo de Ação</Label>
+              <Select 
+                value={filters.action} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, action: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as Ações</SelectItem>
+                  {actionTypes.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Tabela</Label>
+              <Select 
+                value={filters.table} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, table: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as Tabelas</SelectItem>
+                  <SelectItem value="users">Usuários</SelectItem>
+                  <SelectItem value="restaurants">Restaurantes</SelectItem>
+                  <SelectItem value="orders">Pedidos</SelectItem>
+                  <SelectItem value="products">Produtos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Buscar</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar logs..."
+                  value={filters.searchTerm}
+                  onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                  className="pl-9"
+                />
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Lista de logs */}
+      {/* Lista de Logs */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
+          <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
-            <span>Logs de Auditoria</span>
-            {auditLogs && <Badge variant="secondary">{auditLogs.length}</Badge>}
+            Registros de Auditoria ({auditLogs.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data/Hora</TableHead>
-                <TableHead>Usuário</TableHead>
-                <TableHead>Ação</TableHead>
-                <TableHead>Tabela</TableHead>
-                <TableHead>Registro</TableHead>
-                <TableHead>IP</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {auditLogs?.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="h-4 w-4 text-gray-500" />
-                      <div>
-                        <div className="text-sm font-medium">
-                          {new Date(log.created_at).toLocaleDateString('pt-BR')}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {new Date(log.created_at).toLocaleTimeString('pt-BR')}
-                        </div>
+          <div className="space-y-4">
+            {auditLogs.map((log) => {
+              const ActionIcon = getActionIcon(log.acao);
+              const actionColor = getActionColor(log.acao);
+              
+              return (
+                <div
+                  key={log.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                  onClick={() => setSelectedLog(log)}
+                >
+                  <div className="flex items-center space-x-4">
+                    <ActionIcon className={`h-6 w-6 ${actionColor}`} />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium">{log.acao}</h3>
+                        {log.tabela_afetada && (
+                          <Badge variant="outline">{log.tabela_afetada}</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          {log.admin_name}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {new Date(log.created_at).toLocaleString()}
+                        </span>
+                        {log.ip_address && (
+                          <span>IP: {log.ip_address}</span>
+                        )}
                       </div>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4 text-gray-500" />
-                      <div>
-                        <div className="font-medium">{log.admin_user?.nome || 'N/A'}</div>
-                        <div className="text-sm text-gray-500">{log.admin_user?.email || 'N/A'}</div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getActionColor(log.acao)}>
-                      {log.acao}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <FileText className="h-4 w-4 text-gray-500" />
-                      <span className="font-mono text-sm">
-                        {log.tabela_afetada || 'N/A'}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-mono text-xs text-gray-600">
-                      {log.registro_id ? String(log.registro_id).slice(0, 8) + '...' : 'N/A'}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-gray-600">
-                      {log.ip_address ? String(log.ip_address) : 'N/A'}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </div>
+
+                  <Button variant="ghost" size="sm">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </div>
+              );
+            })}
+
+            {auditLogs.length === 0 && !isLoading && (
+              <div className="text-center py-8 text-gray-500">
+                <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhum log de auditoria encontrado.</p>
+                <p className="text-sm">Ajuste os filtros para ver mais resultados.</p>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      {/* Modal de Detalhes do Log */}
+      {selectedLog && (
+        <Card className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Detalhes do Log de Auditoria
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedLog(null)}
+                >
+                  ✕
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Ação</Label>
+                  <p className="font-medium">{selectedLog.acao}</p>
+                </div>
+                <div>
+                  <Label>Usuário</Label>
+                  <p className="font-medium">{selectedLog.admin_name}</p>
+                </div>
+                <div>
+                  <Label>Tabela Afetada</Label>
+                  <p className="font-medium">{selectedLog.tabela_afetada || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label>ID do Registro</Label>
+                  <p className="font-medium font-mono text-sm">{selectedLog.registro_id || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label>Data/Hora</Label>
+                  <p className="font-medium">{new Date(selectedLog.created_at).toLocaleString()}</p>
+                </div>
+                <div>
+                  <Label>Endereço IP</Label>
+                  <p className="font-medium">{selectedLog.ip_address || 'N/A'}</p>
+                </div>
+              </div>
+
+              {selectedLog.dados_anteriores && (
+                <div>
+                  <Label>Dados Anteriores</Label>
+                  <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
+                    {formatLogData(selectedLog.dados_anteriores)}
+                  </pre>
+                </div>
+              )}
+
+              {selectedLog.dados_novos && (
+                <div>
+                  <Label>Dados Novos</Label>
+                  <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
+                    {formatLogData(selectedLog.dados_novos)}
+                  </pre>
+                </div>
+              )}
+
+              {selectedLog.user_agent && (
+                <div>
+                  <Label>User Agent</Label>
+                  <p className="text-sm text-gray-600 break-all">{selectedLog.user_agent}</p>
+                </div>
+              )}
+            </CardContent>
+          </div>
+        </Card>
+      )}
     </div>
   );
 };
+
+export default AdminAuditLogs;
