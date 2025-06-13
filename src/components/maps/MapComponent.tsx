@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MapPin, Navigation, Route } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/hooks/use-toast';
 
 interface MapComponentProps {
   center?: { lat: number; lng: number };
@@ -20,6 +20,13 @@ interface MapComponentProps {
   apiKey?: string;
 }
 
+declare global {
+  interface Window {
+    google: any;
+    initGoogleMaps: () => void;
+  }
+}
+
 export const MapComponent: React.FC<MapComponentProps> = ({
   center = { lat: -23.5505, lng: -46.6333 }, // São Paulo default
   zoom = 13,
@@ -32,31 +39,56 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   const [map, setMap] = useState<any>(null);
   const [searchAddress, setSearchAddress] = useState('');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const { toast } = useToast();
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [mapMarkers, setMapMarkers] = useState<any[]>([]);
 
   // Initialize map
   useEffect(() => {
     if (!mapRef.current || !apiKey) return;
 
+    // Check if Google Maps is already loaded
+    if (window.google && window.google.maps) {
+      initializeMap();
+      return;
+    }
+
     // Load Google Maps script
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry&callback=initGoogleMaps`;
     script.async = true;
-    script.onload = initializeMap;
+    script.defer = true;
+
+    window.initGoogleMaps = () => {
+      setIsLoaded(true);
+      initializeMap();
+    };
+
+    script.onerror = () => {
+      console.error('Erro ao carregar Google Maps');
+      toast({
+        title: 'Erro',
+        description: 'Falha ao carregar o Google Maps',
+        variant: 'destructive'
+      });
+    };
+
     document.head.appendChild(script);
 
     return () => {
       const existingScript = document.querySelector(`script[src*="maps.googleapis.com"]`);
-      if (existingScript) {
-        document.head.removeChild(existingScript);
+      if (existingScript && existingScript.parentNode) {
+        existingScript.parentNode.removeChild(existingScript);
+      }
+      if (window.initGoogleMaps) {
+        delete window.initGoogleMaps;
       }
     };
   }, [apiKey]);
 
   const initializeMap = () => {
-    if (!mapRef.current || !(window as any).google) return;
+    if (!mapRef.current || !window.google) return;
 
-    const mapInstance = new (window as any).google.maps.Map(mapRef.current, {
+    const mapInstance = new window.google.maps.Map(mapRef.current, {
       center,
       zoom,
       styles: [
@@ -77,7 +109,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         const lng = event.latLng.lng();
         
         // Reverse geocoding to get address
-        const geocoder = new (window as any).google.maps.Geocoder();
+        const geocoder = new window.google.maps.Geocoder();
         geocoder.geocode({ location: { lat, lng } }, (results: any[], status: any) => {
           if (status === 'OK' && results[0]) {
             onLocationSelect({
@@ -93,25 +125,33 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 
   // Add markers to map
   useEffect(() => {
-    if (!map || !(window as any).google) return;
+    if (!map || !window.google || !isLoaded) return;
 
-    markers.forEach(marker => {
-      const mapMarker = new (window as any).google.maps.Marker({
+    // Clear existing markers
+    mapMarkers.forEach(marker => marker.setMap(null));
+    setMapMarkers([]);
+
+    const newMarkers = markers.map(marker => {
+      const mapMarker = new window.google.maps.Marker({
         position: marker.position,
         map,
         title: marker.title,
         icon: getMarkerIcon(marker.type)
       });
 
-      const infoWindow = new (window as any).google.maps.InfoWindow({
+      const infoWindow = new window.google.maps.InfoWindow({
         content: `<div><strong>${marker.title}</strong></div>`
       });
 
       mapMarker.addListener('click', () => {
         infoWindow.open(map, mapMarker);
       });
+
+      return mapMarker;
     });
-  }, [map, markers]);
+
+    setMapMarkers(newMarkers);
+  }, [map, markers, isLoaded]);
 
   const getMarkerIcon = (type: string) => {
     const icons = {
@@ -136,7 +176,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             map.setCenter(location);
             map.setZoom(15);
             
-            new (window as any).google.maps.Marker({
+            new window.google.maps.Marker({
               position: location,
               map,
               title: 'Sua localização',
@@ -161,16 +201,16 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   };
 
   const searchLocation = () => {
-    if (!searchAddress || !map || !(window as any).google) return;
+    if (!searchAddress || !map || !window.google) return;
 
-    const geocoder = new (window as any).google.maps.Geocoder();
+    const geocoder = new window.google.maps.Geocoder();
     geocoder.geocode({ address: searchAddress }, (results: any[], status: any) => {
       if (status === 'OK' && results[0]) {
         const location = results[0].geometry.location;
         map.setCenter(location);
         map.setZoom(15);
         
-        new (window as any).google.maps.Marker({
+        new window.google.maps.Marker({
           position: location,
           map,
           title: searchAddress
@@ -212,35 +252,35 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <MapPin className="h-5 w-5 mr-2" />
-          Mapa
-        </CardTitle>
-        <div className="flex space-x-2 mt-4">
-          <Input
-            placeholder="Buscar endereço..."
-            value={searchAddress}
-            onChange={(e) => setSearchAddress(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && searchLocation()}
-          />
-          <Button onClick={searchLocation} variant="outline">
-            <MapPin className="h-4 w-4" />
-          </Button>
-          <Button onClick={getCurrentLocation} variant="outline">
-            <Navigation className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div
-          ref={mapRef}
-          className="w-full h-96 rounded-lg border"
-          style={{ minHeight: '400px' }}
+    <div className="w-full h-full">
+      <div className="flex space-x-2 mb-4">
+        <Input
+          placeholder="Buscar endereço..."
+          value={searchAddress}
+          onChange={(e) => setSearchAddress(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && searchLocation()}
         />
-      </CardContent>
-    </Card>
+        <Button onClick={searchLocation} variant="outline">
+          <MapPin className="h-4 w-4" />
+        </Button>
+        <Button onClick={getCurrentLocation} variant="outline">
+          <Navigation className="h-4 w-4" />
+        </Button>
+      </div>
+      <div
+        ref={mapRef}
+        className="w-full h-full rounded-lg border"
+        style={{ minHeight: '400px' }}
+      />
+      {!isLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
+            <p className="text-gray-600">Carregando mapa...</p>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

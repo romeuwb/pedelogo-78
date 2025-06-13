@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +21,7 @@ import {
   TestTube
 } from 'lucide-react';
 import { toast } from 'sonner';
+import MapComponent from '@/components/maps/MapComponent';
 
 interface SystemConfig {
   id: string;
@@ -39,6 +39,7 @@ const AdminSettings = () => {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
   const [showPasswords, setShowPasswords] = useState<{ [key: string]: boolean }>({});
+  const [testingMaps, setTestingMaps] = useState(false);
 
   useEffect(() => {
     loadConfigurations();
@@ -122,6 +123,16 @@ const AdminSettings = () => {
       console.error('Erro no teste de email:', error);
       toast.error('Erro ao testar configuração de email');
     }
+  };
+
+  const testMapsConfig = () => {
+    const apiKey = getConfigValue('google_maps_api_key');
+    if (!apiKey) {
+      toast.error('Configure a chave da API do Google Maps primeiro');
+      return;
+    }
+    setTestingMaps(true);
+    toast.success('Teste do Google Maps iniciado');
   };
 
   const renderConfigField = (config: SystemConfig) => {
@@ -247,7 +258,18 @@ const AdminSettings = () => {
         <TabsContent value="maps" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Configurações de Mapas e Rotas</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                Configurações de Mapas e Rotas
+                <Button
+                  onClick={testMapsConfig}
+                  variant="outline"
+                  size="sm"
+                  disabled={!getConfigValue('google_maps_api_key')}
+                >
+                  <TestTube className="h-4 w-4 mr-2" />
+                  Testar Configuração
+                </Button>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {getConfigsByCategory('mapas').map(renderConfigField)}
@@ -285,6 +307,24 @@ const AdminSettings = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Teste do Mapa */}
+              {testingMaps && getConfigValue('google_maps_api_key') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Teste do Google Maps</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64">
+                      <MapComponent
+                        center={{ lat: -23.5505, lng: -46.6333 }}
+                        zoom={10}
+                        apiKey={getConfigValue('google_maps_api_key')}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

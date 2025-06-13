@@ -24,7 +24,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Map, Plus, Edit, Trash2, MapPin, Globe } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/hooks/use-toast';
+import { useGoogleMaps } from '@/hooks/useGoogleMaps';
+import MapComponent from '@/components/maps/MapComponent';
 
 interface ServiceRegion {
   id: string;
@@ -39,6 +41,7 @@ interface ServiceRegion {
 const AdminMaps = () => {
   const [regions, setRegions] = useState<ServiceRegion[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
     type: 'city' as const,
@@ -46,17 +49,38 @@ const AdminMaps = () => {
     active: true
   });
 
-  const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isLoaded: isGoogleMapsLoaded } = useGoogleMaps(googleMapsApiKey);
 
-  // For now, we'll use a mock implementation since service_regions table doesn't exist
-  // This demonstrates the UI structure that would work once the table is created
+  // Buscar a chave da API do Google Maps das configurações do sistema
+  const { data: systemConfigs } = useQuery({
+    queryKey: ['system-configurations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('system_configurations')
+        .select('*')
+        .eq('chave', 'google_maps_api_key')
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    }
+  });
+
+  useEffect(() => {
+    if (systemConfigs?.valor) {
+      setGoogleMapsApiKey(systemConfigs.valor);
+    }
+  }, [systemConfigs]);
+
+  // Mock data para demonstração
   const mockRegions: ServiceRegion[] = [
     {
       id: '1',
       name: 'Brasil',
       type: 'country',
       parent_region_id: null,
+      coordinates: { lat: -14.2350, lng: -51.9253 },
       active: true,
       created_at: new Date().toISOString()
     },
@@ -65,21 +89,22 @@ const AdminMaps = () => {
       name: 'São Paulo',
       type: 'state',
       parent_region_id: '1',
+      coordinates: { lat: -23.5505, lng: -46.6333 },
       active: true,
       created_at: new Date().toISOString()
     },
     {
       id: '3',
-      name: 'São Paulo Capital',
+      name: 'Rio de Janeiro',
       type: 'city',
       parent_region_id: '2',
+      coordinates: { lat: -22.9068, lng: -43.1729 },
       active: true,
       created_at: new Date().toISOString()
     }
   ];
 
   useEffect(() => {
-    // Using mock data for now
     setRegions(mockRegions);
   }, []);
 
@@ -129,7 +154,6 @@ const AdminMaps = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Mock implementation - would integrate with real database
     const newRegion: ServiceRegion = {
       id: Date.now().toString(),
       name: formData.name,
@@ -169,9 +193,27 @@ const AdminMaps = () => {
     });
   };
 
+  const handleLocationSelect = (location: { lat: number; lng: number; address: string }) => {
+    console.log('Localização selecionada:', location);
+    toast({
+      title: 'Localização selecionada',
+      description: `${location.address}`
+    });
+  };
+
   const getParentRegions = () => {
     return regions.filter(region => region.type !== 'custom');
   };
+
+  // Preparar marcadores para o mapa
+  const mapMarkers = regions
+    .filter(region => region.coordinates && region.active)
+    .map(region => ({
+      id: region.id,
+      position: region.coordinates,
+      title: region.name,
+      type: 'restaurant' as const
+    }));
 
   return (
     <div className="space-y-6">
@@ -232,7 +274,7 @@ const AdminMaps = () => {
                     <SelectValue placeholder="Selecionar região pai..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhuma</SelectItem>
+                    <SelectItem value="none">Nenhuma</SelectItem>
                     {getParentRegions().map((region) => (
                       <SelectItem key={region.id} value={region.id}>
                         {region.name} ({getRegionTypeLabel(region.type)})
@@ -250,27 +292,40 @@ const AdminMaps = () => {
         </Dialog>
       </div>
 
-      {/* Mapa Visual (Placeholder) */}
+      {/* Mapa Interativo */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Map className="h-5 w-5" />
-            Visualização do Mapa
+            Mapa Interativo das Regiões
+            {isGoogleMapsLoaded && <Badge className="bg-green-100 text-green-800">Conectado</Badge>}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-96 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
-            <div className="text-center">
-              <Map className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-600 mb-2">
-                Mapa Interativo
-              </h3>
-              <p className="text-gray-500 max-w-md">
-                Aqui será exibido o mapa interativo onde você pode visualizar e editar 
-                as regiões de atendimento. Integração com Google Maps em desenvolvimento.
-              </p>
+          {googleMapsApiKey ? (
+            <div className="h-96">
+              <MapComponent
+                center={{ lat: -14.2350, lng: -51.9253 }}
+                zoom={5}
+                markers={mapMarkers}
+                onLocationSelect={handleLocationSelect}
+                apiKey={googleMapsApiKey}
+              />
             </div>
-          </div>
+          ) : (
+            <div className="h-96 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+              <div className="text-center">
+                <Map className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-600 mb-2">
+                  API do Google Maps não configurada
+                </h3>
+                <p className="text-gray-500 max-w-md">
+                  Configure a chave da API do Google Maps nas configurações do sistema 
+                  para habilitar o mapa interativo.
+                </p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

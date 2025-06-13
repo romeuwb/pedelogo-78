@@ -11,6 +11,11 @@ export const useGoogleMaps = (apiKey?: string): UseGoogleMapsReturn => {
   const [loadError, setLoadError] = useState<Error | null>(null);
 
   useEffect(() => {
+    if (!apiKey) {
+      setIsLoaded(false);
+      return;
+    }
+
     // Se o Google Maps já está carregado
     if (typeof window !== 'undefined' && window.google && window.google.maps) {
       setIsLoaded(true);
@@ -47,8 +52,7 @@ export const useGoogleMaps = (apiKey?: string): UseGoogleMapsReturn => {
 
     // Carregar o script do Google Maps
     const script = document.createElement('script');
-    const key = apiKey || 'AIzaSyBCXkPLxm6DGcNJvAG6_oVXKKY9-YGZ5kA';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=drawing,geometry&callback=initGoogleMaps`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=drawing,geometry,places&callback=initGoogleMaps`;
     script.async = true;
     script.defer = true;
 
