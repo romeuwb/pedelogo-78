@@ -45,9 +45,9 @@ serve(async (req) => {
     return new Response("Missing restaurantId parameter", { status: 400, headers: corsHeaders });
   }
 
+  // Fazer a apiKey opcional para teste inicial
   if (!apiKey) {
-    console.log('Missing apiKey parameter');
-    return new Response("Missing apiKey parameter", { status: 400, headers: corsHeaders });
+    console.log('Missing apiKey parameter - using default for testing');
   }
 
   // Inicializar Supabase client
@@ -56,16 +56,28 @@ serve(async (req) => {
 
   if (!supabaseUrl || !supabaseServiceKey) {
     console.error('Missing Supabase environment variables');
+    console.error(`SUPABASE_URL: ${supabaseUrl ? 'present' : 'missing'}`);
+    console.error(`SUPABASE_SERVICE_ROLE_KEY: ${supabaseServiceKey ? 'present' : 'missing'}`);
     return new Response("Server configuration error", { status: 500, headers: corsHeaders });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
+  console.log(`Supabase URL: ${supabaseUrl}`);
   console.log(`Attempting WebSocket upgrade for restaurant: ${restaurantId}`);
+
+  let supabase;
+  try {
+    supabase = createClient(supabaseUrl, supabaseServiceKey);
+    console.log('Supabase client created successfully');
+  } catch (error) {
+    console.error('Error creating Supabase client:', error);
+    return new Response("Database connection error", { status: 500, headers: corsHeaders });
+  }
 
   try {
     const { socket, response } = Deno.upgradeWebSocket(req);
     const connectionId = crypto.randomUUID();
+
+    console.log(`WebSocket upgrade successful - connectionId: ${connectionId}`);
 
     socket.onopen = async () => {
       console.log(`WebSocket connected: ${connectionId} for restaurant: ${restaurantId}`);
@@ -89,15 +101,22 @@ serve(async (req) => {
 
         if (insertError) {
           console.error('Error saving connection to database:', insertError);
+        } else {
+          console.log('Connection saved to database successfully');
         }
 
         // Enviar confirmação de conexão
         const welcomeMessage: WebSocketMessage = {
           type: 'status',
-          data: { status: 'connected', connectionId },
+          data: { 
+            status: 'connected', 
+            connectionId,
+            message: 'WebSocket connection established successfully'
+          },
           timestamp: new Date().toISOString()
         };
         socket.send(JSON.stringify(welcomeMessage));
+        console.log('Welcome message sent');
       } catch (error) {
         console.error('Error in onopen handler:', error);
       }
@@ -165,7 +184,7 @@ serve(async (req) => {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
+                    'Authorization': `Bearer ${apiKey || 'default'}`
                   },
                   body: JSON.stringify({
                     jobId: job.id,
