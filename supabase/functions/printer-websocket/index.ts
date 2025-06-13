@@ -19,12 +19,16 @@ const connectionPool = new Map<string, WebSocket>();
 const restaurantConnections = new Map<string, string>(); // restaurantId -> connectionId
 
 serve(async (req) => {
+  console.log(`=== WebSocket Request Start ===`);
+  console.log(`Method: ${req.method}`);
+  console.log(`URL: ${req.url}`);
+  console.log(`Headers:`, Object.fromEntries(req.headers.entries()));
+
   // Handle CORS
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
-
-  console.log(`WebSocket request received: ${req.method} ${req.url}`);
 
   const { headers } = req;
   const upgradeHeader = headers.get("upgrade") || "";
@@ -38,16 +42,16 @@ serve(async (req) => {
   const restaurantId = url.searchParams.get('restaurantId');
   const apiKey = url.searchParams.get('apiKey');
 
-  console.log(`WebSocket connection attempt - restaurantId: ${restaurantId}, apiKey: ${apiKey ? 'present' : 'missing'}`);
+  console.log(`Extracted params - restaurantId: ${restaurantId}, apiKey: ${apiKey ? 'present' : 'missing'}`);
 
   if (!restaurantId) {
     console.log('Missing restaurantId parameter');
     return new Response("Missing restaurantId parameter", { status: 400, headers: corsHeaders });
   }
 
-  // Validação mais robusta da API key
-  if (!apiKey || apiKey.trim() === '' || apiKey === 'default') {
-    console.log(`Invalid apiKey parameter: ${apiKey}`);
+  // Validação básica da API key
+  if (!apiKey || apiKey.trim() === '') {
+    console.log(`Missing or empty apiKey parameter`);
     return new Response("Valid apiKey parameter is required", { status: 400, headers: corsHeaders });
   }
 
@@ -56,6 +60,8 @@ serve(async (req) => {
     console.log(`Invalid apiKey format: ${apiKey.substring(0, 10)}...`);
     return new Response("Invalid apiKey format", { status: 400, headers: corsHeaders });
   }
+
+  console.log(`API key validation passed`);
 
   // Inicializar Supabase client
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -80,29 +86,9 @@ serve(async (req) => {
     return new Response("Database connection error", { status: 500, headers: corsHeaders });
   }
 
-  // Validar a API key no banco de dados antes de fazer upgrade
+  // Fazer upgrade do WebSocket primeiro, validar API key após conexão
   try {
-    console.log(`Validating API key for restaurant: ${restaurantId}`);
-    const { data: apiKeyData, error: apiKeyError } = await supabase
-      .from('restaurant_api_keys')
-      .select('id, is_active')
-      .eq('restaurant_id', restaurantId)
-      .eq('api_key', apiKey)
-      .eq('is_active', true)
-      .single();
-
-    if (apiKeyError || !apiKeyData) {
-      console.error('Invalid or inactive API key:', apiKeyError?.message || 'Not found');
-      return new Response("Invalid or inactive API key", { status: 403, headers: corsHeaders });
-    }
-
-    console.log('API key validated successfully');
-  } catch (error) {
-    console.error('Error validating API key:', error);
-    return new Response("API key validation error", { status: 500, headers: corsHeaders });
-  }
-
-  try {
+    console.log('Starting WebSocket upgrade...');
     const { socket, response } = Deno.upgradeWebSocket(req);
     const connectionId = crypto.randomUUID();
 
@@ -112,6 +98,24 @@ serve(async (req) => {
       console.log(`WebSocket connected: ${connectionId} for restaurant: ${restaurantId}`);
       
       try {
+        // Validar a API key no banco de dados após a conexão
+        console.log(`Validating API key for restaurant: ${restaurantId}`);
+        const { data: apiKeyData, error: apiKeyError } = await supabase
+          .from('restaurant_api_keys')
+          .select('id, is_active')
+          .eq('restaurant_id', restaurantId)
+          .eq('api_key', apiKey)
+          .eq('is_active', true)
+          .single();
+
+        if (apiKeyError || !apiKeyData) {
+          console.error('Invalid or inactive API key:', apiKeyError?.message || 'Not found');
+          socket.close(1008, 'Invalid or inactive API key');
+          return;
+        }
+
+        console.log('API key validated successfully');
+
         // Registrar conexão no pool
         connectionPool.set(connectionId, socket);
         restaurantConnections.set(restaurantId, connectionId);
@@ -148,6 +152,7 @@ serve(async (req) => {
         console.log('Welcome message sent');
       } catch (error) {
         console.error('Error in onopen handler:', error);
+        socket.close(1011, 'Server error during connection setup');
       }
     };
 
@@ -339,6 +344,7 @@ serve(async (req) => {
       }
     };
 
+    console.log('WebSocket handlers configured, returning response');
     return response;
   } catch (error) {
     console.error('Error upgrading to WebSocket:', error);
