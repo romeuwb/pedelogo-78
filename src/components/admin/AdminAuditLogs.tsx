@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,7 +24,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Shield, Search, Eye, Download, Filter } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/hooks/use-toast';
 
 interface AuditLog {
   id: string;
@@ -50,14 +51,12 @@ const AdminAuditLogs = () => {
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [filters, setFilters] = useState({
-    admin_id: '',
+    admin_id: 'all',
     acao: '',
     tabela: '',
     data_inicio: '',
     data_fim: ''
   });
-
-  const { toast } = useToast();
 
   // Mock data since audit_logs table may not exist
   const mockLogs: AuditLog[] = [
@@ -94,7 +93,7 @@ const AdminAuditLogs = () => {
     queryFn: async () => {
       // Return mock data for now since the table may not exist
       return mockLogs.filter(log => {
-        if (filters.admin_id && log.admin_id !== filters.admin_id) return false;
+        if (filters.admin_id !== 'all' && log.admin_id !== filters.admin_id) return false;
         if (filters.acao && !log.acao.toLowerCase().includes(filters.acao.toLowerCase())) return false;
         if (filters.tabela && log.tabela_afetada !== filters.tabela) return false;
         if (filters.data_inicio && log.created_at < filters.data_inicio) return false;
@@ -176,7 +175,7 @@ const AdminAuditLogs = () => {
 
   const clearFilters = () => {
     setFilters({
-      admin_id: '',
+      admin_id: 'all',
       acao: '',
       tabela: '',
       data_inicio: '',
@@ -222,7 +221,7 @@ const AdminAuditLogs = () => {
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {admins.map((admin) => (
                     <SelectItem key={admin.id} value={admin.id}>
                       {admin.nome}
