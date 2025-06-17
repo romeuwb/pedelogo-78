@@ -8,7 +8,7 @@ import { AdminOrders } from './AdminOrders';
 import { AdminFinancial } from './AdminFinancial';
 import { AdminProducts } from './AdminProducts';
 import { AdminCoupons } from './AdminCoupons';
-import { AdminDashboardAccess } from './AdminDashboardAccess';
+import { AdminDirectAccess } from './AdminDirectAccess';
 import AdminBanners from './AdminBanners';
 import { AdminSupport } from './AdminSupport';
 import AdminSettings from './AdminSettings';
@@ -91,7 +91,7 @@ const AdminDashboardLayout = () => {
             </TabsContent>
 
             <TabsContent value="access">
-              <AdminDashboardAccess onAccessDashboard={handleAccessDashboard} />
+              <AdminDirectAccess onAccessDashboard={handleAccessDashboard} />
             </TabsContent>
 
             <TabsContent value="maps">
