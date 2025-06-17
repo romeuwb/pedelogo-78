@@ -14,7 +14,8 @@ import {
   FileText, 
   Shield, 
   Headphones, 
-  Settings 
+  Settings,
+  MonitorSpeaker
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -31,6 +32,7 @@ const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
     { id: 'products', label: 'Produtos', icon: Package },
     { id: 'coupons', label: 'Cupons', icon: Gift },
     { id: 'banners', label: 'Banners', icon: Image },
+    { id: 'access', label: 'Acessar Dashboards', icon: MonitorSpeaker },
     { id: 'maps', label: 'Mapas', icon: Map },
     { id: 'reports', label: 'Relatórios', icon: FileText },
     { id: 'audit', label: 'Auditoria', icon: Shield },

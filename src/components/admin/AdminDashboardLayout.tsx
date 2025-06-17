@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminOverview } from './AdminOverview';
 import { AdminUsers } from './AdminUsers';
@@ -7,6 +8,7 @@ import { AdminOrders } from './AdminOrders';
 import { AdminFinancial } from './AdminFinancial';
 import { AdminProducts } from './AdminProducts';
 import { AdminCoupons } from './AdminCoupons';
+import { AdminDashboardAccess } from './AdminDashboardAccess';
 import AdminBanners from './AdminBanners';
 import { AdminSupport } from './AdminSupport';
 import AdminSettings from './AdminSettings';
@@ -19,6 +21,21 @@ import AdminSidebar from './AdminSidebar';
 const AdminDashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const navigate = useNavigate();
+
+  const handleAccessDashboard = (type: 'restaurant' | 'delivery' | 'client') => {
+    switch (type) {
+      case 'restaurant':
+        navigate('/restaurante/dashboard');
+        break;
+      case 'delivery':
+        navigate('/entregador/dashboard');
+        break;
+      case 'client':
+        navigate('/cliente/dashboard');
+        break;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -37,6 +54,7 @@ const AdminDashboardLayout = () => {
               <TabsTrigger value="products">Produtos</TabsTrigger>
               <TabsTrigger value="coupons">Cupons</TabsTrigger>
               <TabsTrigger value="banners">Banners</TabsTrigger>
+              <TabsTrigger value="access">Acessar Dashboards</TabsTrigger>
               <TabsTrigger value="maps">Mapas</TabsTrigger>
               <TabsTrigger value="reports">Relatórios</TabsTrigger>
               <TabsTrigger value="audit">Auditoria</TabsTrigger>
@@ -70,6 +88,10 @@ const AdminDashboardLayout = () => {
 
             <TabsContent value="banners">
               <AdminBanners />
+            </TabsContent>
+
+            <TabsContent value="access">
+              <AdminDashboardAccess onAccessDashboard={handleAccessDashboard} />
             </TabsContent>
 
             <TabsContent value="maps">

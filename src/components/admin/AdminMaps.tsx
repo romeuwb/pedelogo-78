@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -126,7 +125,6 @@ const AdminMaps = () => {
           
           switch (searchType) {
             case 'city':
-              // Busca mais ampla para cidades
               results = await searchPlaces(searchTerm, [
                 'locality', 
                 'administrative_area_level_3',
@@ -136,20 +134,17 @@ const AdminMaps = () => {
               ]);
               break;
             case 'state':
-              // Busca expandida para estados brasileiros e internacionais
               results = await searchPlaces(searchTerm, [
                 'administrative_area_level_1',
                 'administrative_area_level_2',
                 'political'
               ]);
-              console.log(`Busca por estado "${searchTerm}":`, results);
               break;
             case 'country':
               results = await searchPlaces(searchTerm, ['country']);
               break;
           }
           
-          console.log(`Resultados da busca para "${searchTerm}" (${searchType}):`, results);
           setSearchResults(results);
           setIsResultsVisible(true);
         } catch (error) {
@@ -181,7 +176,6 @@ const AdminMaps = () => {
       coordinates: location.coordinates
     };
 
-    // Determinar o tipo baseado nos tipos do Google Places
     const placeTypes = location.types || [];
     let determinedType: RegionType = searchType as RegionType;
     
@@ -199,7 +193,6 @@ const AdminMaps = () => {
 
     newFormData.type = determinedType;
 
-    // Preencher dados baseado no tipo determinado
     const country = location.country || 'Brasil';
 
     switch (determinedType) {
@@ -232,7 +225,6 @@ const AdminMaps = () => {
         break;
     }
 
-    console.log('FormData atualizado:', newFormData);
     setFormData(newFormData);
     setSearchTerm(location.name);
     setSearchResults([]);
