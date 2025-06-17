@@ -10,6 +10,10 @@ interface ClientProtectedRouteProps {
 export const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
   const { user, profile, loading } = useAuth();
 
+  console.log('ClientProtectedRoute - User:', user?.id);
+  console.log('ClientProtectedRoute - Profile:', profile);
+  console.log('ClientProtectedRoute - Loading:', loading);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -19,12 +23,16 @@ export const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) =>
   }
 
   if (!user || !profile) {
+    console.log('ClientProtectedRoute - No user or profile, redirecting to home');
     return <Navigate to="/" replace />;
   }
 
-  if (profile.tipo !== 'cliente') {
+  // Permitir acesso se for admin ou cliente
+  if (profile.tipo !== 'cliente' && profile.tipo !== 'admin') {
+    console.log('ClientProtectedRoute - Not client or admin, redirecting to home:', profile.tipo);
     return <Navigate to="/" replace />;
   }
 
+  console.log('ClientProtectedRoute - Access granted');
   return <>{children}</>;
 };

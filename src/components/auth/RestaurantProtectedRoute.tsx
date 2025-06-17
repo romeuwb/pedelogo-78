@@ -10,6 +10,10 @@ interface RestaurantProtectedRouteProps {
 export const RestaurantProtectedRoute = ({ children }: RestaurantProtectedRouteProps) => {
   const { user, profile, loading } = useAuth();
 
+  console.log('RestaurantProtectedRoute - User:', user?.id);
+  console.log('RestaurantProtectedRoute - Profile:', profile);
+  console.log('RestaurantProtectedRoute - Loading:', loading);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -19,12 +23,16 @@ export const RestaurantProtectedRoute = ({ children }: RestaurantProtectedRouteP
   }
 
   if (!user || !profile) {
+    console.log('RestaurantProtectedRoute - No user or profile, redirecting to home');
     return <Navigate to="/" replace />;
   }
 
-  if (profile.tipo !== 'restaurante') {
+  // Permitir acesso se for admin ou restaurante
+  if (profile.tipo !== 'restaurante' && profile.tipo !== 'admin') {
+    console.log('RestaurantProtectedRoute - Not restaurant or admin, redirecting to home:', profile.tipo);
     return <Navigate to="/" replace />;
   }
 
+  console.log('RestaurantProtectedRoute - Access granted');
   return <>{children}</>;
 };
