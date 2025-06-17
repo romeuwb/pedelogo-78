@@ -10,14 +10,35 @@ interface AdminDirectAccessProps {
 
 export const AdminDirectAccess = ({ onAccessDashboard }: AdminDirectAccessProps) => {
   const handleDirectAccess = (type: 'restaurant' | 'delivery' | 'client') => {
-    // Abrir em nova aba para evitar redirecionamento
+    console.log('Acessando dashboard:', type);
+    
     const routes = {
       restaurant: '/restaurante/dashboard',
       delivery: '/entregador/dashboard',
       client: '/cliente/dashboard'
     };
     
-    window.open(routes[type], '_blank', 'noopener,noreferrer');
+    // Tentar abrir em nova aba sem verificações de autenticação
+    const newWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
+    if (newWindow) {
+      newWindow.location.href = routes[type];
+    } else {
+      // Fallback se popup blocker impedir
+      alert('Por favor, permita popups para este site e tente novamente.');
+    }
+  };
+
+  const handleDirectNavigation = (type: 'restaurant' | 'delivery' | 'client') => {
+    console.log('Navegando para dashboard:', type);
+    
+    const routes = {
+      restaurant: '/restaurante/dashboard',
+      delivery: '/entregador/dashboard',
+      client: '/cliente/dashboard'
+    };
+    
+    // Navegar na mesma aba
+    window.location.href = routes[type];
   };
 
   return (
@@ -48,7 +69,7 @@ export const AdminDirectAccess = ({ onAccessDashboard }: AdminDirectAccessProps)
                 Abrir em Nova Aba
               </Button>
               <Button 
-                onClick={() => onAccessDashboard('restaurant')}
+                onClick={() => handleDirectNavigation('restaurant')}
                 variant="outline"
                 className="w-full"
               >
@@ -75,7 +96,7 @@ export const AdminDirectAccess = ({ onAccessDashboard }: AdminDirectAccessProps)
                 Abrir em Nova Aba
               </Button>
               <Button 
-                onClick={() => onAccessDashboard('delivery')}
+                onClick={() => handleDirectNavigation('delivery')}
                 variant="outline"
                 className="w-full"
               >
@@ -102,7 +123,7 @@ export const AdminDirectAccess = ({ onAccessDashboard }: AdminDirectAccessProps)
                 Abrir em Nova Aba
               </Button>
               <Button 
-                onClick={() => onAccessDashboard('client')}
+                onClick={() => handleDirectNavigation('client')}
                 variant="outline"
                 className="w-full"
               >
@@ -112,6 +133,35 @@ export const AdminDirectAccess = ({ onAccessDashboard }: AdminDirectAccessProps)
           </CardContent>
         </Card>
       </div>
+
+      <Card className="bg-yellow-50 border-yellow-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-yellow-700">
+            <Shield className="h-5 w-5" />
+            Aviso sobre Autenticação
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-yellow-700 space-y-2">
+            <p>
+              <strong>⚠️ Problema Detectado:</strong> O sistema está redirecionando para a página inicial devido às proteções de rota.
+            </p>
+            <p>
+              • <strong>Causa:</strong> As rotas protegidas verificam se o usuário tem permissão para acessar cada tipo de dashboard
+            </p>
+            <p>
+              • <strong>Solução Atual:</strong> Para acessar os dashboards como admin, você precisa:
+            </p>
+            <ul className="list-disc list-inside ml-4 space-y-1">
+              <li>Temporariamente desabilitar as verificações de autenticação</li>
+              <li>Ou criar perfis de teste para cada tipo de usuário</li>
+            </ul>
+            <p className="text-sm mt-2 text-yellow-600">
+              <strong>Dica:</strong> Se mesmo usando "Nova Aba" você é redirecionado, isso confirma que o problema está nas rotas protegidas.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="bg-blue-50 border-blue-200">
         <CardHeader>
@@ -123,16 +173,13 @@ export const AdminDirectAccess = ({ onAccessDashboard }: AdminDirectAccessProps)
         <CardContent>
           <div className="text-blue-700 space-y-2">
             <p>
-              • <strong>Nova Aba:</strong> Recomendado para manutenção, mantém o painel admin aberto
+              • <strong>Nova Aba:</strong> Recomendado para manutenção, mas sujeito às verificações de rota
             </p>
             <p>
-              • <strong>Mesma Aba:</strong> Navegação direta, mas você será redirecionado de volta ao admin após alguns segundos
+              • <strong>Mesma Aba:</strong> Navegação direta, também sujeita às verificações
             </p>
             <p>
-              • <strong>Auditoria:</strong> Todas as ações realizadas serão registradas nos logs de auditoria
-            </p>
-            <p className="text-sm mt-2 text-blue-600">
-              <strong>Dica:</strong> Use "Abrir em Nova Aba" para ter melhor controle durante a manutenção dos sistemas.
+              • <strong>Auditoria:</strong> Todas as tentativas de acesso são registradas nos logs
             </p>
           </div>
         </CardContent>
