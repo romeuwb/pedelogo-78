@@ -36,25 +36,54 @@ const RestaurantList = ({ selectedCategory }: RestaurantListProps) => {
     queryFn: async () => {
       console.log('Buscando restaurantes...');
       
-      let query = supabase
-        .from('restaurant_details')
-        .select('*')
-        .eq('status_aprovacao', 'aprovado')
-        .eq('aceita_delivery', true);
+      try {
+        // Teste de conectividade básica
+        console.log('Testando conectividade com Supabase...');
+        
+        // Primeiro, teste simples para verificar se a tabela existe
+        console.log('Fazendo query simples para testar conectividade...');
+        const testQuery = await supabase.from('restaurant_details').select('count', { count: 'exact' });
+        console.log('Resultado do teste de conectividade:', testQuery);
+        
+        if (testQuery.error) {
+          console.error('Erro na query de teste:', testQuery.error);
+          throw new Error(`Problema de conectividade: ${testQuery.error.message}`);
+        }
+        
+        console.log('Conectividade OK. Executando query principal...');
+        
+        let query = supabase
+          .from('restaurant_details')
+          .select('*');
 
-      if (selectedCategory !== 'all') {
-        query = query.eq('categoria', selectedCategory);
-      }
+        // Remover filtros temporariamente para debug
+        // .eq('status_aprovacao', 'aprovado')
+        // .eq('aceita_delivery', true);
 
-      const { data, error } = await query;
-      
-      if (error) {
-        console.error('Erro ao buscar restaurantes:', error);
-        throw error;
+        if (selectedCategory !== 'all') {
+          query = query.eq('categoria', selectedCategory);
+        }
+
+        console.log('Executando query principal...');
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error('Erro detalhado ao buscar restaurantes:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          });
+          throw error;
+        }
+        
+        console.log('Restaurantes encontrados:', data?.length || 0);
+        console.log('Dados dos restaurantes:', data);
+        return data as Restaurant[];
+      } catch (err) {
+        console.error('Erro capturado no try/catch:', err);
+        throw err;
       }
-      
-      console.log('Restaurantes encontrados:', data?.length || 0);
-      return data as Restaurant[];
     },
     retry: 1,
     refetchOnWindowFocus: false
