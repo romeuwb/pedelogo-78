@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Search, Star, Clock, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { RestaurantMenu } from '@/components/client/RestaurantMenu';
+import Header from '@/components/Header';
 
 const RestaurantsPage = () => {
   const [searchParams] = useSearchParams();
@@ -135,22 +136,8 @@ const RestaurantsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="text-2xl font-bold text-orange-600">
-              🍕 PedeLogo
-            </Link>
-            <nav className="flex space-x-6">
-              <Link to="/" className="text-gray-600 hover:text-orange-600">Home</Link>
-              <Link to="/restaurantes" className="text-orange-600 font-medium">Restaurantes</Link>
-              <Link to="/promocoes" className="text-gray-600 hover:text-orange-600">Promoções</Link>
-            </nav>
-          </div>
-        </div>
-      </div>
-
+      <Header />
+      
       <div className="max-w-7xl mx-auto p-6">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Restaurantes</h1>

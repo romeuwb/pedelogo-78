@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { MapPin, Search, Star, Clock } from 'lucide-react';
 import LoginModal from '@/components/auth/LoginModal';
 import RestaurantList from '@/components/RestaurantList';
+import Header from '@/components/Header';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -37,6 +38,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen">
+      <Header />
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-orange-500 to-red-500 text-white py-20">
         <div className="container mx-auto px-4 text-center">

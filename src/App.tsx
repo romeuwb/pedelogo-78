@@ -1,8 +1,6 @@
 
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from '@/components/ui/toaster';
+import { Routes, Route } from 'react-router-dom';
 
 import Index from '@/pages/Index';
 import Auth from '@/pages/Auth';
@@ -23,14 +21,10 @@ import { RestaurantProtectedRoute } from '@/components/auth/RestaurantProtectedR
 import { DeliveryProtectedRoute } from '@/components/auth/DeliveryProtectedRoute';
 import { AdminProtectedRoute } from '@/components/auth/AdminProtectedRoute';
 
-const queryClient = new QueryClient();
-
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        <div className="min-h-screen bg-gray-100">
-          <Routes>
+    <div className="min-h-screen bg-gray-100">
+      <Routes>
             {/* Public routes */}
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
@@ -66,13 +60,10 @@ function App() {
               </AdminProtectedRoute>
             } />
 
-            {/* Catch all */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </div>
-        <Toaster />
-      </Router>
-    </QueryClientProvider>
+        {/* Catch all */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </div>
   );
 }
 
