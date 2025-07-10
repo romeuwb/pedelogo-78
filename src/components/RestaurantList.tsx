@@ -34,6 +34,8 @@ const RestaurantList = ({ selectedCategory }: RestaurantListProps) => {
   const { data: restaurants, isLoading, error } = useQuery({
     queryKey: ['restaurants', selectedCategory],
     queryFn: async () => {
+      console.log('Buscando restaurantes...');
+      
       let query = supabase
         .from('restaurant_details')
         .select('*')
@@ -46,9 +48,16 @@ const RestaurantList = ({ selectedCategory }: RestaurantListProps) => {
 
       const { data, error } = await query;
       
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao buscar restaurantes:', error);
+        throw error;
+      }
+      
+      console.log('Restaurantes encontrados:', data?.length || 0);
       return data as Restaurant[];
-    }
+    },
+    retry: 1,
+    refetchOnWindowFocus: false
   });
 
   const getCategoryEmoji = (category: string) => {
@@ -97,9 +106,19 @@ const RestaurantList = ({ selectedCategory }: RestaurantListProps) => {
   }
 
   if (error) {
+    console.error('Erro no componente RestaurantList:', error);
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">Erro ao carregar restaurantes</p>
+        <p className="text-red-500 font-semibold">Erro ao carregar restaurantes</p>
+        <p className="text-gray-500 text-sm mt-2">
+          {error?.message || 'Verifique sua conexão e tente novamente'}
+        </p>
+        <Button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 bg-orange-500 hover:bg-orange-600"
+        >
+          Tentar Novamente
+        </Button>
       </div>
     );
   }

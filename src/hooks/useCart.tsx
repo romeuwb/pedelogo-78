@@ -63,6 +63,8 @@ export const CartProvider = ({ children }: CartProviderProps) => {
 
     try {
       setLoading(true);
+      console.log('Carregando carrinho para usuário:', user.id);
+      
       const { data, error } = await supabase
         .from('client_cart')
         .select('*')
@@ -70,25 +72,38 @@ export const CartProvider = ({ children }: CartProviderProps) => {
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
+        console.error('Erro ao carregar carrinho:', error);
         throw error;
       }
 
       if (data) {
+        console.log('Dados do carrinho encontrados:', data);
         // Get restaurant name
-        const { data: restaurant } = await supabase
+        const { data: restaurant, error: restaurantError } = await supabase
           .from('restaurant_details')
           .select('nome_fantasia, razao_social')
           .eq('user_id', data.restaurant_id)
           .single();
+
+        if (restaurantError) {
+          console.warn('Erro ao buscar dados do restaurante:', restaurantError);
+        }
 
         setCart({
           restaurantId: data.restaurant_id,
           restaurantName: restaurant?.nome_fantasia || restaurant?.razao_social || 'Restaurante',
           items: Array.isArray(data.itens) ? data.itens as unknown as CartItem[] : []
         });
+      } else {
+        console.log('Nenhum carrinho encontrado para o usuário');
       }
     } catch (error) {
       console.error('Error loading cart:', error);
+      toast({
+        title: "Erro ao carregar carrinho",
+        description: "Não foi possível carregar seu carrinho",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
