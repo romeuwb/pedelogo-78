@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { 
@@ -19,7 +20,10 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  Activity
+  Activity,
+  Edit,
+  Trash2,
+  MoreVertical
 } from 'lucide-react';
 
 interface Region {
@@ -139,15 +143,118 @@ const AdminMaps = () => {
     region.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleCreateCustomRegion = () => {
-    const newRegion: Region = {
-      id: Date.now().toString(),
-      name: 'Nova Região Personalizada',
-      type: 'custom',
-      coverage: { restaurants: 0, deliveries: 0, active_users: 0 },
-      status: 'inactive'
-    };
-    setRegions([...regions, newRegion]);
+  const handleCreateCustomRegion = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('service_regions')
+        .insert([
+          {
+            name: 'Nova Região Personalizada',
+            type: 'custom',
+            coordinates: null,
+            active: false
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newRegion: Region = {
+        id: data.id,
+        name: data.name,
+        type: data.type as 'city' | 'state' | 'country' | 'custom',
+        coordinates: undefined,
+        coverage: { restaurants: 0, deliveries: 0, active_users: 0 },
+        status: data.active ? 'active' : 'inactive'
+      };
+
+      setRegions([...regions, newRegion]);
+      toast.success('Nova região criada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao criar região:', error);
+      toast.error('Erro ao criar nova região');
+    }
+  };
+
+  const handleEditRegion = (region: Region) => {
+    // Implementar modal de edição
+    toast.info('Funcionalidade de edição em desenvolvimento');
+  };
+
+  const handleDeleteRegion = async (regionId: string) => {
+    try {
+      const { error } = await supabase
+        .from('service_regions')
+        .delete()
+        .eq('id', regionId);
+
+      if (error) throw error;
+
+      setRegions(regions.filter(r => r.id !== regionId));
+      if (selectedRegion?.id === regionId) {
+        setSelectedRegion(null);
+      }
+      toast.success('Região excluída com sucesso!');
+    } catch (error) {
+      console.error('Erro ao excluir região:', error);
+      toast.error('Erro ao excluir região');
+    }
+  };
+
+  const handleCreateDeliveryZone = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('delivery_zones')
+        .insert([
+          {
+            nome_zona: 'Nova Zona de Entrega',
+            poligono: [],
+            ativo: false,
+            delivery_detail_id: 'temp-' + Date.now() // ID temporário até ser definido
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newZone: DeliveryZone = {
+        id: data.id,
+        name: data.nome_zona,
+        polygon: [],
+        delivery_fee: 5.99,
+        estimated_time: 30,
+        active: data.ativo
+      };
+
+      setDeliveryZones([...deliveryZones, newZone]);
+      toast.success('Nova zona de entrega criada!');
+    } catch (error) {
+      console.error('Erro ao criar zona:', error);
+      toast.error('Erro ao criar zona de entrega');
+    }
+  };
+
+  const handleEditDeliveryZone = (zone: DeliveryZone) => {
+    toast.info('Funcionalidade de edição em desenvolvimento');
+  };
+
+  const handleDeleteDeliveryZone = async (zoneId: string) => {
+    try {
+      const { error } = await supabase
+        .from('delivery_zones')
+        .delete()
+        .eq('id', zoneId);
+
+      if (error) throw error;
+
+      setDeliveryZones(deliveryZones.filter(z => z.id !== zoneId));
+      toast.success('Zona de entrega excluída!');
+    } catch (error) {
+      console.error('Erro ao excluir zona:', error);
+      toast.error('Erro ao excluir zona de entrega');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -222,10 +329,32 @@ const AdminMaps = () => {
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">{region.name}</CardTitle>
-                    <Badge className={getStatusColor(region.status)}>
-                      {getStatusIcon(region.status)}
-                      <span className="ml-1 capitalize">{region.status}</span>
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge className={getStatusColor(region.status)}>
+                        {getStatusIcon(region.status)}
+                        <span className="ml-1 capitalize">{region.status}</span>
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditRegion(region)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteRegion(region.id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -338,7 +467,7 @@ const AdminMaps = () => {
         <TabsContent value="zones" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Zonas de Entrega</h2>
-            <Button>
+            <Button onClick={handleCreateDeliveryZone}>
               <MapPin className="h-4 w-4 mr-2" />
               Nova Zona
             </Button>
@@ -350,9 +479,31 @@ const AdminMaps = () => {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">{zone.name}</CardTitle>
-                    <Badge className={zone.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                      {zone.active ? 'Ativa' : 'Inativa'}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge className={zone.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                        {zone.active ? 'Ativa' : 'Inativa'}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditDeliveryZone(zone)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteDeliveryZone(zone.id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
