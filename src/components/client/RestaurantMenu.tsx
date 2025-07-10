@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, Star, Clock, Plus, Minus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useCart } from '@/hooks/useCart';
 
 interface RestaurantMenuProps {
   restaurantId: string;
@@ -32,8 +33,8 @@ interface Product {
 export const RestaurantMenu = ({ restaurantId, restaurantName, onClose }: RestaurantMenuProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [cart, setCart] = useState<{[key: string]: number}>({});
   const { toast } = useToast();
+  const { addToCart, cart, updateQuantity } = useCart();
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['restaurant-menu', restaurantId, searchTerm, selectedCategory],
@@ -76,30 +77,18 @@ export const RestaurantMenu = ({ restaurantId, restaurantName, onClose }: Restau
     }
   });
 
-  const addToCart = (productId: string) => {
-    setCart(prev => ({
-      ...prev,
-      [productId]: (prev[productId] || 0) + 1
-    }));
+  const handleAddToCart = async (product: Product) => {
+    await addToCart(restaurantId, restaurantName, product);
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart(prev => {
-      const newCart = { ...prev };
-      if (newCart[productId] > 1) {
-        newCart[productId]--;
-      } else {
-        delete newCart[productId];
-      }
-      return newCart;
-    });
+  const getProductQuantity = (productId: string) => {
+    if (!cart || cart.restaurantId !== restaurantId) return 0;
+    const item = cart.items.find(item => item.productId === productId);
+    return item?.quantidade || 0;
   };
 
-  const getCartTotal = () => {
-    return Object.entries(cart).reduce((total, [productId, quantity]) => {
-      const product = products?.find(p => p.id === productId);
-      return total + (product?.preco || 0) * quantity;
-    }, 0);
+  const handleUpdateQuantity = async (productId: string, newQuantity: number) => {
+    await updateQuantity(productId, newQuantity);
   };
 
   if (isLoading) {
@@ -193,23 +182,23 @@ export const RestaurantMenu = ({ restaurantId, restaurantName, onClose }: Restau
                       </div>
 
                       <div className="flex items-center space-x-2">
-                        {cart[product.id] > 0 && (
+                        {getProductQuantity(product.id) > 0 && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => removeFromCart(product.id)}
+                            onClick={() => handleUpdateQuantity(product.id, getProductQuantity(product.id) - 1)}
                           >
                             <Minus className="h-4 w-4" />
                           </Button>
                         )}
                         
-                        {cart[product.id] > 0 && (
-                          <span className="font-semibold">{cart[product.id]}</span>
+                        {getProductQuantity(product.id) > 0 && (
+                          <span className="font-semibold">{getProductQuantity(product.id)}</span>
                         )}
                         
                         <Button
                           size="sm"
-                          onClick={() => addToCart(product.id)}
+                          onClick={() => handleAddToCart(product)}
                           className="bg-orange-500 hover:bg-orange-600"
                         >
                           <Plus className="h-4 w-4" />
@@ -239,26 +228,12 @@ export const RestaurantMenu = ({ restaurantId, restaurantName, onClose }: Restau
           </div>
         )}
 
-        {/* Carrinho */}
-        {Object.keys(cart).length > 0 && (
+        {/* Note about cart */}
+        {cart && cart.restaurantId === restaurantId && cart.items.length > 0 && (
           <div className="border-t pt-4">
-            <div className="flex justify-between items-center">
-              <span className="font-semibold">
-                Total: R$ {getCartTotal().toFixed(2)}
-              </span>
-              <Button
-                onClick={() => {
-                  toast({
-                    title: "Pedido Adicionado",
-                    description: "Itens adicionados ao carrinho!",
-                  });
-                  setCart({});
-                  onClose();
-                }}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                Adicionar ao Carrinho
-              </Button>
+            <div className="text-center text-sm text-gray-600">
+              <p>Itens foram adicionados ao seu carrinho</p>
+              <p>Use o ícone do carrinho para finalizar o pedido</p>
             </div>
           </div>
         )}

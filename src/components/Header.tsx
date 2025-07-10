@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, ShoppingCart, User, Menu, X, Shield } from 'lucide-react';
+import { CartSidebar } from '@/components/client/CartSidebar';
+import { CheckoutFlow } from '@/components/client/CheckoutFlow';
 import { useAuth } from '@/hooks/useAuth';
 import LoginModal from '@/components/auth/LoginModal';
 import UserTypeModal from '@/components/UserTypeModal';
@@ -11,6 +13,7 @@ import { Link, useNavigate } from 'react-router-dom';
 const Header = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showUserTypeModal, setShowUserTypeModal] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
   const [selectedUserType, setSelectedUserType] = useState<string>('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
@@ -102,14 +105,7 @@ const Header = () => {
 
               {user ? (
                 <div className="flex items-center space-x-4">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="hidden sm:flex items-center space-x-2"
-                  >
-                    <ShoppingCart className="h-4 w-4" />
-                    <Badge variant="secondary" className="ml-1">0</Badge>
-                  </Button>
+                  <CartSidebar onCheckout={() => setShowCheckout(true)} />
                   
                   <div className="flex items-center space-x-2">
                     {/* Admin Panel Button - only show for admins */}
@@ -280,6 +276,11 @@ const Header = () => {
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
         userType={selectedUserType}
+      />
+      
+      <CheckoutFlow 
+        isOpen={showCheckout} 
+        onClose={() => setShowCheckout(false)} 
       />
     </>
   );
