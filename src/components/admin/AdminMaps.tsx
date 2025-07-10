@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { 
   Map, 
   MapPin, 
@@ -58,55 +60,80 @@ const AdminMaps = () => {
   const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
   const [regions, setRegions] = useState<Region[]>([]);
   const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data para demonstração
   useEffect(() => {
-    const mockRegions: Region[] = [
-      {
-        id: '1',
-        name: 'São Paulo - SP',
-        type: 'city',
-        coordinates: { lat: -23.5505, lng: -46.6333 },
-        coverage: { restaurants: 1250, deliveries: 45000, active_users: 125000 },
-        status: 'active'
-      },
-      {
-        id: '2',
-        name: 'Rio de Janeiro - RJ',
-        type: 'city',
-        coordinates: { lat: -22.9068, lng: -43.1729 },
-        coverage: { restaurants: 890, deliveries: 32000, active_users: 89000 },
-        status: 'active'
-      },
-      {
-        id: '3',
-        name: 'Belo Horizonte - MG',
-        type: 'city',
-        coordinates: { lat: -19.9167, lng: -43.9345 },
-        coverage: { restaurants: 445, deliveries: 18000, active_users: 52000 },
-        status: 'expanding'
-      }
-    ];
-
-    const mockZones: DeliveryZone[] = [
-      {
-        id: '1',
-        name: 'Centro SP',
-        polygon: [
-          { lat: -23.5400, lng: -46.6400 },
-          { lat: -23.5500, lng: -46.6300 },
-          { lat: -23.5600, lng: -46.6400 },
-          { lat: -23.5500, lng: -46.6500 }
-        ],
-        delivery_fee: 5.99,
-        estimated_time: 30,
-        active: true
-      }
-    ];
-
-    setRegions(mockRegions);
-    setDeliveryZones(mockZones);
+    loadRegionsData();
+    loadDeliveryZones();
   }, []);
+
+  const loadRegionsData = async () => {
+    try {
+      const { data: serviceRegions, error } = await supabase
+        .from('service_regions')
+        .select('*');
+
+      if (error) throw error;
+
+      // Converter dados das regiões de serviço para o formato esperado
+      const formattedRegions: Region[] = serviceRegions?.map(region => ({
+        id: region.id,
+        name: region.name,
+        type: region.type as 'city' | 'state' | 'country' | 'custom',
+        coordinates: region.coordinates && typeof region.coordinates === 'object' && region.coordinates !== null ? {
+          lat: (region.coordinates as any).lat || 0,
+          lng: (region.coordinates as any).lng || 0
+        } : undefined,
+        coverage: {
+          restaurants: 0, // Não temos campos específicos na tabela atual
+          deliveries: 0,
+          active_users: 0
+        },
+        status: region.active ? 'active' : 'inactive'
+      })) || [];
+
+      setRegions(formattedRegions);
+    } catch (error) {
+      console.error('Erro ao carregar regiões:', error);
+      toast.error('Erro ao carregar regiões de cobertura');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDeliveryZones = async () => {
+    try {
+      const { data: zones, error } = await supabase
+        .from('delivery_zones')
+        .select('*');
+
+      if (error && error.code !== 'PGRST116') { // Ignora erro se tabela não existe
+        throw error;
+      }
+
+      if (zones) {
+        const formattedZones: DeliveryZone[] = zones.map(zone => ({
+          id: zone.id,
+          name: zone.nome_zona || 'Zona sem nome',
+          polygon: zone.poligono && Array.isArray(zone.poligono) 
+            ? zone.poligono.map((point: any) => ({
+                lat: point.lat || 0,
+                lng: point.lng || 0
+              }))
+            : [],
+          restaurant_id: zone.delivery_detail_id,
+          delivery_fee: 5.99, // Valor padrão já que não temos esse campo
+          estimated_time: 30, // Valor padrão já que não temos esse campo
+          active: zone.ativo || false
+        }));
+
+        setDeliveryZones(formattedZones);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar zonas de entrega:', error);
+      // Não mostra toast para tabela que pode não existir ainda
+    }
+  };
 
   const filteredRegions = regions.filter(region =>
     region.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -140,6 +167,14 @@ const AdminMaps = () => {
       default: return <AlertCircle className="h-4 w-4" />;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
