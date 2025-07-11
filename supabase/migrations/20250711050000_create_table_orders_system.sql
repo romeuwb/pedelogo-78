@@ -25,10 +25,8 @@ CREATE TABLE public.table_order_items (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Update restaurant_tables status constraint to include new statuses
-ALTER TABLE public.restaurant_tables DROP CONSTRAINT IF EXISTS restaurant_tables_status_check;
-ALTER TABLE public.restaurant_tables ADD CONSTRAINT restaurant_tables_status_check 
-  CHECK (status IN ('livre', 'ocupada', 'reservada', 'aguardando_pagamento'));
+-- A constraint já foi atualizada na migração anterior
+-- Não precisamos modificar novamente aqui
 
 -- Enable Row Level Security
 ALTER TABLE public.table_orders ENABLE ROW LEVEL SECURITY;
@@ -75,7 +73,7 @@ BEGIN
     WHERE id = NEW.table_id;
   ELSIF NEW.status = 'pago' THEN
     UPDATE restaurant_tables 
-    SET status = 'livre' 
+    SET status = 'disponivel' 
     WHERE id = NEW.table_id;
   END IF;
   
