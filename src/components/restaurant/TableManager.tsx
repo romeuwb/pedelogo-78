@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Plus, Edit, Trash2, Users, QrCode, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
+import TableOrderSystem from './TableOrderSystem';
 
 interface Table {
   id: string;
@@ -394,26 +395,13 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
         </div>
       )}
 
-      {/* Sistema de Pedidos - Aguardando regeneração dos tipos */}
+      {/* Sistema de Pedidos */}
       {selectedTableForOrder && (
-        <Dialog open={true} onOpenChange={() => setSelectedTableForOrder(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Mesa {selectedTableForOrder.numero_mesa} - Sistema de Pedidos</DialogTitle>
-              <DialogDescription>
-                Sistema funcionando! Aguardando regeneração dos tipos do Supabase.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <p>✅ Migrações executadas com sucesso</p>
-              <p>✅ Tabelas criadas: table_orders, table_order_items</p>
-              <p>⏳ Aguardando regeneração automática dos tipos TypeScript</p>
-              <p className="text-sm text-gray-600">
-                O sistema de lançamento de itens ficará disponível em alguns minutos quando o Supabase regenerar os tipos automaticamente.
-              </p>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <TableOrderSystem
+          table={selectedTableForOrder}
+          restaurantId={restaurantId}
+          onClose={() => setSelectedTableForOrder(null)}
+        />
       )}
     </div>
   );
