@@ -271,15 +271,131 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
         </Button>
       </div>
 
-      <Tabs defaultValue="tables" className="w-full">
-        <TabsList>
-          <TabsTrigger value="tables">Controle de Mesas</TabsTrigger>
-          <TabsTrigger value="pending">Importar Mesas</TabsTrigger>
-          <TabsTrigger value="orders">Pedidos Ativos</TabsTrigger>
+      <Tabs defaultValue="mesas" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="mesas">Mesas</TabsTrigger>
+          <TabsTrigger value="controle">Controle</TabsTrigger>
+          <TabsTrigger value="importar">Importar Pagamentos</TabsTrigger>
+          <TabsTrigger value="pedidos">Pedidos</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="tables" className="space-y-4">
-          {/* Mesas disponíveis */}
+        <TabsContent value="mesas" className="space-y-6">
+          {/* Resumo das mesas */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Mesas Disponíveis</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {(tables || []).filter(table => table.status === 'disponivel' && table.ativo).length}
+                    </p>
+                  </div>
+                  <Users className="h-8 w-8 text-green-500" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Mesas Ocupadas</p>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {(tables || []).filter(table => table.status === 'ocupada').length}
+                    </p>
+                  </div>
+                  <ShoppingCart className="h-8 w-8 text-orange-500" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Aguardando Pagamento</p>
+                    <p className="text-2xl font-bold text-red-600">
+                      {(tables || []).filter(table => table.status === 'aguardando_pagamento').length}
+                    </p>
+                  </div>
+                  <CreditCard className="h-8 w-8 text-red-500" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Botão de Importar Mesas destacado */}
+          {(tables || []).filter(table => table.status === 'aguardando_pagamento').length > 0 && (
+            <div className="bg-gradient-to-r from-orange-50 to-red-50 border-l-4 border-orange-400 p-6 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-orange-800 mb-2">
+                    {(tables || []).filter(table => table.status === 'aguardando_pagamento').length} Mesa(s) Aguardando Pagamento
+                  </h3>
+                  <p className="text-orange-600 mb-4">
+                    Existem mesas fechadas que precisam ter seus pagamentos processados. 
+                    Clique no botão abaixo para importar e processar os pagamentos.
+                  </p>
+                  <Button
+                    size="lg"
+                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                    onClick={() => {
+                      const tabsElement = document.querySelector('[role="tablist"]');
+                      const importTab = tabsElement?.querySelector('[value="importar"]') as HTMLElement;
+                      if (importTab) importTab.click();
+                    }}
+                  >
+                    <Import className="h-5 w-5 mr-2" />
+                    Importar e Processar Pagamentos
+                  </Button>
+                </div>
+                <div className="hidden md:block">
+                  <CreditCard className="h-16 w-16 text-orange-400 opacity-50" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Lista de todas as mesas */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Todas as Mesas</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {(tables || []).filter(table => table.ativo).map((table) => (
+                <Card 
+                  key={table.id} 
+                  className={`cursor-pointer hover:shadow-md transition-all ${
+                    table.status === 'disponivel' ? 'border-green-200 hover:border-green-300' :
+                    table.status === 'ocupada' ? 'border-orange-200 hover:border-orange-300' :
+                    'border-red-200 hover:border-red-300'
+                  }`}
+                >
+                  <CardContent className="p-4 text-center">
+                    <Users className={`h-8 w-8 mx-auto mb-2 ${
+                      table.status === 'disponivel' ? 'text-green-400' :
+                      table.status === 'ocupada' ? 'text-orange-400' :
+                      'text-red-400'
+                    }`} />
+                    <p className="font-semibold">Mesa {table.numero_mesa}</p>
+                    <p className="text-sm text-gray-600">{table.capacidade} pessoas</p>
+                    <Badge className={
+                      table.status === 'disponivel' ? 'bg-green-100 text-green-800' :
+                      table.status === 'ocupada' ? 'bg-orange-100 text-orange-800' :
+                      'bg-red-100 text-red-800'
+                    }>
+                      {table.status === 'disponivel' ? 'Disponível' :
+                       table.status === 'ocupada' ? 'Ocupada' :
+                       'Aguardando Pagamento'}
+                    </Badge>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="controle" className="space-y-4">
+          {/* Conteúdo anterior da aba tables */}
           <div>
             <h3 className="text-lg font-semibold mb-4">Mesas Disponíveis</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -301,7 +417,6 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
             </div>
           </div>
 
-          {/* Mesas ocupadas */}
           <div>
             <h3 className="text-lg font-semibold mb-4">Mesas Ocupadas</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -327,46 +442,18 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
               ))}
             </div>
           </div>
-
-          {/* Resumo rápido de mesas aguardando pagamento */}
-          {/* Alertas de mesas aguardando pagamento */}
-          {(tables || []).filter(table => table.status === 'aguardando_pagamento').length > 0 && (
-            <div className="bg-orange-50 border-l-4 border-orange-400 p-4">
-              <div className="flex items-center">
-                <Import className="h-5 w-5 text-orange-400 mr-2" />
-                <div className="flex-1">
-                  <h4 className="text-orange-800 font-medium">
-                    {(tables || []).filter(table => table.status === 'aguardando_pagamento').length} mesa(s) aguardando pagamento
-                  </h4>
-                  <p className="text-sm text-orange-600">
-                    Use a aba "Importar Mesas" para processar os pagamentos pendentes.
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const tabsElement = document.querySelector('[role="tablist"]');
-                    const pendingTab = tabsElement?.querySelector('[value="pending"]') as HTMLElement;
-                    if (pendingTab) pendingTab.click();
-                  }}
-                  className="ml-4"
-                >
-                  <Import className="h-4 w-4 mr-2" />
-                  Importar Agora
-                </Button>
-              </div>
-            </div>
-          )}
         </TabsContent>
 
-        <TabsContent value="pending" className="space-y-4">
+        <TabsContent value="importar" className="space-y-4">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-semibold">Importar Mesas</h3>
+                <h3 className="text-xl font-semibold flex items-center">
+                  <Import className="h-6 w-6 mr-2 text-orange-600" />
+                  Importar Mesas para Pagamento
+                </h3>
                 <p className="text-gray-600">
-                  Mesas fechadas aguardando processamento do pagamento
+                  Processe os pagamentos das mesas que foram fechadas e estão aguardando finalização
                 </p>
               </div>
             </div>
@@ -374,7 +461,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
           </div>
         </TabsContent>
 
-        <TabsContent value="orders" className="space-y-4">
+        <TabsContent value="pedidos" className="space-y-4">
           <p className="text-gray-600">Lista de pedidos ativos será implementada aqui</p>
         </TabsContent>
       </Tabs>
