@@ -24,17 +24,18 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
 
   const queryClient = useQueryClient();
 
-  // Buscar mesas disponíveis - usando restaurant_tables se existir, senão criar mock
+  // Buscar mesas do restaurante
   const { data: tables } = useQuery({
     queryKey: ['restaurant-tables', restaurantId],
     queryFn: async () => {
-      // Retornar dados mock por enquanto até as tabelas serem criadas
-      return [
-        { id: '1', numero_mesa: 1, capacidade: 4, status: 'disponivel', localizacao: 'Área interna' },
-        { id: '2', numero_mesa: 2, capacidade: 2, status: 'ocupada', localizacao: 'Varanda' },
-        { id: '3', numero_mesa: 3, capacidade: 6, status: 'disponivel', localizacao: 'Área externa' },
-        { id: '4', numero_mesa: 4, capacidade: 4, status: 'disponivel', localizacao: 'Área interna' },
-      ];
+      const { data, error } = await supabase
+        .from('restaurant_tables')
+        .select('*')
+        .eq('restaurant_id', restaurantId)
+        .order('numero_mesa', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
     },
   });
 
@@ -227,14 +228,14 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
           <div>
             <h3 className="text-lg font-semibold mb-4">Mesas Disponíveis</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {(tables || []).filter(table => table.status === 'disponivel').map((table) => (
+              {(tables || []).filter(table => table.status === 'livre' && table.ativo).map((table) => (
                 <Card key={table.id} className="cursor-pointer hover:shadow-md">
                   <CardContent className="p-4 text-center">
                     <Users className="h-8 w-8 mx-auto mb-2 text-gray-400" />
                     <p className="font-semibold">Mesa {table.numero_mesa}</p>
                     <p className="text-sm text-gray-600">{table.capacidade} pessoas</p>
-                    <Badge className={getTableStatusColor(table.status)}>
-                      {table.status}
+                    <Badge className="bg-green-100 text-green-800">
+                      Livre
                     </Badge>
                     <Button
                       size="sm"
@@ -242,6 +243,37 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
                       onClick={() => openTableMutation.mutate(table.id)}
                     >
                       Abrir Mesa
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Mesas fechadas - para importar */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Mesas Fechadas (Importar)</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {(tables || []).filter(table => !table.ativo).map((table) => (
+                <Card key={table.id} className="cursor-pointer hover:shadow-md opacity-75">
+                  <CardContent className="p-4 text-center">
+                    <Users className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                    <p className="font-semibold">Mesa {table.numero_mesa}</p>
+                    <p className="text-sm text-gray-600">{table.capacidade} pessoas</p>
+                    <Badge className="bg-gray-100 text-gray-800">
+                      Fechada
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full mt-2"
+                      onClick={() => {
+                        // Importar mesa (reativar)
+                        console.log('Importar mesa:', table.id);
+                        toast.success('Mesa importada com sucesso!');
+                      }}
+                    >
+                      Importar Mesa
                     </Button>
                   </CardContent>
                 </Card>

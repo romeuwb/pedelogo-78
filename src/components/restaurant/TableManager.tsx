@@ -191,10 +191,13 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
         </div>
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogTrigger asChild>
-            <Button onClick={() => {
-              setSelectedTable(null);
-              setFormData({ numero_mesa: '', capacidade: '', localizacao: '', observacoes: '' });
-            }}>
+            <Button 
+              onClick={() => {
+                setSelectedTable(null);
+                setFormData({ numero_mesa: '', capacidade: '', localizacao: '', observacoes: '' });
+                setShowDialog(true);
+              }}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Nova Mesa
             </Button>
