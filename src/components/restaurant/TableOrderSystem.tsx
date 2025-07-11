@@ -77,12 +77,14 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
       console.log('🔄 Carregando pedido para mesa:', table.id);
       setLoading(true);
       
-      // Buscar pedido aberto usando any para contornar problemas de tipos
+      // Buscar pedido aberto para a mesa específica
       const { data: orderData, error: orderError } = await (supabase as any)
         .from('table_orders')
         .select('*')
         .eq('table_id', table.id)
-        .eq('status', 'aberto')
+        .in('status', ['aberto', 'processando']) // Incluir pedidos em processamento
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       console.log('📊 Resultado da busca de pedido:', { orderData, orderError });
@@ -90,22 +92,26 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
       if (orderError && orderError.code !== 'PGRST116') {
         console.error('❌ Erro ao buscar pedido:', orderError);
         toast.error(`Erro ao buscar pedido: ${orderError.message}`);
-        await createNewOrder();
         return;
       }
 
       if (orderData) {
-        console.log('✅ Pedido encontrado:', orderData);
+        console.log('✅ Pedido existente encontrado:', orderData);
         setCurrentOrder(orderData);
         await loadOrderItems(orderData.id);
+        
+        // Mostrar notificação sobre pedido recuperado
+        const statusText = orderData.status === 'aberto' ? 'aberto' : 'em processamento';
+        toast.success(`Pedido ${statusText} recuperado para Mesa ${table.numero_mesa}`);
       } else {
-        console.log('🆕 Nenhum pedido encontrado, criando novo');
-        await createNewOrder();
+        console.log('🆕 Nenhum pedido ativo encontrado');
+        // Não criar automaticamente - aguardar primeira ação do usuário
+        setCurrentOrder(null);
+        setOrderItems([]);
       }
     } catch (error) {
       console.error('❌ Erro geral ao carregar pedido:', error);
       toast.error(`Erro ao carregar pedido: ${error.message}`);
-      await createNewOrder();
     } finally {
       setLoading(false);
     }
@@ -165,9 +171,23 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
     console.log('🔄 Tentando adicionar produto:', product.nome);
     console.log('📦 Pedido atual:', currentOrder);
     
+    // Se não há pedido ativo, criar um novo automaticamente
     if (!currentOrder) {
-      console.error('❌ Nenhum pedido ativo encontrado');
-      toast.error('Erro: Nenhum pedido ativo');
+      console.log('🆕 Criando novo pedido automaticamente para adicionar item');
+      await createNewOrder();
+      // Aguardar um pouco para garantir que o estado foi atualizado
+      setTimeout(async () => {
+        await addItemToOrder(product);
+      }, 100);
+      return;
+    }
+
+    await addItemToOrder(product);
+  };
+
+  const addItemToOrder = async (product: Product) => {
+    if (!currentOrder) {
+      console.error('❌ Ainda não há pedido ativo');
       return;
     }
 
@@ -232,7 +252,7 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
         setOrderItems(items => [...items, data]);
       }
 
-      toast.success(`${product.nome} adicionado ao pedido`);
+      toast.success(`${product.nome} adicionado ao pedido da Mesa ${table.numero_mesa}`);
     } catch (error) {
       console.error('❌ Erro geral ao adicionar item:', error);
       toast.error(`Erro ao adicionar item: ${error.message}`);
@@ -302,18 +322,26 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
         .from('table_orders')
         .update({
           status: 'fechado',
-          closed_at: new Date().toISOString()
+          closed_at: new Date().toISOString(),
+          total: total // Atualizar total final
         })
         .eq('id', currentOrder.id);
 
       if (error) throw error;
 
-      toast.success('Pedido fechado! Mesa aguardando pagamento.');
+      toast.success(`Mesa ${table.numero_mesa} fechada! Total: R$ ${total.toFixed(2)} - Aguardando pagamento.`);
       onClose();
     } catch (error) {
       console.error('Erro ao fechar pedido:', error);
       toast.error('Erro ao fechar pedido');
     }
+  };
+
+  const saveAndExit = () => {
+    if (currentOrder && orderItems.length > 0) {
+      toast.success(`Pedido da Mesa ${table.numero_mesa} salvo! Você pode voltar depois para continuar.`);
+    }
+    onClose();
   };
 
   const filteredProducts = products.filter(product =>
@@ -346,7 +374,8 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
             </Button>
           </DialogTitle>
           <DialogDescription>
-            Clique nos produtos para adicionar ao pedido. Os itens são salvos automaticamente.
+            Clique nos produtos para adicionar ao pedido. Os itens são salvos automaticamente. 
+            Você pode sair e voltar à mesa a qualquer momento - seus itens serão mantidos.
           </DialogDescription>
         </DialogHeader>
 
@@ -479,6 +508,16 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
             </Card>
 
             <div className="flex space-x-2">
+              <Button 
+                onClick={saveAndExit}
+                variant="outline"
+                className="flex-1"
+                size="lg"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Salvar e Sair
+              </Button>
+              
               <Button 
                 onClick={closeOrder}
                 disabled={orderItems.length === 0}
