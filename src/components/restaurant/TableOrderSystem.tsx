@@ -74,6 +74,7 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
 
   const loadCurrentOrder = async () => {
     try {
+      console.log('🔄 Carregando pedido para mesa:', table.id);
       setLoading(true);
       
       // Buscar pedido aberto usando any para contornar problemas de tipos
@@ -84,21 +85,26 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
         .eq('status', 'aberto')
         .maybeSingle();
 
+      console.log('📊 Resultado da busca de pedido:', { orderData, orderError });
+
       if (orderError && orderError.code !== 'PGRST116') {
-        console.error('Erro ao buscar pedido:', orderError);
+        console.error('❌ Erro ao buscar pedido:', orderError);
+        toast.error(`Erro ao buscar pedido: ${orderError.message}`);
         await createNewOrder();
         return;
       }
 
       if (orderData) {
+        console.log('✅ Pedido encontrado:', orderData);
         setCurrentOrder(orderData);
         await loadOrderItems(orderData.id);
       } else {
+        console.log('🆕 Nenhum pedido encontrado, criando novo');
         await createNewOrder();
       }
     } catch (error) {
-      console.error('Erro ao carregar pedido:', error);
-      toast.error('Erro ao carregar pedido da mesa');
+      console.error('❌ Erro geral ao carregar pedido:', error);
+      toast.error(`Erro ao carregar pedido: ${error.message}`);
       await createNewOrder();
     } finally {
       setLoading(false);
@@ -107,6 +113,7 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
 
   const createNewOrder = async () => {
     try {
+      console.log('🆕 Criando novo pedido para mesa:', table.id);
       const orderInsert = {
         table_id: table.id,
         restaurant_id: restaurantId,
@@ -114,22 +121,29 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
         total: 0
       };
 
+      console.log('📝 Dados do novo pedido:', orderInsert);
+
       const { data: newOrder, error: createError } = await (supabase as any)
         .from('table_orders')
         .insert(orderInsert)
         .select()
         .single();
 
+      console.log('📊 Resultado da criação:', { newOrder, createError });
+
       if (createError) {
-        console.error('Erro ao criar pedido:', createError);
+        console.error('❌ Erro ao criar pedido:', createError);
+        toast.error(`Erro ao criar pedido: ${createError.message}`);
         return;
       }
 
+      console.log('✅ Novo pedido criado:', newOrder);
       setCurrentOrder(newOrder);
       setOrderItems([]);
       toast.success('Novo pedido criado para a mesa!');
     } catch (error) {
-      console.error('Erro ao criar novo pedido:', error);
+      console.error('❌ Erro geral ao criar pedido:', error);
+      toast.error(`Erro ao criar novo pedido: ${error.message}`);
     }
   };
 
@@ -148,13 +162,22 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
   };
 
   const addItem = async (product: Product) => {
-    if (!currentOrder) return;
+    console.log('🔄 Tentando adicionar produto:', product.nome);
+    console.log('📦 Pedido atual:', currentOrder);
+    
+    if (!currentOrder) {
+      console.error('❌ Nenhum pedido ativo encontrado');
+      toast.error('Erro: Nenhum pedido ativo');
+      return;
+    }
 
     try {
       // Verificar se item já existe no pedido
       const existingItem = orderItems.find(item => item.product_id === product.id);
+      console.log('🔍 Item existente:', existingItem);
       
       if (existingItem && existingItem.id) {
+        console.log('➕ Atualizando quantidade do item existente');
         // Atualizar quantidade
         const newQuantity = existingItem.quantidade + 1;
         const newSubtotal = newQuantity * product.preco;
@@ -167,8 +190,12 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
           })
           .eq('id', existingItem.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ Erro ao atualizar item:', error);
+          throw error;
+        }
 
+        console.log('✅ Item atualizado com sucesso');
         setOrderItems(items => 
           items.map(item => 
             item.id === existingItem.id 
@@ -177,6 +204,7 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
           )
         );
       } else {
+        console.log('🆕 Adicionando novo item');
         // Adicionar novo item
         const newItemData = {
           table_order_id: currentOrder.id,
@@ -187,20 +215,27 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
           subtotal: product.preco
         };
 
+        console.log('📝 Dados do novo item:', newItemData);
+
         const { data, error } = await (supabase as any)
           .from('table_order_items')
           .insert(newItemData)
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ Erro ao inserir item:', error);
+          throw error;
+        }
+
+        console.log('✅ Novo item criado:', data);
         setOrderItems(items => [...items, data]);
       }
 
       toast.success(`${product.nome} adicionado ao pedido`);
     } catch (error) {
-      console.error('Erro ao adicionar item:', error);
-      toast.error('Erro ao adicionar item');
+      console.error('❌ Erro geral ao adicionar item:', error);
+      toast.error(`Erro ao adicionar item: ${error.message}`);
     }
   };
 
