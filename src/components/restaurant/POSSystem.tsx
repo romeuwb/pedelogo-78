@@ -40,26 +40,50 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
     },
   });
 
-  // Buscar sessões ativas (mock baseado no status das mesas)
-  const { data: activeSessions } = useQuery({
-    queryKey: ['active-sessions', restaurantId],
+  // Buscar mesas aguardando pagamento
+  const { data: pendingPaymentTables } = useQuery({
+    queryKey: ['pending-payment-tables', restaurantId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Buscar mesas aguardando pagamento
+      const { data: tablesData, error: tablesError } = await supabase
         .from('restaurant_tables')
         .select('*')
         .eq('restaurant_id', restaurantId)
-        .eq('status', 'ocupada')
+        .eq('status', 'aguardando_pagamento')
         .order('numero_mesa', { ascending: true });
 
-      if (error) throw error;
-      return (data || []).map(table => ({
-        id: table.id,
-        mesa_numero: table.numero_mesa,
-        capacidade: table.capacidade,
-        opened_at: new Date().toISOString(),
-        orders_count: 0,
-        total_value: 0
-      }));
+      if (tablesError) throw tablesError;
+
+      // Buscar pedidos fechados para cada mesa
+      const tablesWithOrders = await Promise.all(
+        (tablesData || []).map(async (table) => {
+          const { data: orderData, error: orderError } = await (supabase as any)
+            .from('table_orders')
+            .select('*, table_order_items(*)')
+            .eq('table_id', table.id)
+            .eq('status', 'fechado')
+            .single();
+
+          if (orderError && orderError.code !== 'PGRST116') {
+            console.error('Error fetching order:', orderError);
+            return {
+              ...table,
+              order: null,
+              total_value: 0,
+              items_count: 0
+            };
+          }
+
+          return {
+            ...table,
+            order: orderData,
+            total_value: orderData?.total || 0,
+            items_count: orderData?.table_order_items?.length || 0
+          };
+        })
+      );
+
+      return tablesWithOrders;
     },
   });
 
@@ -92,7 +116,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
     },
     onSuccess: () => {
       toast.success('Mesa aberta com sucesso!');
-      queryClient.invalidateQueries({ queryKey: ['active-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-payment-tables'] });
       queryClient.invalidateQueries({ queryKey: ['restaurant-tables'] });
     },
     onError: (error: any) => {
@@ -105,14 +129,14 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
     mutationFn: async (tableId: string) => {
       const { error } = await supabase
         .from('restaurant_tables')
-        .update({ status: 'disponivel' })
+        .update({ status: 'livre' })
         .eq('id', tableId);
 
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Mesa fechada com sucesso!');
-      queryClient.invalidateQueries({ queryKey: ['active-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-payment-tables'] });
       queryClient.invalidateQueries({ queryKey: ['restaurant-tables'] });
     },
     onError: (error: any) => {
@@ -257,22 +281,18 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
           <div>
             <h3 className="text-lg font-semibold mb-4">Mesas Disponíveis</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {(tables || []).filter(table => table.status === 'disponivel' && table.ativo).map((table) => (
+              {(tables || []).filter(table => table.status === 'livre' && table.ativo).map((table) => (
                 <Card key={table.id} className="cursor-pointer hover:shadow-md">
                   <CardContent className="p-4 text-center">
                     <Users className="h-8 w-8 mx-auto mb-2 text-gray-400" />
                     <p className="font-semibold">Mesa {table.numero_mesa}</p>
                     <p className="text-sm text-gray-600">{table.capacidade} pessoas</p>
                     <Badge className="bg-green-100 text-green-800">
-                      Disponível
+                      Livre
                     </Badge>
-                    <Button
-                      size="sm"
-                      className="w-full mt-2"
-                      onClick={() => openTableMutation.mutate(table.id)}
-                    >
-                      Abrir Mesa
-                    </Button>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Use o gerenciador de mesas para lançar itens
+                    </p>
                   </CardContent>
                 </Card>
               ))}
@@ -300,7 +320,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
                         try {
                           const { error } = await supabase
                             .from('restaurant_tables')
-                            .update({ ativo: true, status: 'disponivel' })
+                            .update({ ativo: true, status: 'livre' })
                             .eq('id', table.id);
                           
                           if (error) throw error;
@@ -323,47 +343,90 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
           <div>
             <h3 className="text-lg font-semibold mb-4">Mesas Ocupadas</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(activeSessions || []).map((session) => (
-                <Card key={session.id} className="border-orange-200">
+              {(tables || []).filter(table => table.status === 'ocupada' && table.ativo).map((table) => (
+                <Card key={table.id} className="border-orange-200">
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <h4 className="font-semibold">Mesa {session.mesa_numero}</h4>
+                        <h4 className="font-semibold">Mesa {table.numero_mesa}</h4>
+                        <p className="text-sm text-gray-600">{table.capacidade} pessoas</p>
                         <p className="text-sm text-gray-600">
-                          Aberta em: {new Date(session.opened_at).toLocaleTimeString('pt-BR')}
+                          Status: Em uso
                         </p>
-                        <p className="text-sm text-gray-600">
-                          Pedidos: {session.orders_count}
-                        </p>
-                        {session.total_value > 0 && (
+                      </div>
+                      <Badge className="bg-orange-100 text-orange-800">Ocupada</Badge>
+                    </div>
+                    
+                    <p className="text-sm text-gray-600 mb-3">
+                      Mesa em uso. Os itens estão sendo lançados diretamente na mesa.
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Mesas aguardando pagamento */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Mesas Aguardando Pagamento</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(pendingPaymentTables || []).map((table) => (
+                <Card key={table.id} className="border-yellow-200">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h4 className="font-semibold">Mesa {table.numero_mesa}</h4>
+                        <p className="text-sm text-gray-600">{table.capacidade} pessoas</p>
+                        {table.items_count > 0 && (
+                          <p className="text-sm text-gray-600">
+                            Itens: {table.items_count}
+                          </p>
+                        )}
+                        {table.total_value > 0 && (
                           <p className="text-sm font-medium text-green-600">
-                            Total: R$ {session.total_value?.toFixed(2)}
+                            Total: R$ {table.total_value?.toFixed(2)}
                           </p>
                         )}
                       </div>
-                      <Badge className="bg-orange-100 text-orange-800">Ocupada</Badge>
+                      <Badge className="bg-yellow-100 text-yellow-800">Aguardando Pagamento</Badge>
                     </div>
                     
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedTable(session);
-                          setOrderType('mesa');
-                          setShowOrderModal(true);
+                        onClick={async () => {
+                          try {
+                            // Marcar pedido como pago
+                            if (table.order) {
+                              const { error: orderError } = await (supabase as any)
+                                .from('table_orders')
+                                .update({
+                                  status: 'pago',
+                                  paid_at: new Date().toISOString()
+                                })
+                                .eq('id', table.order.id);
+
+                              if (orderError) throw orderError;
+                            }
+
+                            // Retornar mesa para status livre
+                            const { error: tableError } = await supabase
+                              .from('restaurant_tables')
+                              .update({ status: 'livre' })
+                              .eq('id', table.id);
+
+                            if (tableError) throw tableError;
+
+                            toast.success('Pagamento processado! Mesa liberada.');
+                            queryClient.invalidateQueries({ queryKey: ['pending-payment-tables'] });
+                            queryClient.invalidateQueries({ queryKey: ['restaurant-tables'] });
+                          } catch (error: any) {
+                            toast.error('Erro ao processar pagamento: ' + error.message);
+                          }
                         }}
                       >
-                        <ShoppingCart className="h-4 w-4 mr-1" />
-                        Pedido
-                      </Button>
-                      
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => closeTableMutation.mutate(session.id)}
-                      >
-                        Fechar Mesa
+                        <DollarSign className="h-4 w-4 mr-1" />
+                        Processar Pagamento
                       </Button>
                     </div>
                   </CardContent>

@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Plus, Edit, Trash2, Users, QrCode, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
+import TableOrderSystem from './TableOrderSystem';
 
 interface Table {
   id: string;
@@ -36,11 +37,12 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [formData, setFormData] = useState({
-    numero_mesa: '',
+    quantidade_mesas: '',
     capacidade: '',
     localizacao: '',
     observacoes: ''
   });
+  const [selectedTableForOrder, setSelectedTableForOrder] = useState<Table | null>(null);
 
   useEffect(() => {
     loadTables();
@@ -69,20 +71,14 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
     e.preventDefault();
     
     try {
-      const tableData = {
-        restaurant_id: restaurantId,
-        numero_mesa: parseInt(formData.numero_mesa),
-        capacidade: parseInt(formData.capacidade),
-        localizacao: formData.localizacao,
-        observacoes: formData.observacoes,
-        status: 'disponivel', // Usar 'disponivel' em vez de 'livre'
-        ativo: true,
-        posicao_x: 0,
-        posicao_y: 0,
-        qr_code: `mesa-${formData.numero_mesa}-${restaurantId}-${Date.now()}`
-      };
-
       if (selectedTable) {
+        // Editando mesa existente
+        const tableData = {
+          capacidade: parseInt(formData.capacidade),
+          localizacao: formData.localizacao,
+          observacoes: formData.observacoes,
+        };
+
         const { error } = await supabase
           .from('restaurant_tables')
           .update(tableData)
@@ -91,17 +87,37 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
         if (error) throw error;
         toast.success('Mesa atualizada com sucesso!');
       } else {
+        // Criando múltiplas mesas
+        const quantidadeMesas = parseInt(formData.quantidade_mesas);
+        const lastTableNumber = Math.max(...tables.map(t => t.numero_mesa), 0);
+        
+        const tablesToCreate = [];
+        for (let i = 1; i <= quantidadeMesas; i++) {
+          tablesToCreate.push({
+            restaurant_id: restaurantId,
+            numero_mesa: lastTableNumber + i,
+            capacidade: parseInt(formData.capacidade),
+            localizacao: formData.localizacao,
+            observacoes: formData.observacoes,
+            status: 'livre',
+            ativo: true,
+            posicao_x: 0,
+            posicao_y: 0,
+            qr_code: `mesa-${lastTableNumber + i}-${restaurantId}-${Date.now()}-${i}`
+          });
+        }
+
         const { error } = await supabase
           .from('restaurant_tables')
-          .insert(tableData);
+          .insert(tablesToCreate);
         
         if (error) throw error;
-        toast.success('Mesa criada com sucesso!');
+        toast.success(`${quantidadeMesas} mesa(s) criada(s) com sucesso!`);
       }
 
       setShowDialog(false);
       setSelectedTable(null);
-      setFormData({ numero_mesa: '', capacidade: '', localizacao: '', observacoes: '' });
+      setFormData({ quantidade_mesas: '', capacidade: '', localizacao: '', observacoes: '' });
       loadTables();
     } catch (error) {
       console.error('Erro ao salvar mesa:', error);
@@ -112,12 +128,18 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
   const handleEdit = (table: Table) => {
     setSelectedTable(table);
     setFormData({
-      numero_mesa: table.numero_mesa.toString(),
+      quantidade_mesas: '1',
       capacidade: table.capacidade.toString(),
       localizacao: table.localizacao || '',
       observacoes: table.observacoes || ''
     });
     setShowDialog(true);
+  };
+
+  const handleTableClick = (table: Table) => {
+    if (table.status === 'livre' && table.ativo) {
+      setSelectedTableForOrder(table);
+    }
   };
 
   const handleDelete = async (tableId: string) => {
@@ -156,22 +178,20 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
 
   const getStatusColor = (status: string) => {
     const colors = {
-      'disponivel': 'bg-green-500',
+      'livre': 'bg-green-500',
       'ocupada': 'bg-red-500', 
       'reservada': 'bg-yellow-500',
-      'limpeza': 'bg-blue-500',
-      'manutencao': 'bg-purple-500'
+      'aguardando_pagamento': 'bg-orange-500'
     };
     return colors[status as keyof typeof colors] || 'bg-gray-500';
   };
 
   const getStatusText = (status: string) => {
     const texts = {
-      'disponivel': 'Disponível',
+      'livre': 'Livre',
       'ocupada': 'Ocupada',
       'reservada': 'Reservada', 
-      'limpeza': 'Limpeza',
-      'manutencao': 'Manutenção'
+      'aguardando_pagamento': 'Aguardando Pagamento'
     };
     return texts[status as keyof typeof texts] || status;
   };
@@ -194,7 +214,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
         <Button 
           onClick={() => {
             setSelectedTable(null);
-            setFormData({ numero_mesa: '', capacidade: '', localizacao: '', observacoes: '' });
+            setFormData({ quantidade_mesas: '', capacidade: '', localizacao: '', observacoes: '' });
             setShowDialog(true);
           }}
         >
@@ -212,19 +232,22 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
+              {!selectedTable && (
+                <div>
+                  <Label htmlFor="quantidade_mesas">Quantidade de Mesas</Label>
+                  <Input
+                    id="quantidade_mesas"
+                    type="number"
+                    value={formData.quantidade_mesas}
+                    onChange={(e) => setFormData({...formData, quantidade_mesas: e.target.value})}
+                    required
+                    min="1"
+                    placeholder="Ex: 5 para criar 5 mesas"
+                  />
+                </div>
+              )}
               <div>
-                <Label htmlFor="numero_mesa">Número da Mesa</Label>
-                <Input
-                  id="numero_mesa"
-                  type="number"
-                  value={formData.numero_mesa}
-                  onChange={(e) => setFormData({...formData, numero_mesa: e.target.value})}
-                  required
-                  min="1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="capacidade">Capacidade</Label>
+                <Label htmlFor="capacidade">Capacidade por Mesa</Label>
                 <Input
                   id="capacidade"
                   type="number"
@@ -232,6 +255,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
                   onChange={(e) => setFormData({...formData, capacidade: e.target.value})}
                   required
                   min="1"
+                  placeholder="Número de pessoas"
                 />
               </div>
             </div>
@@ -267,7 +291,13 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {tables.map((table) => (
-          <Card key={table.id} className={`${!table.ativo ? 'opacity-50' : ''}`}>
+          <Card 
+            key={table.id} 
+            className={`${!table.ativo ? 'opacity-50' : ''} ${
+              (table.status === 'livre' && table.ativo) ? 'cursor-pointer hover:shadow-md transition-shadow' : ''
+            }`}
+            onClick={() => handleTableClick(table)}
+          >
             <CardHeader className="pb-3">
               <div className="flex justify-between items-start">
                 <div>
@@ -342,11 +372,24 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
           <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma mesa cadastrada</h3>
           <p className="text-gray-600 mb-6">Comece adicionando as mesas do seu restaurante</p>
-          <Button onClick={() => setShowDialog(true)}>
+          <Button onClick={() => {
+            setSelectedTable(null);
+            setFormData({ quantidade_mesas: '', capacidade: '', localizacao: '', observacoes: '' });
+            setShowDialog(true);
+          }}>
             <Plus className="h-4 w-4 mr-2" />
             Adicionar primeira mesa
           </Button>
         </div>
+      )}
+
+      {/* Modal de Pedido da Mesa */}
+      {selectedTableForOrder && (
+        <TableOrderSystem
+          table={selectedTableForOrder}
+          restaurantId={restaurantId}
+          onClose={() => setSelectedTableForOrder(null)}
+        />
       )}
     </div>
   );
