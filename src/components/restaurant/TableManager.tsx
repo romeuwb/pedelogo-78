@@ -189,80 +189,79 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
           <h2 className="text-2xl font-bold">Gerenciar Mesas</h2>
           <p className="text-gray-600">Configure e monitore as mesas do seu restaurante</p>
         </div>
-        <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogTrigger asChild>
-            <Button 
-              onClick={() => {
-                setSelectedTable(null);
-                setFormData({ numero_mesa: '', capacidade: '', localizacao: '', observacoes: '' });
-                setShowDialog(true);
-              }}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Mesa
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {selectedTable ? 'Editar Mesa' : 'Nova Mesa'}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="numero_mesa">Número da Mesa</Label>
-                  <Input
-                    id="numero_mesa"
-                    type="number"
-                    value={formData.numero_mesa}
-                    onChange={(e) => setFormData({...formData, numero_mesa: e.target.value})}
-                    required
-                    min="1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="capacidade">Capacidade</Label>
-                  <Input
-                    id="capacidade"
-                    type="number"
-                    value={formData.capacidade}
-                    onChange={(e) => setFormData({...formData, capacidade: e.target.value})}
-                    required
-                    min="1"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="localizacao">Localização</Label>
-                <Input
-                  id="localizacao"
-                  value={formData.localizacao}
-                  onChange={(e) => setFormData({...formData, localizacao: e.target.value})}
-                  placeholder="Ex: Próximo à janela, Terraço, Salão principal..."
-                />
-              </div>
-              <div>
-                <Label htmlFor="observacoes">Observações</Label>
-                <Textarea
-                  id="observacoes"
-                  value={formData.observacoes}
-                  onChange={(e) => setFormData({...formData, observacoes: e.target.value})}
-                  placeholder="Observações adicionais sobre a mesa..."
-                />
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit">
-                  {selectedTable ? 'Atualizar' : 'Criar'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button 
+          onClick={() => {
+            setSelectedTable(null);
+            setFormData({ numero_mesa: '', capacidade: '', localizacao: '', observacoes: '' });
+            setShowDialog(true);
+          }}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Nova Mesa
+        </Button>
       </div>
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {selectedTable ? 'Editar Mesa' : 'Nova Mesa'}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="numero_mesa">Número da Mesa</Label>
+                <Input
+                  id="numero_mesa"
+                  type="number"
+                  value={formData.numero_mesa}
+                  onChange={(e) => setFormData({...formData, numero_mesa: e.target.value})}
+                  required
+                  min="1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="capacidade">Capacidade</Label>
+                <Input
+                  id="capacidade"
+                  type="number"
+                  value={formData.capacidade}
+                  onChange={(e) => setFormData({...formData, capacidade: e.target.value})}
+                  required
+                  min="1"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="localizacao">Localização</Label>
+              <Input
+                id="localizacao"
+                value={formData.localizacao}
+                onChange={(e) => setFormData({...formData, localizacao: e.target.value})}
+                placeholder="Ex: Próximo à janela, Terraço, Salão principal..."
+              />
+            </div>
+            <div>
+              <Label htmlFor="observacoes">Observações</Label>
+              <Textarea
+                id="observacoes"
+                value={formData.observacoes}
+                onChange={(e) => setFormData({...formData, observacoes: e.target.value})}
+                placeholder="Observações adicionais sobre a mesa..."
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit">
+                {selectedTable ? 'Atualizar' : 'Criar'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {tables.map((table) => (

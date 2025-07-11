@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, ShoppingCart, Users, Package, DollarSign } from 'lucide-react';
+import { Plus, ShoppingCart, Users, Package, DollarSign, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface POSSystemProps {
@@ -21,6 +20,8 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [orderType, setOrderType] = useState<'mesa' | 'avulso'>('mesa');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<string>('');
 
   const queryClient = useQueryClient();
 
@@ -39,18 +40,27 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
     },
   });
 
-  // Buscar sessões ativas - mock por enquanto
+  // Buscar sessões ativas (mock baseado no status das mesas)
   const { data: activeSessions } = useQuery({
     queryKey: ['active-sessions', restaurantId],
     queryFn: async () => {
-      return [
-        {
-          id: '1',
-          table: { numero_mesa: 2 },
-          opened_at: new Date().toISOString(),
-          pos_orders: []
-        }
-      ];
+      const { data, error } = await supabase
+        .from('restaurant_tables')
+        .select('*')
+        .eq('restaurant_id', restaurantId)
+        .eq('status', 'ocupada')
+        .order('numero_mesa', { ascending: true });
+
+      if (error) throw error;
+      return (data || []).map(table => ({
+        id: `session-${table.id}`,
+        table_id: table.id,
+        mesa_numero: table.numero_mesa,
+        capacidade: table.capacidade,
+        opened_at: new Date().toISOString(),
+        orders_count: 0,
+        total_value: 0
+      }));
     },
   });
 
@@ -70,13 +80,16 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
     },
   });
 
-  // Abrir mesa - mock por enquanto
+  // Abrir mesa
   const openTableMutation = useMutation({
     mutationFn: async (tableId: string) => {
-      console.log('Abrindo mesa:', tableId);
-      // Implementação mock
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return { id: tableId };
+      const { error } = await supabase
+        .from('restaurant_tables')
+        .update({ status: 'ocupada' })
+        .eq('id', tableId);
+
+      if (error) throw error;
+      return { tableId };
     },
     onSuccess: () => {
       toast.success('Mesa aberta com sucesso!');
@@ -88,12 +101,15 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
     }
   });
 
-  // Fechar mesa - mock por enquanto
+  // Fechar mesa
   const closeTableMutation = useMutation({
-    mutationFn: async (sessionId: string) => {
-      console.log('Fechando mesa:', sessionId);
-      // Implementação mock
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    mutationFn: async (tableId: string) => {
+      const { error } = await supabase
+        .from('restaurant_tables')
+        .update({ status: 'livre' })
+        .eq('id', tableId);
+
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Mesa fechada com sucesso!');
@@ -105,21 +121,21 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
     }
   });
 
-  // Criar pedido - usar tabela orders existente
+  // Criar pedido
   const createOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
-      const orderNumber = `POS-${Date.now()}`;
-      
-      // Por enquanto, criar um pedido simples na tabela orders
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           restaurante_id: restaurantId,
-          cliente_id: null, // Pedido POS não tem cliente específico
+          cliente_id: null,
           status: 'preparando',
           total: orderData.total,
-          endereco_entrega: { tipo: orderType, mesa: selectedTable?.numero_mesa },
-          observacoes: `Pedido POS - ${orderType}`
+          endereco_entrega: { 
+            tipo: orderType, 
+            mesa: orderType === 'mesa' ? selectedTable?.mesa_numero : null 
+          },
+          observacoes: `Pedido POS - ${orderType === 'mesa' ? `Mesa ${selectedTable?.mesa_numero}` : 'Avulso'}`
         })
         .select()
         .single();
@@ -149,10 +165,32 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
       toast.success('Pedido criado com sucesso!');
       setOrderItems([]);
       setShowOrderModal(false);
-      queryClient.invalidateQueries({ queryKey: ['active-sessions'] });
+      setShowPaymentModal(true);
     },
     onError: (error: any) => {
       toast.error('Erro ao criar pedido: ' + error.message);
+    }
+  });
+
+  // Processar pagamento
+  const processPaymentMutation = useMutation({
+    mutationFn: async (paymentData: any) => {
+      // Simular processamento de pagamento
+      console.log('Processando pagamento:', paymentData);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return { success: true };
+    },
+    onSuccess: () => {
+      toast.success('Pagamento processado com sucesso!');
+      setShowPaymentModal(false);
+      setPaymentMethod('');
+      if (orderType === 'mesa' && selectedTable) {
+        closeTableMutation.mutate(selectedTable.table_id);
+      }
+      setSelectedTable(null);
+    },
+    onError: (error: any) => {
+      toast.error('Erro ao processar pagamento: ' + error.message);
     }
   });
 
@@ -191,15 +229,6 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
     return orderItems.reduce((total, item) => total + (item.preco * item.quantidade), 0);
   };
 
-  const getTableStatusColor = (status: string) => {
-    const colors = {
-      'disponivel': 'bg-green-100 text-green-800',
-      'ocupada': 'bg-red-100 text-red-800',
-      'reservada': 'bg-yellow-100 text-yellow-800'
-    };
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -210,6 +239,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
         
         <Button onClick={() => {
           setOrderType('avulso');
+          setSelectedTable(null);
           setShowOrderModal(true);
         }}>
           <Plus className="h-4 w-4 mr-2" />
@@ -267,10 +297,19 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
                       size="sm"
                       variant="outline"
                       className="w-full mt-2"
-                      onClick={() => {
-                        // Importar mesa (reativar)
-                        console.log('Importar mesa:', table.id);
-                        toast.success('Mesa importada com sucesso!');
+                      onClick={async () => {
+                        try {
+                          const { error } = await supabase
+                            .from('restaurant_tables')
+                            .update({ ativo: true, status: 'livre' })
+                            .eq('id', table.id);
+                          
+                          if (error) throw error;
+                          toast.success('Mesa importada com sucesso!');
+                          queryClient.invalidateQueries({ queryKey: ['restaurant-tables'] });
+                        } catch (error: any) {
+                          toast.error('Erro ao importar mesa: ' + error.message);
+                        }
                       }}
                     >
                       Importar Mesa
@@ -290,13 +329,18 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <h4 className="font-semibold">Mesa {session.table?.numero_mesa}</h4>
+                        <h4 className="font-semibold">Mesa {session.mesa_numero}</h4>
                         <p className="text-sm text-gray-600">
                           Aberta em: {new Date(session.opened_at).toLocaleTimeString('pt-BR')}
                         </p>
                         <p className="text-sm text-gray-600">
-                          Pedidos: {session.pos_orders?.length || 0}
+                          Pedidos: {session.orders_count}
                         </p>
+                        {session.total_value > 0 && (
+                          <p className="text-sm font-medium text-green-600">
+                            Total: R$ {session.total_value?.toFixed(2)}
+                          </p>
+                        )}
                       </div>
                       <Badge className="bg-orange-100 text-orange-800">Ocupada</Badge>
                     </div>
@@ -318,7 +362,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => closeTableMutation.mutate(session.id)}
+                        onClick={() => closeTableMutation.mutate(session.table_id)}
                       >
                         Fechar Mesa
                       </Button>
@@ -341,7 +385,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
           <DialogHeader>
             <DialogTitle>
               {orderType === 'mesa' 
-                ? `Novo Pedido - Mesa ${selectedTable?.table?.numero_mesa}`
+                ? `Novo Pedido - Mesa ${selectedTable?.mesa_numero}`
                 : 'Venda Avulsa'
               }
             </DialogTitle>
@@ -443,6 +487,61 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
                   </Button>
                 </div>
               </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de pagamento */}
+      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Processamento de Pagamento</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold">R$ {calculateTotal().toFixed(2)}</p>
+              <p className="text-gray-600">Total a pagar</p>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Método de Pagamento</label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o método" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                  <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                  <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="voucher">Voucher</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  processPaymentMutation.mutate({
+                    amount: calculateTotal(),
+                    method: paymentMethod
+                  });
+                }}
+                disabled={!paymentMethod}
+                className="flex-1"
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Processar Pagamento
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={() => setShowPaymentModal(false)}
+              >
+                Cancelar
+              </Button>
             </div>
           </div>
         </DialogContent>
