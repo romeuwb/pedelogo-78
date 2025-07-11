@@ -143,6 +143,9 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
         return;
       }
 
+      // Atualizar status da mesa para "ocupada"
+      await updateTableStatus('ocupada');
+
       console.log('✅ Novo pedido criado:', newOrder);
       setCurrentOrder(newOrder);
       setOrderItems([]);
@@ -150,6 +153,24 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
     } catch (error) {
       console.error('❌ Erro geral ao criar pedido:', error);
       toast.error(`Erro ao criar novo pedido: ${error.message}`);
+    }
+  };
+
+  const updateTableStatus = async (status: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from('restaurant_tables')
+        .update({ status })
+        .eq('id', table.id);
+
+      if (error) {
+        console.error('❌ Erro ao atualizar status da mesa:', error);
+        return;
+      }
+
+      console.log(`✅ Status da mesa atualizado para: ${status}`);
+    } catch (error) {
+      console.error('❌ Erro ao atualizar status da mesa:', error);
     }
   };
 
@@ -329,11 +350,39 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
 
       if (error) throw error;
 
+      // Atualizar status da mesa para "aguardando_pagamento"
+      await updateTableStatus('aguardando_pagamento');
+
       toast.success(`Mesa ${table.numero_mesa} fechada! Total: R$ ${total.toFixed(2)} - Aguardando pagamento.`);
       onClose();
     } catch (error) {
       console.error('Erro ao fechar pedido:', error);
       toast.error('Erro ao fechar pedido');
+    }
+  };
+
+  const markAsPaid = async () => {
+    if (!currentOrder) return;
+
+    try {
+      const { error } = await (supabase as any)
+        .from('table_orders')
+        .update({
+          status: 'pago',
+          paid_at: new Date().toISOString()
+        })
+        .eq('id', currentOrder.id);
+
+      if (error) throw error;
+
+      // Atualizar status da mesa para "disponivel"
+      await updateTableStatus('disponivel');
+
+      toast.success(`Pagamento confirmado! Mesa ${table.numero_mesa} liberada.`);
+      onClose();
+    } catch (error) {
+      console.error('Erro ao confirmar pagamento:', error);
+      toast.error('Erro ao confirmar pagamento');
     }
   };
 
@@ -518,15 +567,26 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
                 Salvar e Sair
               </Button>
               
-              <Button 
-                onClick={closeOrder}
-                disabled={orderItems.length === 0}
-                className="flex-1"
-                size="lg"
-              >
-                <DollarSign className="h-4 w-4 mr-2" />
-                Fechar Mesa (Aguardar Pagamento)
-              </Button>
+              {currentOrder?.status === 'fechado' ? (
+                <Button 
+                  onClick={markAsPaid}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  size="lg"
+                >
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Confirmar Pagamento
+                </Button>
+              ) : (
+                <Button 
+                  onClick={closeOrder}
+                  disabled={orderItems.length === 0}
+                  className="flex-1"
+                  size="lg"
+                >
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Fechar Mesa (Aguardar Pagamento)
+                </Button>
+              )}
             </div>
           </div>
         </div>

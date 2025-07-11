@@ -146,8 +146,13 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
   };
 
   const handleTableClick = (table: Table) => {
-    if (table.status === 'disponivel' && table.ativo) {
+    // Permitir acesso a mesas disponíveis, ocupadas ou aguardando pagamento
+    if (table.ativo && (table.status === 'disponivel' || table.status === 'ocupada' || table.status === 'aguardando_pagamento')) {
       setSelectedTableForOrder(table);
+    } else if (!table.ativo) {
+      toast.error('Esta mesa está desativada');
+    } else if (table.status === 'reservada') {
+      toast.error('Esta mesa está reservada');
     }
   };
 
@@ -306,8 +311,11 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
           <Card 
             key={table.id} 
             className={`${!table.ativo ? 'opacity-50' : ''} ${
-              (table.status === 'disponivel' && table.ativo) ? 'cursor-pointer hover:shadow-md transition-shadow' : ''
-            }`}
+              table.ativo && ['disponivel', 'ocupada', 'aguardando_pagamento'].includes(table.status) 
+                ? 'cursor-pointer hover:shadow-md transition-shadow hover:scale-105' 
+                : ''
+            } ${table.status === 'ocupada' ? 'ring-2 ring-red-200' : ''} 
+            ${table.status === 'aguardando_pagamento' ? 'ring-2 ring-orange-200' : ''}`}
             onClick={() => handleTableClick(table)}
           >
             <CardHeader className="pb-3">
@@ -400,7 +408,11 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
         <TableOrderSystem
           table={selectedTableForOrder}
           restaurantId={restaurantId}
-          onClose={() => setSelectedTableForOrder(null)}
+          onClose={() => {
+            setSelectedTableForOrder(null);
+            // Recarregar mesas para atualizar status
+            loadTables();
+          }}
         />
       )}
     </div>
