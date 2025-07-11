@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Minus, ShoppingCart, X, DollarSign } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, X, DollarSign, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Table {
@@ -58,8 +58,8 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
 
   const loadProducts = async () => {
     try {
-      const { data, error } = await (supabase as any)
-        .from('products')
+      const { data, error } = await supabase
+        .from('restaurant_products')
         .select('id, nome, preco, descricao')
         .eq('restaurant_id', restaurantId)
         .eq('ativo', true);
@@ -76,48 +76,73 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
     try {
       setLoading(true);
       
-      // Verificar se existe pedido aberto para esta mesa
-      const { data: orderData, error: orderError } = await (supabase as any)
+      // Buscar pedido aberto simples
+      const { data: orderData, error: orderError } = await supabase
         .from('table_orders')
         .select('*')
         .eq('table_id', table.id)
         .eq('status', 'aberto')
-        .single();
+        .maybeSingle();
 
-      if (orderError && orderError.code !== 'PGRST116') throw orderError;
+      if (orderError) {
+        console.error('Erro ao buscar pedido:', orderError);
+        await createNewOrder();
+        return;
+      }
 
       if (orderData) {
         setCurrentOrder(orderData);
-        
-        // Carregar itens do pedido
-        const { data: itemsData, error: itemsError } = await (supabase as any)
-          .from('table_order_items')
-          .select('*')
-          .eq('table_order_id', orderData.id);
-
-        if (itemsError) throw itemsError;
-        setOrderItems(itemsData || []);
+        await loadOrderItems(orderData.id);
       } else {
-        // Criar novo pedido
-        const { data: newOrder, error: createError } = await (supabase as any)
-          .from('table_orders')
-          .insert({
-            table_id: table.id,
-            restaurant_id: restaurantId,
-            status: 'aberto',
-            total: 0
-          })
-          .select()
-          .single();
-
-        if (createError) throw createError;
-        setCurrentOrder(newOrder);
+        await createNewOrder();
       }
     } catch (error) {
       console.error('Erro ao carregar pedido:', error);
       toast.error('Erro ao carregar pedido da mesa');
+      await createNewOrder();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createNewOrder = async () => {
+    try {
+      const orderInsert = {
+        table_id: table.id,
+        restaurant_id: restaurantId,
+        status: 'aberto',
+        total: 0
+      };
+
+      const { data: newOrder, error: createError } = await supabase
+        .from('table_orders')
+        .insert(orderInsert)
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Erro ao criar pedido:', createError);
+        return;
+      }
+
+      setCurrentOrder(newOrder);
+      setOrderItems([]);
+    } catch (error) {
+      console.error('Erro ao criar novo pedido:', error);
+    }
+  };
+
+  const loadOrderItems = async (orderId: string) => {
+    try {
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('table_order_items')
+        .select('*')
+        .eq('table_order_id', orderId);
+
+      if (itemsError) throw itemsError;
+      setOrderItems(itemsData || []);
+    } catch (error) {
+      console.error('Erro ao carregar itens:', error);
     }
   };
 
@@ -128,12 +153,12 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
       // Verificar se item já existe no pedido
       const existingItem = orderItems.find(item => item.product_id === product.id);
       
-      if (existingItem) {
+      if (existingItem && existingItem.id) {
         // Atualizar quantidade
         const newQuantity = existingItem.quantidade + 1;
         const newSubtotal = newQuantity * product.preco;
         
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from('table_order_items')
           .update({
             quantidade: newQuantity,
@@ -152,7 +177,7 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
         );
       } else {
         // Adicionar novo item
-        const newItem = {
+        const newItemData = {
           table_order_id: currentOrder.id,
           product_id: product.id,
           nome_item: product.nome,
@@ -161,9 +186,9 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
           subtotal: product.preco
         };
 
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
           .from('table_order_items')
-          .insert(newItem)
+          .insert(newItemData)
           .select()
           .single();
 
@@ -190,7 +215,7 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
 
       const newSubtotal = newQuantity * item.preco_unitario;
 
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('table_order_items')
         .update({
           quantidade: newQuantity,
@@ -215,7 +240,7 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
 
   const removeItem = async (itemId: string) => {
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('table_order_items')
         .delete()
         .eq('id', itemId);
@@ -237,7 +262,7 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
     }
 
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('table_orders')
         .update({
           status: 'fechado',
@@ -275,7 +300,7 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Mesa {table.numero_mesa} - Lançamento de Itens</span>
@@ -283,62 +308,82 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
               <X className="h-4 w-4" />
             </Button>
           </DialogTitle>
+          <DialogDescription>
+            Adicione itens ao pedido. Os itens são salvos automaticamente.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Lista de Produtos */}
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="search">Buscar Produtos</Label>
-              <Input
-                id="search"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Digite o nome do produto..."
-              />
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Search className="h-5 w-5 mr-2" />
+                  Buscar Produtos
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="search">Buscar produto</Label>
+                  <Input
+                    id="search"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Digite o nome do produto..."
+                  />
+                </div>
 
-            <div className="max-h-96 overflow-y-auto space-y-2">
-              {filteredProducts.map((product) => (
-                <Card key={product.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                  <CardContent className="p-3" onClick={() => addItem(product)}>
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h4 className="font-medium">{product.nome}</h4>
-                        {product.descricao && (
-                          <p className="text-sm text-gray-600">{product.descricao}</p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold">R$ {product.preco.toFixed(2)}</p>
-                        <Button size="sm" variant="outline">
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                <div className="max-h-96 overflow-y-auto space-y-2">
+                  {filteredProducts.length === 0 ? (
+                    <p className="text-center text-gray-500 py-4">
+                      Nenhum produto encontrado
+                    </p>
+                  ) : (
+                    filteredProducts.map((product) => (
+                      <Card key={product.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                        <CardContent className="p-3" onClick={() => addItem(product)}>
+                          <div className="flex justify-between items-center">
+                            <div className="flex-1">
+                              <h4 className="font-medium">{product.nome}</h4>
+                              {product.descricao && (
+                                <p className="text-sm text-gray-600">{product.descricao}</p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-green-600">R$ {product.preco.toFixed(2)}</p>
+                              <Button size="sm" variant="outline">
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Pedido Atual */}
           <div className="space-y-4">
-            <div className="flex items-center">
-              <ShoppingCart className="h-5 w-5 mr-2" />
-              <h3 className="text-lg font-semibold">Pedido Atual</h3>
-            </div>
-
             <Card>
-              <CardContent className="p-4">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <ShoppingCart className="h-5 w-5 mr-2" />
+                  Pedido Atual
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                 {orderItems.length === 0 ? (
-                  <p className="text-center text-gray-500 py-4">
+                  <p className="text-center text-gray-500 py-8">
                     Nenhum item adicionado ao pedido
                   </p>
                 ) : (
                   <div className="space-y-3">
                     {orderItems.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between border-b pb-2">
+                      <div key={item.id} className="flex items-center justify-between border-b pb-3">
                         <div className="flex-1">
                           <h4 className="font-medium">{item.nome_item}</h4>
                           <p className="text-sm text-gray-600">
@@ -353,7 +398,7 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
-                          <span className="w-8 text-center">{item.quantidade}</span>
+                          <span className="w-8 text-center font-medium">{item.quantidade}</span>
                           <Button
                             size="sm"
                             variant="outline"
@@ -375,10 +420,10 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
                       </div>
                     ))}
                     
-                    <div className="pt-2 border-t">
+                    <div className="pt-3 border-t">
                       <div className="flex justify-between items-center text-lg font-bold">
                         <span>Total:</span>
-                        <span>R$ {total.toFixed(2)}</span>
+                        <span className="text-green-600">R$ {total.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
@@ -391,6 +436,7 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
                 onClick={closeOrder}
                 disabled={orderItems.length === 0}
                 className="flex-1"
+                size="lg"
               >
                 <DollarSign className="h-4 w-4 mr-2" />
                 Fechar Mesa

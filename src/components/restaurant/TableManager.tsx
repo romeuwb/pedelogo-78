@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Plus, Edit, Trash2, Users, QrCode, MapPin } from 'lucide-react';
@@ -37,8 +37,8 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [formData, setFormData] = useState({
-    quantidade_mesas: '',
-    capacidade: '',
+    quantidade_mesas: '1',
+    capacidade: '4',
     localizacao: '',
     observacoes: ''
   });
@@ -89,21 +89,27 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
       } else {
         // Criando múltiplas mesas
         const quantidadeMesas = parseInt(formData.quantidade_mesas);
-        const lastTableNumber = Math.max(...tables.map(t => t.numero_mesa), 0);
+        if (quantidadeMesas <= 0 || quantidadeMesas > 50) {
+          toast.error('Quantidade deve ser entre 1 e 50 mesas');
+          return;
+        }
+        
+        const lastTableNumber = tables.length > 0 ? Math.max(...tables.map(t => t.numero_mesa)) : 0;
         
         const tablesToCreate = [];
         for (let i = 1; i <= quantidadeMesas; i++) {
+          const numeroMesa = lastTableNumber + i;
           tablesToCreate.push({
             restaurant_id: restaurantId,
-            numero_mesa: lastTableNumber + i,
+            numero_mesa: numeroMesa,
             capacidade: parseInt(formData.capacidade),
-            localizacao: formData.localizacao,
-            observacoes: formData.observacoes,
-            status: 'livre',
+            localizacao: formData.localizacao || '',
+            observacoes: formData.observacoes || '',
+            status: 'disponivel',
             ativo: true,
             posicao_x: 0,
             posicao_y: 0,
-            qr_code: `mesa-${lastTableNumber + i}-${restaurantId}-${Date.now()}-${i}`
+            qr_code: `mesa-${numeroMesa}-${restaurantId}-${Date.now()}`
           });
         }
 
@@ -111,13 +117,16 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
           .from('restaurant_tables')
           .insert(tablesToCreate);
         
-        if (error) throw error;
+        if (error) {
+          console.error('Erro detalhado:', error);
+          throw error;
+        }
         toast.success(`${quantidadeMesas} mesa(s) criada(s) com sucesso!`);
       }
 
       setShowDialog(false);
       setSelectedTable(null);
-      setFormData({ quantidade_mesas: '', capacidade: '', localizacao: '', observacoes: '' });
+          setFormData({ quantidade_mesas: '1', capacidade: '4', localizacao: '', observacoes: '' });
       loadTables();
     } catch (error) {
       console.error('Erro ao salvar mesa:', error);
@@ -137,7 +146,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
   };
 
   const handleTableClick = (table: Table) => {
-    if (table.status === 'livre' && table.ativo) {
+    if (table.status === 'disponivel' && table.ativo) {
       setSelectedTableForOrder(table);
     }
   };
@@ -178,7 +187,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
 
   const getStatusColor = (status: string) => {
     const colors = {
-      'livre': 'bg-green-500',
+      'disponivel': 'bg-green-500',
       'ocupada': 'bg-red-500', 
       'reservada': 'bg-yellow-500',
       'aguardando_pagamento': 'bg-orange-500'
@@ -188,7 +197,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
 
   const getStatusText = (status: string) => {
     const texts = {
-      'livre': 'Livre',
+      'disponivel': 'Disponível',
       'ocupada': 'Ocupada',
       'reservada': 'Reservada', 
       'aguardando_pagamento': 'Aguardando Pagamento'
@@ -214,7 +223,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
         <Button 
           onClick={() => {
             setSelectedTable(null);
-            setFormData({ quantidade_mesas: '', capacidade: '', localizacao: '', observacoes: '' });
+            setFormData({ quantidade_mesas: '1', capacidade: '4', localizacao: '', observacoes: '' });
             setShowDialog(true);
           }}
         >
@@ -227,8 +236,11 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {selectedTable ? 'Editar Mesa' : 'Nova Mesa'}
+              {selectedTable ? 'Editar Mesa' : 'Criar Novas Mesas'}
             </DialogTitle>
+            <DialogDescription>
+              {selectedTable ? 'Edite as informações da mesa' : 'Informe a quantidade e dados das mesas que serão criadas'}
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -294,7 +306,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
           <Card 
             key={table.id} 
             className={`${!table.ativo ? 'opacity-50' : ''} ${
-              (table.status === 'livre' && table.ativo) ? 'cursor-pointer hover:shadow-md transition-shadow' : ''
+              (table.status === 'disponivel' && table.ativo) ? 'cursor-pointer hover:shadow-md transition-shadow' : ''
             }`}
             onClick={() => handleTableClick(table)}
           >
@@ -374,7 +386,7 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
           <p className="text-gray-600 mb-6">Comece adicionando as mesas do seu restaurante</p>
           <Button onClick={() => {
             setSelectedTable(null);
-            setFormData({ quantidade_mesas: '', capacidade: '', localizacao: '', observacoes: '' });
+            setFormData({ quantidade_mesas: '1', capacidade: '4', localizacao: '', observacoes: '' });
             setShowDialog(true);
           }}>
             <Plus className="h-4 w-4 mr-2" />
