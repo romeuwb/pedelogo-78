@@ -11,7 +11,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Plus, Edit, Trash2, Users, QrCode, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
-import TableOrderSystem from './TableOrderSystem';
 
 interface Table {
   id: string;
@@ -395,13 +394,17 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
         </div>
       )}
 
-      {/* Modal de Pedido da Mesa */}
+      {/* Modal de Pedido da Mesa - Temporariamente desabilitado */}
       {selectedTableForOrder && (
-        <TableOrderSystem
-          table={selectedTableForOrder}
-          restaurantId={restaurantId}
-          onClose={() => setSelectedTableForOrder(null)}
-        />
+        <Dialog open={true} onOpenChange={() => setSelectedTableForOrder(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Mesa {selectedTableForOrder.numero_mesa}</DialogTitle>
+              <DialogDescription>Sistema de pedidos será implementado após executar as migrações no banco.</DialogDescription>
+            </DialogHeader>
+            <p>Execute a migração 20250711060000_fix_table_status_constraint.sql no Supabase primeiro.</p>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
