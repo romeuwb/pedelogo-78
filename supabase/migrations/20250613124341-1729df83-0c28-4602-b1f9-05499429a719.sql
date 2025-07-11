@@ -17,17 +17,26 @@ CREATE TABLE IF NOT EXISTS restaurant_api_keys (
 -- Enable RLS on the new table
 ALTER TABLE restaurant_api_keys ENABLE ROW LEVEL SECURITY;
 
--- Create policy for restaurant owners to manage their API keys
-CREATE POLICY "Restaurant owners can manage their API keys" 
-  ON restaurant_api_keys 
-  FOR ALL 
-  USING (
-    EXISTS (
-      SELECT 1 FROM restaurant_details 
-      WHERE id = restaurant_api_keys.restaurant_id 
-      AND user_id = auth.uid()
-    )
-  );
+-- Create policy for restaurant owners to manage their API keys (if not exists)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'restaurant_api_keys' 
+    AND policyname = 'Restaurant owners can manage their API keys'
+  ) THEN
+    CREATE POLICY "Restaurant owners can manage their API keys" 
+      ON restaurant_api_keys 
+      FOR ALL 
+      USING (
+        EXISTS (
+          SELECT 1 FROM restaurant_details 
+          WHERE id = restaurant_api_keys.restaurant_id 
+          AND user_id = auth.uid()
+        )
+      );
+  END IF;
+END $$;
 
 -- Function to generate API key
 CREATE OR REPLACE FUNCTION generate_restaurant_api_key(p_restaurant_id UUID)
