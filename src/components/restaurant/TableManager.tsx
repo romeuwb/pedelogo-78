@@ -75,11 +75,11 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
         capacidade: parseInt(formData.capacidade),
         localizacao: formData.localizacao,
         observacoes: formData.observacoes,
-        status: 'livre',
+        status: 'disponivel', // Usar 'disponivel' em vez de 'livre'
         ativo: true,
         posicao_x: 0,
         posicao_y: 0,
-        qr_code: `mesa-${formData.numero_mesa}-${Date.now()}`
+        qr_code: `mesa-${formData.numero_mesa}-${restaurantId}-${Date.now()}`
       };
 
       if (selectedTable) {
@@ -156,20 +156,22 @@ const TableManager = ({ restaurantId }: TableManagerProps) => {
 
   const getStatusColor = (status: string) => {
     const colors = {
-      'livre': 'bg-green-500',
-      'ocupada': 'bg-red-500',
+      'disponivel': 'bg-green-500',
+      'ocupada': 'bg-red-500', 
       'reservada': 'bg-yellow-500',
-      'limpeza': 'bg-blue-500'
+      'limpeza': 'bg-blue-500',
+      'manutencao': 'bg-purple-500'
     };
     return colors[status as keyof typeof colors] || 'bg-gray-500';
   };
 
   const getStatusText = (status: string) => {
     const texts = {
-      'livre': 'Livre',
+      'disponivel': 'Disponível',
       'ocupada': 'Ocupada',
-      'reservada': 'Reservada',
-      'limpeza': 'Limpeza'
+      'reservada': 'Reservada', 
+      'limpeza': 'Limpeza',
+      'manutencao': 'Manutenção'
     };
     return texts[status as keyof typeof texts] || status;
   };

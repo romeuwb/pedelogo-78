@@ -105,7 +105,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
     mutationFn: async (tableId: string) => {
       const { error } = await supabase
         .from('restaurant_tables')
-        .update({ status: 'livre' })
+        .update({ status: 'disponivel' })
         .eq('id', tableId);
 
       if (error) throw error;
@@ -257,14 +257,14 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
           <div>
             <h3 className="text-lg font-semibold mb-4">Mesas Disponíveis</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {(tables || []).filter(table => table.status === 'livre' && table.ativo).map((table) => (
+              {(tables || []).filter(table => table.status === 'disponivel' && table.ativo).map((table) => (
                 <Card key={table.id} className="cursor-pointer hover:shadow-md">
                   <CardContent className="p-4 text-center">
                     <Users className="h-8 w-8 mx-auto mb-2 text-gray-400" />
                     <p className="font-semibold">Mesa {table.numero_mesa}</p>
                     <p className="text-sm text-gray-600">{table.capacidade} pessoas</p>
                     <Badge className="bg-green-100 text-green-800">
-                      Livre
+                      Disponível
                     </Badge>
                     <Button
                       size="sm"
@@ -300,7 +300,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
                         try {
                           const { error } = await supabase
                             .from('restaurant_tables')
-                            .update({ ativo: true, status: 'livre' })
+                            .update({ ativo: true, status: 'disponivel' })
                             .eq('id', table.id);
                           
                           if (error) throw error;
