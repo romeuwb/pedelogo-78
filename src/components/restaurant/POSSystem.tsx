@@ -156,7 +156,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
       console.log('🛒 Criando pedido POS:', orderData);
       
       if (orderType === 'avulso') {
-        // Venda avulsa - cria pedido na tabela orders
+        // Venda avulsa - cria pedido na tabela orders (SEM SUBTOTAL)
         const { data: order, error: orderError } = await supabase
           .from('orders')
           .insert({
@@ -164,7 +164,6 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
             cliente_id: null,
             status: 'preparando',
             total: orderData.total,
-            subtotal: orderData.subtotal,
             endereco_entrega: { 
               tipo: 'balcao',
               cliente_nome: customerName || 'Cliente Balcão'
@@ -216,7 +215,6 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
             cliente_id: null,
             status: 'preparando',
             total: orderData.total,
-            subtotal: orderData.subtotal,
             endereco_entrega: enderecoEntrega,
             observacoes: `Pedido POS - ${orderType === 'delivery' ? 'Delivery' : `Mesa ${selectedTable?.numero_mesa}`}`
           })
@@ -268,13 +266,13 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
         throw new Error('Nenhum pedido ativo para processar pagamento');
       }
 
-      // Atualizar status do pedido para "pago"
+      // Atualizar status do pedido para "pago" com o nome correto da coluna
       const { error: orderError } = await supabase
         .from('orders')
         .update({
           status: 'pago',
-          forma_pagamento: paymentData.method,
-          pago_em: new Date().toISOString()
+          metodo_pagamento: paymentData.method, // Nome correto da coluna
+          data_entrega: new Date().toISOString() // Usar coluna existente
         })
         .eq('id', currentOrder.id);
 
@@ -724,7 +722,6 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
                         }
 
                         createOrderMutation.mutate({
-                          subtotal: calculateTotal(),
                           total: calculateTotal()
                         });
                       }}
