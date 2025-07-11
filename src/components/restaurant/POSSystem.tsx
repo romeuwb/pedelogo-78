@@ -8,8 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, ShoppingCart, Users, Package, DollarSign, CreditCard } from 'lucide-react';
+import { Plus, ShoppingCart, Users, Package, DollarSign, CreditCard, Import } from 'lucide-react';
 import { toast } from 'sonner';
+import PendingPaymentTables from './PendingPaymentTables';
 
 interface POSSystemProps {
   restaurantId: string;
@@ -273,6 +274,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
       <Tabs defaultValue="tables" className="w-full">
         <TabsList>
           <TabsTrigger value="tables">Controle de Mesas</TabsTrigger>
+          <TabsTrigger value="pending">Importar Mesas</TabsTrigger>
           <TabsTrigger value="orders">Pedidos Ativos</TabsTrigger>
         </TabsList>
 
@@ -281,58 +283,18 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
           <div>
             <h3 className="text-lg font-semibold mb-4">Mesas Disponíveis</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {(tables || []).filter(table => table.status === 'livre' && table.ativo).map((table) => (
+              {(tables || []).filter(table => table.status === 'disponivel' && table.ativo).map((table) => (
                 <Card key={table.id} className="cursor-pointer hover:shadow-md">
                   <CardContent className="p-4 text-center">
                     <Users className="h-8 w-8 mx-auto mb-2 text-gray-400" />
                     <p className="font-semibold">Mesa {table.numero_mesa}</p>
                     <p className="text-sm text-gray-600">{table.capacidade} pessoas</p>
                     <Badge className="bg-green-100 text-green-800">
-                      Livre
+                      Disponível
                     </Badge>
                     <p className="text-xs text-gray-500 mt-1">
                       Use o gerenciador de mesas para lançar itens
                     </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-
-          {/* Mesas fechadas - para importar */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Mesas Fechadas (Importar)</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {(tables || []).filter(table => !table.ativo).map((table) => (
-                <Card key={table.id} className="cursor-pointer hover:shadow-md opacity-75">
-                  <CardContent className="p-4 text-center">
-                    <Users className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                    <p className="font-semibold">Mesa {table.numero_mesa}</p>
-                    <p className="text-sm text-gray-600">{table.capacidade} pessoas</p>
-                    <Badge className="bg-gray-100 text-gray-800">
-                      Fechada
-                    </Badge>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full mt-2"
-                      onClick={async () => {
-                        try {
-                          const { error } = await supabase
-                            .from('restaurant_tables')
-                            .update({ ativo: true, status: 'livre' })
-                            .eq('id', table.id);
-                          
-                          if (error) throw error;
-                          toast.success('Mesa importada com sucesso!');
-                          queryClient.invalidateQueries({ queryKey: ['restaurant-tables'] });
-                        } catch (error: any) {
-                          toast.error('Erro ao importar mesa: ' + error.message);
-                        }
-                      }}
-                    >
-                      Importar Mesa
-                    </Button>
                   </CardContent>
                 </Card>
               ))}
@@ -354,7 +316,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
                           Status: Em uso
                         </p>
                       </div>
-                      <Badge className="bg-orange-100 text-orange-800">Ocupada</Badge>
+                      <Badge className="bg-red-100 text-red-800">Ocupada</Badge>
                     </div>
                     
                     <p className="text-sm text-gray-600 mb-3">
@@ -366,74 +328,37 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
             </div>
           </div>
 
-          {/* Mesas aguardando pagamento */}
+          {/* Resumo rápido de mesas aguardando pagamento */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Mesas Aguardando Pagamento</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(pendingPaymentTables || []).map((table) => (
-                <Card key={table.id} className="border-yellow-200">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h4 className="font-semibold">Mesa {table.numero_mesa}</h4>
-                        <p className="text-sm text-gray-600">{table.capacidade} pessoas</p>
-                        {table.items_count > 0 && (
-                          <p className="text-sm text-gray-600">
-                            Itens: {table.items_count}
-                          </p>
-                        )}
-                        {table.total_value > 0 && (
-                          <p className="text-sm font-medium text-green-600">
-                            Total: R$ {table.total_value?.toFixed(2)}
-                          </p>
-                        )}
-                      </div>
-                      <Badge className="bg-yellow-100 text-yellow-800">Aguardando Pagamento</Badge>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            // Marcar pedido como pago
-                            if (table.order) {
-                              const { error: orderError } = await (supabase as any)
-                                .from('table_orders')
-                                .update({
-                                  status: 'pago',
-                                  paid_at: new Date().toISOString()
-                                })
-                                .eq('id', table.order.id);
-
-                              if (orderError) throw orderError;
-                            }
-
-                            // Retornar mesa para status livre
-                            const { error: tableError } = await supabase
-                              .from('restaurant_tables')
-                              .update({ status: 'livre' })
-                              .eq('id', table.id);
-
-                            if (tableError) throw tableError;
-
-                            toast.success('Pagamento processado! Mesa liberada.');
-                            queryClient.invalidateQueries({ queryKey: ['pending-payment-tables'] });
-                            queryClient.invalidateQueries({ queryKey: ['restaurant-tables'] });
-                          } catch (error: any) {
-                            toast.error('Erro ao processar pagamento: ' + error.message);
-                          }
-                        }}
-                      >
-                        <DollarSign className="h-4 w-4 mr-1" />
-                        Processar Pagamento
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <Import className="h-5 w-5 mr-2" />
+              Mesas Aguardando Pagamento
+            </h3>
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <p className="text-orange-800 mb-2">
+                {(tables || []).filter(table => table.status === 'aguardando_pagamento').length} mesa(s) aguardando pagamento
+              </p>
+              <p className="text-sm text-orange-600 mb-3">
+                Use a aba "Importar Mesas" para processar os pagamentos pendentes.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Programatically change to pending tab
+                  const pendingTab = document.querySelector('[value="pending"]') as HTMLElement;
+                  if (pendingTab) pendingTab.click();
+                }}
+              >
+                <Import className="h-4 w-4 mr-2" />
+                Ver Mesas Pendentes
+              </Button>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="pending" className="space-y-4">
+          <PendingPaymentTables restaurantId={restaurantId} />
         </TabsContent>
 
         <TabsContent value="orders" className="space-y-4">

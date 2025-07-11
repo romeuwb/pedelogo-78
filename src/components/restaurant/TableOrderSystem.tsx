@@ -77,12 +77,12 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
       console.log('🔄 Carregando pedido para mesa:', table.id);
       setLoading(true);
       
-      // Buscar pedido aberto para a mesa específica
+      // Buscar pedido aberto ou fechado para a mesa específica
       const { data: orderData, error: orderError } = await (supabase as any)
         .from('table_orders')
         .select('*')
         .eq('table_id', table.id)
-        .in('status', ['aberto', 'processando']) // Incluir pedidos em processamento
+        .in('status', ['aberto', 'fechado']) // Buscar pedidos abertos ou fechados
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -100,9 +100,12 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
         setCurrentOrder(orderData);
         await loadOrderItems(orderData.id);
         
-        // Mostrar notificação sobre pedido recuperado
-        const statusText = orderData.status === 'aberto' ? 'aberto' : 'em processamento';
-        toast.success(`Pedido ${statusText} recuperado para Mesa ${table.numero_mesa}`);
+        // Mostrar notificação baseada no status
+        if (orderData.status === 'aberto') {
+          toast.success(`Pedido aberto recuperado para Mesa ${table.numero_mesa}`);
+        } else if (orderData.status === 'fechado') {
+          toast.info(`Mesa ${table.numero_mesa} aguardando pagamento - apenas visualização`);
+        }
       } else {
         console.log('🆕 Nenhum pedido ativo encontrado');
         // Não criar automaticamente - aguardar primeira ação do usuário
@@ -191,6 +194,12 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
   const addItem = async (product: Product) => {
     console.log('🔄 Tentando adicionar produto:', product.nome);
     console.log('📦 Pedido atual:', currentOrder);
+    
+    // Verificar se a mesa está aguardando pagamento
+    if (currentOrder?.status === 'fechado') {
+      toast.error('Não é possível adicionar itens a uma mesa aguardando pagamento');
+      return;
+    }
     
     // Se não há pedido ativo, criar um novo automaticamente
     if (!currentOrder) {
@@ -281,6 +290,12 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
   };
 
   const updateItemQuantity = async (itemId: string, newQuantity: number) => {
+    // Verificar se a mesa está aguardando pagamento
+    if (currentOrder?.status === 'fechado') {
+      toast.error('Não é possível alterar itens de uma mesa aguardando pagamento');
+      return;
+    }
+
     if (newQuantity <= 0) {
       removeItem(itemId);
       return;
@@ -316,6 +331,12 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
   };
 
   const removeItem = async (itemId: string) => {
+    // Verificar se a mesa está aguardando pagamento
+    if (currentOrder?.status === 'fechado') {
+      toast.error('Não é possível remover itens de uma mesa aguardando pagamento');
+      return;
+    }
+
     try {
       const { error } = await (supabase as any)
         .from('table_order_items')
@@ -449,37 +470,56 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
                   />
                 </div>
 
-                <div className="max-h-96 overflow-y-auto space-y-2">
-                  {filteredProducts.length === 0 ? (
-                    <div className="text-center text-gray-500 py-8">
-                      <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Nenhum produto encontrado</p>
-                      <p className="text-sm">Verifique se há produtos cadastrados</p>
-                    </div>
-                  ) : (
-                    filteredProducts.map((product) => (
-                      <Card key={product.id} className="cursor-pointer hover:shadow-md transition-all border-2 hover:border-primary hover:bg-primary/5">
-                        <CardContent className="p-4" onClick={() => addItem(product)}>
-                          <div className="flex justify-between items-center">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-lg">{product.nome}</h4>
-                              {product.descricao && (
-                                <p className="text-sm text-gray-600 mt-1">{product.descricao}</p>
-                              )}
-                            </div>
-                            <div className="text-right ml-4">
-                              <p className="font-bold text-green-600 text-lg">R$ {product.preco.toFixed(2)}</p>
-                              <Button size="sm" variant="outline" className="mt-2">
-                                <Plus className="h-4 w-4 mr-1" />
-                                Adicionar
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </div>
+                 <div className="max-h-96 overflow-y-auto space-y-2">
+                   {filteredProducts.length === 0 ? (
+                     <div className="text-center text-gray-500 py-8">
+                       <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                       <p>Nenhum produto encontrado</p>
+                       <p className="text-sm">Verifique se há produtos cadastrados</p>
+                     </div>
+                   ) : (
+                     filteredProducts.map((product) => (
+                       <Card 
+                         key={product.id} 
+                         className={`transition-all border-2 ${
+                           currentOrder?.status === 'fechado' 
+                             ? 'opacity-50 cursor-not-allowed' 
+                             : 'cursor-pointer hover:shadow-md hover:border-primary hover:bg-primary/5'
+                         }`}
+                       >
+                         <CardContent 
+                           className="p-4" 
+                           onClick={() => {
+                             if (currentOrder?.status !== 'fechado') {
+                               addItem(product);
+                             }
+                           }}
+                         >
+                           <div className="flex justify-between items-center">
+                             <div className="flex-1">
+                               <h4 className="font-medium text-lg">{product.nome}</h4>
+                               {product.descricao && (
+                                 <p className="text-sm text-gray-600 mt-1">{product.descricao}</p>
+                               )}
+                             </div>
+                             <div className="text-right ml-4">
+                               <p className="font-bold text-green-600 text-lg">R$ {product.preco.toFixed(2)}</p>
+                               <Button 
+                                 size="sm" 
+                                 variant="outline" 
+                                 className="mt-2"
+                                 disabled={currentOrder?.status === 'fechado'}
+                               >
+                                 <Plus className="h-4 w-4 mr-1" />
+                                 {currentOrder?.status === 'fechado' ? 'Bloqueado' : 'Adicionar'}
+                               </Button>
+                             </div>
+                           </div>
+                         </CardContent>
+                       </Card>
+                     ))
+                   )}
+                 </div>
               </CardContent>
             </Card>
           </div>
@@ -507,43 +547,46 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {orderItems.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between border-b pb-4 last:border-b-0">
-                        <div className="flex-1">
-                          <h4 className="font-medium">{item.nome_item}</h4>
-                          <p className="text-sm text-gray-600">
-                            R$ {item.preco_unitario.toFixed(2)} cada
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateItemQuantity(item.id!, item.quantidade - 1)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-8 text-center font-bold text-lg">{item.quantidade}</span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateItemQuantity(item.id!, item.quantidade + 1)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => removeItem(item.id!)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <div className="text-right min-w-24 ml-4">
-                          <p className="font-bold text-lg">R$ {item.subtotal.toFixed(2)}</p>
-                        </div>
-                      </div>
-                    ))}
+                     {orderItems.map((item) => (
+                       <div key={item.id} className="flex items-center justify-between border-b pb-4 last:border-b-0">
+                         <div className="flex-1">
+                           <h4 className="font-medium">{item.nome_item}</h4>
+                           <p className="text-sm text-gray-600">
+                             R$ {item.preco_unitario.toFixed(2)} cada
+                           </p>
+                         </div>
+                         <div className="flex items-center space-x-3">
+                           <Button
+                             size="sm"
+                             variant="outline"
+                             onClick={() => updateItemQuantity(item.id!, item.quantidade - 1)}
+                             disabled={currentOrder?.status === 'fechado'}
+                           >
+                             <Minus className="h-3 w-3" />
+                           </Button>
+                           <span className="w-8 text-center font-bold text-lg">{item.quantidade}</span>
+                           <Button
+                             size="sm"
+                             variant="outline"
+                             onClick={() => updateItemQuantity(item.id!, item.quantidade + 1)}
+                             disabled={currentOrder?.status === 'fechado'}
+                           >
+                             <Plus className="h-3 w-3" />
+                           </Button>
+                           <Button
+                             size="sm"
+                             variant="destructive"
+                             onClick={() => removeItem(item.id!)}
+                             disabled={currentOrder?.status === 'fechado'}
+                           >
+                             <X className="h-3 w-3" />
+                           </Button>
+                         </div>
+                         <div className="text-right min-w-24 ml-4">
+                           <p className="font-bold text-lg">R$ {item.subtotal.toFixed(2)}</p>
+                         </div>
+                       </div>
+                     ))}
                     
                     <div className="pt-4 border-t-2">
                       <div className="flex justify-between items-center text-xl font-bold">
