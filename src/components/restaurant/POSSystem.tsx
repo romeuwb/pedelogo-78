@@ -185,7 +185,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
       setShowPaymentModal(false);
       setPaymentMethod('');
       if (orderType === 'mesa' && selectedTable) {
-        closeTableMutation.mutate(selectedTable.table_id);
+      closeTableMutation.mutate(selectedTable.id);
       }
       setSelectedTable(null);
     },
