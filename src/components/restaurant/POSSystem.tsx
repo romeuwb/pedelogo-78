@@ -329,36 +329,49 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
           </div>
 
           {/* Resumo rápido de mesas aguardando pagamento */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <Import className="h-5 w-5 mr-2" />
-              Mesas Aguardando Pagamento
-            </h3>
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <p className="text-orange-800 mb-2">
-                {(tables || []).filter(table => table.status === 'aguardando_pagamento').length} mesa(s) aguardando pagamento
-              </p>
-              <p className="text-sm text-orange-600 mb-3">
-                Use a aba "Importar Mesas" para processar os pagamentos pendentes.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  // Programatically change to pending tab
-                  const pendingTab = document.querySelector('[value="pending"]') as HTMLElement;
-                  if (pendingTab) pendingTab.click();
-                }}
-              >
-                <Import className="h-4 w-4 mr-2" />
-                Ver Mesas Pendentes
-              </Button>
+          {/* Alertas de mesas aguardando pagamento */}
+          {(tables || []).filter(table => table.status === 'aguardando_pagamento').length > 0 && (
+            <div className="bg-orange-50 border-l-4 border-orange-400 p-4">
+              <div className="flex items-center">
+                <Import className="h-5 w-5 text-orange-400 mr-2" />
+                <div className="flex-1">
+                  <h4 className="text-orange-800 font-medium">
+                    {(tables || []).filter(table => table.status === 'aguardando_pagamento').length} mesa(s) aguardando pagamento
+                  </h4>
+                  <p className="text-sm text-orange-600">
+                    Use a aba "Importar Mesas" para processar os pagamentos pendentes.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const tabsElement = document.querySelector('[role="tablist"]');
+                    const pendingTab = tabsElement?.querySelector('[value="pending"]') as HTMLElement;
+                    if (pendingTab) pendingTab.click();
+                  }}
+                  className="ml-4"
+                >
+                  <Import className="h-4 w-4 mr-2" />
+                  Importar Agora
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </TabsContent>
 
         <TabsContent value="pending" className="space-y-4">
-          <PendingPaymentTables restaurantId={restaurantId} />
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-semibold">Importar Mesas</h3>
+                <p className="text-gray-600">
+                  Mesas fechadas aguardando processamento do pagamento
+                </p>
+              </div>
+            </div>
+            <PendingPaymentTables restaurantId={restaurantId} />
+          </div>
         </TabsContent>
 
         <TabsContent value="orders" className="space-y-4">

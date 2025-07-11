@@ -374,7 +374,7 @@ const TableOrderSystem = ({ table, restaurantId, onClose }: TableOrderSystemProp
       // Atualizar status da mesa para "aguardando_pagamento"
       await updateTableStatus('aguardando_pagamento');
 
-      toast.success(`Mesa ${table.numero_mesa} fechada! Total: R$ ${total.toFixed(2)} - Aguardando pagamento.`);
+      toast.success(`Mesa ${table.numero_mesa} fechada! Total: R$ ${total.toFixed(2)}. Vá para POS > Importar Mesas para processar o pagamento.`);
       onClose();
     } catch (error) {
       console.error('Erro ao fechar pedido:', error);
