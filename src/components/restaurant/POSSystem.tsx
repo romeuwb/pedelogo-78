@@ -53,8 +53,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
 
       if (error) throw error;
       return (data || []).map(table => ({
-        id: `session-${table.id}`,
-        table_id: table.id,
+        id: table.id,
         mesa_numero: table.numero_mesa,
         capacidade: table.capacidade,
         opened_at: new Date().toISOString(),
@@ -362,7 +361,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => closeTableMutation.mutate(session.table_id)}
+                        onClick={() => closeTableMutation.mutate(session.id)}
                       >
                         Fechar Mesa
                       </Button>
