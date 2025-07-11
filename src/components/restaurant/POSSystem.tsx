@@ -271,27 +271,40 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
         </Button>
       </div>
 
-      <Tabs defaultValue="mesas" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="mesas">Mesas</TabsTrigger>
-          <TabsTrigger value="controle">Controle</TabsTrigger>
-          <TabsTrigger value="importar">Importar Pagamentos</TabsTrigger>
-          <TabsTrigger value="pedidos">Pedidos</TabsTrigger>
+      <Tabs defaultValue="vendas" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="vendas">Vendas Avulsas</TabsTrigger>
+          <TabsTrigger value="importar">Importar Pedidos</TabsTrigger>
+          <TabsTrigger value="delivery">Delivery</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="mesas" className="space-y-6">
-          {/* Resumo das mesas */}
+        <TabsContent value="vendas" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold">Vendas Avulsas</h2>
+              <p className="text-gray-600">Vendas diretas no balcão</p>
+            </div>
+            
+            <Button onClick={() => {
+              setOrderType('avulso');
+              setSelectedTable(null);
+              setShowOrderModal(true);
+            }}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Venda
+            </Button>
+          </div>
+
+          {/* Resumo de vendas do dia */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Mesas Disponíveis</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {(tables || []).filter(table => table.status === 'disponivel' && table.ativo).length}
-                    </p>
+                    <p className="text-sm font-medium text-gray-600">Vendas Hoje</p>
+                    <p className="text-2xl font-bold text-green-600">R$ 0,00</p>
                   </div>
-                  <Users className="h-8 w-8 text-green-500" />
+                  <DollarSign className="h-8 w-8 text-green-500" />
                 </div>
               </CardContent>
             </Card>
@@ -300,12 +313,10 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Mesas Ocupadas</p>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {(tables || []).filter(table => table.status === 'ocupada').length}
-                    </p>
+                    <p className="text-sm font-medium text-gray-600">Pedidos Hoje</p>
+                    <p className="text-2xl font-bold text-blue-600">0</p>
                   </div>
-                  <ShoppingCart className="h-8 w-8 text-orange-500" />
+                  <ShoppingCart className="h-8 w-8 text-blue-500" />
                 </div>
               </CardContent>
             </Card>
@@ -314,79 +325,37 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Aguardando Pagamento</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      {(tables || []).filter(table => table.status === 'aguardando_pagamento').length}
-                    </p>
+                    <p className="text-sm font-medium text-gray-600">Ticket Médio</p>
+                    <p className="text-2xl font-bold text-purple-600">R$ 0,00</p>
                   </div>
-                  <CreditCard className="h-8 w-8 text-red-500" />
+                  <CreditCard className="h-8 w-8 text-purple-500" />
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Botão de Importar Mesas destacado */}
-          {(tables || []).filter(table => table.status === 'aguardando_pagamento').length > 0 && (
-            <div className="bg-gradient-to-r from-orange-50 to-red-50 border-l-4 border-orange-400 p-6 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-orange-800 mb-2">
-                    {(tables || []).filter(table => table.status === 'aguardando_pagamento').length} Mesa(s) Aguardando Pagamento
-                  </h3>
-                  <p className="text-orange-600 mb-4">
-                    Existem mesas fechadas que precisam ter seus pagamentos processados. 
-                    Clique no botão abaixo para importar e processar os pagamentos.
-                  </p>
-                  <Button
-                    size="lg"
-                    className="bg-orange-600 hover:bg-orange-700 text-white"
-                    onClick={() => {
-                      const tabsElement = document.querySelector('[role="tablist"]');
-                      const importTab = tabsElement?.querySelector('[value="importar"]') as HTMLElement;
-                      if (importTab) importTab.click();
-                    }}
-                  >
-                    <Import className="h-5 w-5 mr-2" />
-                    Importar e Processar Pagamentos
-                  </Button>
-                </div>
-                <div className="hidden md:block">
-                  <CreditCard className="h-16 w-16 text-orange-400 opacity-50" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Lista de todas as mesas */}
+          {/* Lista de produtos para venda rápida */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Todas as Mesas</h3>
+            <h3 className="text-lg font-semibold mb-4">Produtos em Destaque</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {(tables || []).filter(table => table.ativo).map((table) => (
-                <Card 
-                  key={table.id} 
-                  className={`cursor-pointer hover:shadow-md transition-all ${
-                    table.status === 'disponivel' ? 'border-green-200 hover:border-green-300' :
-                    table.status === 'ocupada' ? 'border-orange-200 hover:border-orange-300' :
-                    'border-red-200 hover:border-red-300'
-                  }`}
-                >
+              {(products || []).slice(0, 12).map((product) => (
+                <Card key={product.id} className="cursor-pointer hover:shadow-md transition-shadow">
                   <CardContent className="p-4 text-center">
-                    <Users className={`h-8 w-8 mx-auto mb-2 ${
-                      table.status === 'disponivel' ? 'text-green-400' :
-                      table.status === 'ocupada' ? 'text-orange-400' :
-                      'text-red-400'
-                    }`} />
-                    <p className="font-semibold">Mesa {table.numero_mesa}</p>
-                    <p className="text-sm text-gray-600">{table.capacidade} pessoas</p>
-                    <Badge className={
-                      table.status === 'disponivel' ? 'bg-green-100 text-green-800' :
-                      table.status === 'ocupada' ? 'bg-orange-100 text-orange-800' :
-                      'bg-red-100 text-red-800'
-                    }>
-                      {table.status === 'disponivel' ? 'Disponível' :
-                       table.status === 'ocupada' ? 'Ocupada' :
-                       'Aguardando Pagamento'}
-                    </Badge>
+                    <Package className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                    <p className="font-medium text-sm">{product.nome}</p>
+                    <p className="text-sm text-green-600 font-bold">R$ {product.preco?.toFixed(2)}</p>
+                    <Button
+                      size="sm"
+                      className="mt-2 w-full"
+                      onClick={() => {
+                        setOrderType('avulso');
+                        setOrderItems([{ ...product, quantidade: 1 }]);
+                        setShowOrderModal(true);
+                      }}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Vender
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
@@ -394,75 +363,120 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
           </div>
         </TabsContent>
 
-        <TabsContent value="controle" className="space-y-4">
-          {/* Conteúdo anterior da aba tables */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Mesas Disponíveis</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {(tables || []).filter(table => table.status === 'disponivel' && table.ativo).map((table) => (
-                <Card key={table.id} className="cursor-pointer hover:shadow-md">
-                  <CardContent className="p-4 text-center">
-                    <Users className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                    <p className="font-semibold">Mesa {table.numero_mesa}</p>
-                    <p className="text-sm text-gray-600">{table.capacidade} pessoas</p>
-                    <Badge className="bg-green-100 text-green-800">
-                      Disponível
-                    </Badge>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Use o gerenciador de mesas para lançar itens
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Mesas Ocupadas</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(tables || []).filter(table => table.status === 'ocupada' && table.ativo).map((table) => (
-                <Card key={table.id} className="border-orange-200">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h4 className="font-semibold">Mesa {table.numero_mesa}</h4>
-                        <p className="text-sm text-gray-600">{table.capacidade} pessoas</p>
-                        <p className="text-sm text-gray-600">
-                          Status: Em uso
-                        </p>
-                      </div>
-                      <Badge className="bg-red-100 text-red-800">Ocupada</Badge>
-                    </div>
-                    
-                    <p className="text-sm text-gray-600 mb-3">
-                      Mesa em uso. Os itens estão sendo lançados diretamente na mesa.
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="importar" className="space-y-4">
+        <TabsContent value="importar" className="space-y-6">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-semibold flex items-center">
+                <h2 className="text-2xl font-bold flex items-center">
                   <Import className="h-6 w-6 mr-2 text-orange-600" />
-                  Importar Mesas para Pagamento
-                </h3>
+                  Importar Pedidos de Mesa
+                </h2>
                 <p className="text-gray-600">
-                  Processe os pagamentos das mesas que foram fechadas e estão aguardando finalização
+                  Processe pagamentos de mesas fechadas aguardando finalização
                 </p>
               </div>
             </div>
+
+            {/* Alerta para mesas aguardando */}
+            {(tables || []).filter(table => table.status === 'aguardando_pagamento').length > 0 ? (
+              <div className="bg-orange-50 border-l-4 border-orange-400 p-6 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-orange-800 mb-2">
+                      {(tables || []).filter(table => table.status === 'aguardando_pagamento').length} Mesa(s) Aguardando Pagamento
+                    </h3>
+                    <p className="text-orange-600">
+                      Mesas com pedidos fechados prontos para processar pagamento
+                    </p>
+                  </div>
+                  <Import className="h-12 w-12 text-orange-400 opacity-50" />
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <CreditCard className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma mesa aguardando pagamento</h3>
+                <p className="text-gray-600">Quando uma mesa for fechada, ela aparecerá aqui para processamento</p>
+              </div>
+            )}
+
             <PendingPaymentTables restaurantId={restaurantId} />
           </div>
         </TabsContent>
 
-        <TabsContent value="pedidos" className="space-y-4">
-          <p className="text-gray-600">Lista de pedidos ativos será implementada aqui</p>
+        <TabsContent value="delivery" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold">Pedidos Delivery</h2>
+              <p className="text-gray-600">Gerenciar pedidos de entrega</p>
+            </div>
+            
+            <Button onClick={() => {
+              setOrderType('avulso');
+              setSelectedTable(null);
+              setShowOrderModal(true);
+            }}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Delivery
+            </Button>
+          </div>
+
+          {/* Estatísticas delivery */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Pendentes</p>
+                    <p className="text-2xl font-bold text-yellow-600">0</p>
+                  </div>
+                  <Package className="h-8 w-8 text-yellow-500" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Preparando</p>
+                    <p className="text-2xl font-bold text-blue-600">0</p>
+                  </div>
+                  <ShoppingCart className="h-8 w-8 text-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Saiu p/ Entrega</p>
+                    <p className="text-2xl font-bold text-orange-600">0</p>
+                  </div>
+                  <Users className="h-8 w-8 text-orange-500" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Entregues</p>
+                    <p className="text-2xl font-bold text-green-600">0</p>
+                  </div>
+                  <CreditCard className="h-8 w-8 text-green-500" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="text-center py-12">
+            <Package className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Sistema de Delivery</h3>
+            <p className="text-gray-600">Funcionalidade de delivery será implementada aqui</p>
+          </div>
         </TabsContent>
       </Tabs>
 
