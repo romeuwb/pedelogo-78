@@ -205,6 +205,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
       setShowPaymentModal(true);
     },
     onError: (error: any) => {
+      console.log('❌ Erro ao criar pedido:', error);
       toast.error('Erro ao criar pedido: ' + error.message);
     }
   });
