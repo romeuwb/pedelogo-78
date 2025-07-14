@@ -17,7 +17,7 @@ interface POSSystemProps {
 }
 
 // Defina aqui o UUID do cliente padrão "Cliente Balcão" (substitua pelo valor real do seu banco)
-const CLIENTE_BALCAO_ID = 'UUID_CLIENTE_BALCAO';
+const CLIENTE_BALCAO_ID = '00000000-0000-0000-0000-000000000001'; // Substitua pelo UUID real do cliente padrão cadastrado no Supabase
 
 export const POSSystem = ({ restaurantId }: POSSystemProps) => {
   const [selectedTable, setSelectedTable] = useState<any>(null);
@@ -140,7 +140,8 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
   const createOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
       // Sempre define cliente_id: se não houver, usa o cliente padrão
-      const clienteId = orderData.cliente_id || CLIENTE_BALCAO_ID;
+      // Para delivery, use o cliente real; para mesa/balcão, use sempre o cliente anônimo
+      const clienteId = orderType === 'delivery' ? orderData.cliente_id : CLIENTE_BALCAO_ID;
       let enderecoEntrega: any = null;
       if (orderType === 'delivery') {
         enderecoEntrega = {
