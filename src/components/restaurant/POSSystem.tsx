@@ -335,49 +335,93 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
         </TabsList>
 
         <TabsContent value="pos" className="space-y-6">
-          {/* Botões de Nova Venda */}
+          {/* Vendas Diretas no POS */}
           <Card>
             <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Nova Venda</h3>
-              <div className="flex gap-4">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-semibold">Sistema POS</h3>
+                  <p className="text-gray-600">Vendas diretas no balcão e delivery</p>
+                </div>
+                <div className="flex items-center gap-2 text-green-600">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm font-medium">Sistema Online</span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Button 
                   onClick={() => startNewOrder('avulso')}
-                  className="flex items-center gap-2"
+                  size="lg"
+                  className="h-20 flex flex-col items-center gap-2 bg-primary hover:bg-primary/90"
                 >
-                  <ShoppingCart className="h-4 w-4" />
-                  Venda Avulsa
+                  <ShoppingCart className="h-6 w-6" />
+                  <div className="text-center">
+                    <div className="font-semibold">Venda Avulsa</div>
+                    <div className="text-xs opacity-90">Pedido no balcão</div>
+                  </div>
                 </Button>
+                
                 <Button 
                   onClick={() => startNewOrder('delivery')}
+                  size="lg"
                   variant="outline"
-                  className="flex items-center gap-2"
+                  className="h-20 flex flex-col items-center gap-2 border-2 hover:bg-accent"
                 >
-                  <Package className="h-4 w-4" />
-                  Delivery
+                  <Package className="h-6 w-6" />
+                  <div className="text-center">
+                    <div className="font-semibold">Delivery</div>
+                    <div className="text-xs opacity-70">Entrega a domicílio</div>
+                  </div>
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Botão Importar Mesa */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Importar Pedido</h3>
-              <div className="flex gap-4">
-                <Button 
-                  variant="outline"
-                  className="flex items-center gap-2"
-                  onClick={() => toast.info('Funcionalidade de importar mesa será implementada')}
-                >
-                  <Import className="h-4 w-4" />
-                  Importar da Mesa
-                </Button>
-              </div>
-              <p className="text-sm text-gray-600 mt-2">
-                Importe pedidos de mesas para finalizar no POS
-              </p>
-            </CardContent>
-          </Card>
+          {/* Resumo de Vendas Hoje */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Vendas Hoje</p>
+                    <p className="text-2xl font-bold">12</p>
+                  </div>
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <ShoppingCart className="h-6 w-6 text-blue-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Hoje</p>
+                    <p className="text-2xl font-bold">R$ 840,00</p>
+                  </div>
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <DollarSign className="h-6 w-6 text-green-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Ticket Médio</p>
+                    <p className="text-2xl font-bold">R$ 70,00</p>
+                  </div>
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <CreditCard className="h-6 w-6 text-orange-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="pending">
