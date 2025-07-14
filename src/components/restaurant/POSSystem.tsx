@@ -266,13 +266,13 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
         throw new Error('Nenhum pedido ativo para processar pagamento');
       }
 
-      // Atualizar status do pedido para "pago" com o nome correto da coluna
+      // Atualizar status do pedido para "pago"
       const { error: orderError } = await supabase
         .from('orders')
         .update({
           status: 'pago',
-          metodo_pagamento: paymentData.method, // Nome correto da coluna
-          data_entrega: new Date().toISOString() // Usar coluna existente
+          metodo_pagamento: paymentData.method,
+          pago_em: new Date().toISOString()
         })
         .eq('id', currentOrder.id);
 
