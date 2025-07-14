@@ -359,47 +359,23 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
             </CardContent>
           </Card>
 
-          {/* Grid de Mesas */}
+          {/* Botão Importar Mesa */}
           <Card>
             <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Mesas</h3>
-              <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
-                {tables?.map((table) => (
-                  <Card 
-                    key={table.id}
-                    className={`cursor-pointer transition-colors ${
-                      table.status === 'livre' ? 'bg-green-50 hover:bg-green-100' :
-                      table.status === 'ocupada' ? 'bg-yellow-50 hover:bg-yellow-100' :
-                      'bg-red-50 hover:bg-red-100'
-                    }`}
-                    onClick={() => {
-                      if (table.status === 'livre') {
-                        openTableMutation.mutate(table.id);
-                      } else if (table.status === 'ocupada') {
-                        setSelectedTable(table);
-                        setOrderType('mesa');
-                        setShowOrderModal(true);
-                      }
-                    }}
-                  >
-                    <CardContent className="p-4 text-center">
-                      <div className="text-lg font-bold">Mesa {table.numero_mesa}</div>
-                      <Badge 
-                        variant={
-                          table.status === 'livre' ? 'default' :
-                          table.status === 'ocupada' ? 'secondary' :
-                          'destructive'
-                        }
-                        className="mt-2"
-                      >
-                        {table.status === 'livre' ? 'Livre' :
-                         table.status === 'ocupada' ? 'Ocupada' :
-                         'Aguardando'}
-                      </Badge>
-                    </CardContent>
-                  </Card>
-                ))}
+              <h3 className="text-lg font-semibold mb-4">Importar Pedido</h3>
+              <div className="flex gap-4">
+                <Button 
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => toast.info('Funcionalidade de importar mesa será implementada')}
+                >
+                  <Import className="h-4 w-4" />
+                  Importar da Mesa
+                </Button>
               </div>
+              <p className="text-sm text-gray-600 mt-2">
+                Importe pedidos de mesas para finalizar no POS
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
