@@ -152,7 +152,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
         .from('orders')
         .insert({
           restaurante_id: restaurantId,
-          cliente_id: null,
+          cliente_id: orderData.cliente_id, // Corrigido: deve ser passado um cliente_id válido
           status: 'preparando',
           total: orderData.total,
           endereco_entrega: { 
