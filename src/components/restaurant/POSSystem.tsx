@@ -151,11 +151,17 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
         restaurantId_received: restaurantId
       });
       
-      // Buscar o profiles.id do restaurante usando o user_id (restaurantId)
+      // Usar o usuário autenticado atual como restaurante
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+      
+      // Buscar o profiles.id do restaurante usando o user_id do usuário logado
       const { data: restaurantProfile, error: restaurantError } = await supabase
         .from('profiles')
         .select('id')
-        .eq('user_id', restaurantId)
+        .eq('user_id', user.id)
         .eq('tipo', 'restaurante')
         .single();
         
@@ -165,7 +171,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
       }
       
       console.log('🏪 Perfil do restaurante encontrado:', { 
-        user_id: restaurantId, 
+        user_id: user.id, 
         profiles_id: restaurantProfile.id 
       });
       let enderecoEntrega: any = null;
