@@ -147,7 +147,26 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
         total: orderData.total, 
         orderType, 
         clienteId, 
-        CLIENTE_BALCAO_ID 
+        CLIENTE_BALCAO_ID,
+        restaurantId_received: restaurantId
+      });
+      
+      // Buscar o profiles.id do restaurante usando o user_id (restaurantId)
+      const { data: restaurantProfile, error: restaurantError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', restaurantId)
+        .eq('tipo', 'restaurante')
+        .single();
+        
+      if (restaurantError || !restaurantProfile) {
+        console.log('❌ Erro ao buscar perfil do restaurante:', restaurantError);
+        throw new Error('Restaurante não encontrado');
+      }
+      
+      console.log('🏪 Perfil do restaurante encontrado:', { 
+        user_id: restaurantId, 
+        profiles_id: restaurantProfile.id 
       });
       let enderecoEntrega: any = null;
       if (orderType === 'delivery') {
@@ -171,7 +190,7 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
-          restaurante_id: restaurantId,
+          restaurante_id: restaurantProfile.id, // Usar profiles.id em vez de user_id
           cliente_id: clienteId,
           status: 'preparando',
           total: orderData.total,
