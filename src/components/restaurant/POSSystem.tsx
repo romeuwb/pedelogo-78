@@ -17,7 +17,7 @@ interface POSSystemProps {
 }
 
 // Defina aqui o UUID do cliente padrão "Cliente Balcão" (substitua pelo valor real do seu banco)
-const CLIENTE_BALCAO_ID = '00000000-0000-0000-0000-000000000001'; // Substitua pelo UUID real do cliente padrão cadastrado no Supabase
+const CLIENTE_BALCAO_ID = 'ed6c24f2-ede3-436d-bad1-68341fb7fbc5'; // UUID real do cliente padrão cadastrado no Supabase
 
 export const POSSystem = ({ restaurantId }: POSSystemProps) => {
   const [selectedTable, setSelectedTable] = useState<any>(null);
