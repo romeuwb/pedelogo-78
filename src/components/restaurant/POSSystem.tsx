@@ -141,7 +141,14 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
     mutationFn: async (orderData: any) => {
       // Sempre define cliente_id: se não houver, usa o cliente padrão
       // Para delivery, use o cliente real; para mesa/balcão, use sempre o cliente anônimo
-      const clienteId = orderType === 'delivery' ? orderData.cliente_id : CLIENTE_BALCAO_ID;
+      const clienteId = orderType === 'delivery' && orderData.cliente_id ? orderData.cliente_id : CLIENTE_BALCAO_ID;
+      
+      console.log('🛒 Criando pedido POS:', { 
+        total: orderData.total, 
+        orderType, 
+        clienteId, 
+        CLIENTE_BALCAO_ID 
+      });
       let enderecoEntrega: any = null;
       if (orderType === 'delivery') {
         enderecoEntrega = {
@@ -293,7 +300,267 @@ export const POSSystem = ({ restaurantId }: POSSystemProps) => {
     setShowOrderModal(true);
   };
 
-  // ... (restante do componente: JSX do modal, tabs, etc. permanece igual)
+  return (
+    <div className="space-y-6">
+      <Tabs defaultValue="pos" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="pos">Sistema POS</TabsTrigger>
+          <TabsTrigger value="pending">Pagamentos Pendentes</TabsTrigger>
+        </TabsList>
 
-  // O JSX do componente permanece igual ao anterior, apenas a lógica de cliente_id foi centralizada e corrigida.
+        <TabsContent value="pos" className="space-y-6">
+          {/* Botões de Nova Venda */}
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Nova Venda</h3>
+              <div className="flex gap-4">
+                <Button 
+                  onClick={() => startNewOrder('avulso')}
+                  className="flex items-center gap-2"
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  Venda Avulsa
+                </Button>
+                <Button 
+                  onClick={() => startNewOrder('delivery')}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Package className="h-4 w-4" />
+                  Delivery
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Grid de Mesas */}
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Mesas</h3>
+              <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
+                {tables?.map((table) => (
+                  <Card 
+                    key={table.id}
+                    className={`cursor-pointer transition-colors ${
+                      table.status === 'livre' ? 'bg-green-50 hover:bg-green-100' :
+                      table.status === 'ocupada' ? 'bg-yellow-50 hover:bg-yellow-100' :
+                      'bg-red-50 hover:bg-red-100'
+                    }`}
+                    onClick={() => {
+                      if (table.status === 'livre') {
+                        openTableMutation.mutate(table.id);
+                      } else if (table.status === 'ocupada') {
+                        setSelectedTable(table);
+                        setOrderType('mesa');
+                        setShowOrderModal(true);
+                      }
+                    }}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <div className="text-lg font-bold">Mesa {table.numero_mesa}</div>
+                      <Badge 
+                        variant={
+                          table.status === 'livre' ? 'default' :
+                          table.status === 'ocupada' ? 'secondary' :
+                          'destructive'
+                        }
+                        className="mt-2"
+                      >
+                        {table.status === 'livre' ? 'Livre' :
+                         table.status === 'ocupada' ? 'Ocupada' :
+                         'Aguardando'}
+                      </Badge>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pending">
+          <PendingPaymentTables restaurantId={restaurantId} />
+        </TabsContent>
+      </Tabs>
+
+      {/* Modal de Pedido */}
+      <Dialog open={showOrderModal} onOpenChange={setShowOrderModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {orderType === 'mesa' ? `Mesa ${selectedTable?.numero_mesa}` :
+               orderType === 'delivery' ? 'Delivery' : 'Venda Avulsa'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Informações do Cliente (apenas para delivery) */}
+            {orderType === 'delivery' && (
+              <Card>
+                <CardContent className="p-4 space-y-4">
+                  <h4 className="font-medium">Dados do Cliente</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Nome</label>
+                      <Input
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="Nome do cliente"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Telefone</label>
+                      <Input
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        placeholder="Telefone"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Endereço</label>
+                    <Input
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      placeholder="Endereço completo"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Lista de Produtos */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardContent className="p-4">
+                  <h4 className="font-medium mb-4">Produtos Disponíveis</h4>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {products?.map((product) => (
+                      <div 
+                        key={product.id} 
+                        className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                        onClick={() => addItemToOrder(product)}
+                      >
+                        <div>
+                          <div className="font-medium">{product.nome}</div>
+                          <div className="text-sm text-gray-600">R$ {product.preco?.toFixed(2)}</div>
+                        </div>
+                        <Button size="sm" variant="outline">
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <h4 className="font-medium mb-4">Itens do Pedido</h4>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {orderItems.map((item) => (
+                      <div key={item.id} className="flex justify-between items-center p-3 border rounded-lg">
+                        <div className="flex-1">
+                          <div className="font-medium">{item.nome}</div>
+                          <div className="text-sm text-gray-600">R$ {item.preco?.toFixed(2)} cada</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateItemQuantity(item.id, item.quantidade - 1)}
+                          >
+                            -
+                          </Button>
+                          <span className="w-8 text-center">{item.quantidade}</span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateItemQuantity(item.id, item.quantidade + 1)}
+                          >
+                            +
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => removeItemFromOrder(item.id)}
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {orderItems.length > 0 && (
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="flex justify-between items-center mb-4">
+                        <span className="font-semibold">Total:</span>
+                        <span className="font-semibold text-lg">R$ {calculateTotal().toFixed(2)}</span>
+                      </div>
+                      <Button 
+                        className="w-full"
+                        onClick={() => createOrderMutation.mutate({ total: calculateTotal() })}
+                        disabled={createOrderMutation.isPending}
+                      >
+                        {createOrderMutation.isPending ? 'Criando Pedido...' : 'Finalizar Pedido'}
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Pagamento */}
+      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Processar Pagamento</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold">R$ {currentOrder?.total?.toFixed(2)}</div>
+              <div className="text-sm text-gray-600">Total do Pedido</div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Método de Pagamento</label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o método de pagamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                  <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                  <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                  <SelectItem value="pix">PIX</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={resetForm}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                className="flex-1"
+                onClick={() => processPaymentMutation.mutate({ method: paymentMethod })}
+                disabled={!paymentMethod || processingPayment}
+              >
+                {processingPayment ? 'Processando...' : 'Confirmar Pagamento'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 };
