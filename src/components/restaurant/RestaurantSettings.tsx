@@ -26,7 +26,6 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
     { id: 'routes', label: 'Rotas', icon: Route },
     { id: 'clients', label: 'Clientes', icon: Users },
     { id: 'hours', label: 'Horários', icon: Clock },
-    { id: 'tables', label: 'Mesas', icon: Utensils },
     { id: 'staff', label: 'Funcionários', icon: UserCheck },
     { id: 'printers', label: 'Impressoras', icon: Printer }
   ];
@@ -58,7 +57,7 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {/* Desktop Tabs */}
             <div className="hidden lg:block">
-              <TabsList className="grid w-full grid-cols-8">
+              <TabsList className="grid w-full grid-cols-7">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
                   return (
@@ -134,9 +133,6 @@ export const RestaurantSettings = ({ restaurantId }: RestaurantSettingsProps) =>
               <OperatingHoursManager restaurantId={restaurantId} />
             </TabsContent>
 
-            <TabsContent value="tables" className="mt-6">
-              <TableManager restaurantId={restaurantId} />
-            </TabsContent>
 
             <TabsContent value="staff" className="mt-6">
               <StaffManager restaurantId={restaurantId} />

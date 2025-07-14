@@ -8,7 +8,7 @@ import { DeliveryRouteOptimizer } from './DeliveryRouteOptimizer';
 import { RestaurantSettings } from './RestaurantSettings';
 import { CustomerCommunication } from './CustomerCommunication';
 import TableManagementPage from './TableManagementPage';
-import { POSSystemPage } from './POSSystemPage';
+import { POSSystem } from './POSSystem';
 import RestaurantProfile from './RestaurantProfile';
 
 interface RestaurantDashboardProps {
@@ -129,7 +129,7 @@ const RestaurantDashboard = ({ restaurantId }: RestaurantDashboardProps) => {
         </TabsContent>
 
         <TabsContent value="pos" className="mt-6">
-          <POSSystemPage restaurantId={restaurantId} />
+          <POSSystem restaurantId={restaurantId} />
         </TabsContent>
 
         <TabsContent value="routes" className="mt-6">
