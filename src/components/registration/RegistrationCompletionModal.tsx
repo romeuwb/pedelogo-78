@@ -198,6 +198,7 @@ const RegistrationCompletionModal = ({ isOpen, onClose, userType }: Registration
                     <Label htmlFor="categoria">Categoria *</Label>
                     <select
                       id="categoria"
+                      aria-label="Categoria"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       value={restaurantData.categoria}
                       onChange={(e) => setRestaurantData(prev => ({ ...prev, categoria: e.target.value }))}
