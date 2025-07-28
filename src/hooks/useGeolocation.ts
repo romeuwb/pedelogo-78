@@ -57,7 +57,8 @@ export const useGeolocation = (options: UseGeolocationOptions = {}) => {
         let city = null;
         
         try {
-          if (window.google && window.google.maps) {
+          // Primeiro tenta usar a API do Google Maps se disponível
+          if (window.google && window.google.maps && window.google.maps.Geocoder) {
             const geocoder = new window.google.maps.Geocoder();
             const result = await new Promise<any>((resolve, reject) => {
               geocoder.geocode(
@@ -66,7 +67,7 @@ export const useGeolocation = (options: UseGeolocationOptions = {}) => {
                   if (status === 'OK' && results[0]) {
                     resolve(results[0]);
                   } else {
-                    reject(new Error('Não foi possível obter o endereço'));
+                    reject(new Error('Geocoding falhou: ' + status));
                   }
                 }
               );
@@ -74,27 +75,84 @@ export const useGeolocation = (options: UseGeolocationOptions = {}) => {
             
             address = result.formatted_address;
             
-            // Extrair cidade do resultado
+            // Extrair cidade do resultado com múltiplas tentativas
             const addressComponents = result.address_components;
-            const cityComponent = addressComponents.find((component: any) => 
-              component.types.includes('administrative_area_level_2') || 
-              component.types.includes('locality') ||
-              component.types.includes('sublocality')
+            
+            // Primeira tentativa: buscar por locality (cidade)
+            let cityComponent = addressComponents.find((component: any) => 
+              component.types.includes('locality')
             );
+            
+            // Segunda tentativa: administrative_area_level_2 (município)
+            if (!cityComponent) {
+              cityComponent = addressComponents.find((component: any) => 
+                component.types.includes('administrative_area_level_2')
+              );
+            }
+            
+            // Terceira tentativa: sublocality ou sublocality_level_1
+            if (!cityComponent) {
+              cityComponent = addressComponents.find((component: any) => 
+                component.types.includes('sublocality') || 
+                component.types.includes('sublocality_level_1')
+              );
+            }
             
             city = cityComponent ? cityComponent.long_name : null;
             
-            // Se não encontrou cidade pelos tipos acima, tenta extrair do endereço formatado
-            if (!city && address) {
-              const addressParts = address.split(',');
-              if (addressParts.length >= 2) {
-                city = addressParts[addressParts.length - 3]?.trim() || addressParts[1]?.trim();
+          } else {
+            // Fallback usando Nominatim (OpenStreetMap) se Google Maps não estiver disponível
+            console.log('Google Maps não disponível, usando Nominatim...');
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
+            );
+            
+            if (response.ok) {
+              const data = await response.json();
+              address = data.display_name;
+              city = data.address?.city || 
+                     data.address?.town || 
+                     data.address?.village || 
+                     data.address?.municipality ||
+                     data.address?.county;
+            }
+          }
+          
+        } catch (geocodeError) {
+          console.log('Erro ao obter endereço:', geocodeError);
+          
+          // Último fallback usando Nominatim
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
+            );
+            
+            if (response.ok) {
+              const data = await response.json();
+              address = data.display_name;
+              city = data.address?.city || 
+                     data.address?.town || 
+                     data.address?.village || 
+                     data.address?.municipality;
+            }
+          } catch (fallbackError) {
+            console.log('Erro no fallback de geocoding:', fallbackError);
+          }
+        }
+
+        // Se ainda não conseguiu a cidade, tenta extrair do endereço
+        if (!city && address) {
+          const addressParts = address.split(',');
+          if (addressParts.length >= 2) {
+            // Tenta diferentes posições no endereço
+            for (let i = 1; i < Math.min(addressParts.length - 1, 4); i++) {
+              const part = addressParts[i]?.trim();
+              if (part && !part.match(/^\d/) && part.length > 2) {
+                city = part;
+                break;
               }
             }
           }
-        } catch (geocodeError) {
-          console.log('Erro ao obter endereço:', geocodeError);
-          // Continua sem o endereço se houver erro no geocoding
         }
 
         setState({
@@ -107,9 +165,11 @@ export const useGeolocation = (options: UseGeolocationOptions = {}) => {
           isLocationEnabled: true
         });
 
+        // Toast com informação mais clara
+        const locationText = city || 'Localização obtida';
         toast({
           title: 'Localização obtida',
-          description: city || address || `Lat: ${latitude.toFixed(6)}, Lng: ${longitude.toFixed(6)}`,
+          description: city ? `${city}` : `Coordenadas: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
         });
       },
       (error) => {

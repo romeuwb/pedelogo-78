@@ -102,7 +102,7 @@ const Index = () => {
                     <>
                       <MapPin className="h-4 w-4 text-primary" />
                       <span className="text-sm text-foreground font-medium truncate max-w-48">
-                        {city || address || `${latitude?.toFixed(4)}, ${longitude?.toFixed(4)}`}
+                        {city || (hasLocation ? "Localização detectada" : `${latitude?.toFixed(4)}, ${longitude?.toFixed(4)}`)}
                       </span>
                     </>
                   ) : (
