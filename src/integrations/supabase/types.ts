@@ -3926,6 +3926,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      create_admin_user_from_invite: {
+        Args: { invite_token: string; user_email: string; user_name: string }
+        Returns: boolean
+      }
       create_audit_log: {
         Args: {
           p_admin_id: string
@@ -3972,6 +3976,13 @@ export type Database = {
       test_smtp_config: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      update_user_role: {
+        Args: {
+          target_user_id: string
+          new_role: Database["public"]["Enums"]["user_type"]
+        }
+        Returns: boolean
       }
     }
     Enums: {
