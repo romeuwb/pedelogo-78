@@ -22,7 +22,8 @@ const Index = () => {
   const { 
     latitude, 
     longitude, 
-    address, 
+    address,
+    city,
     isLoading: isLoadingLocation, 
     error: locationError,
     getCurrentLocation,
@@ -101,7 +102,7 @@ const Index = () => {
                     <>
                       <MapPin className="h-4 w-4 text-primary" />
                       <span className="text-sm text-foreground font-medium truncate max-w-48">
-                        {address || `${latitude?.toFixed(4)}, ${longitude?.toFixed(4)}`}
+                        {city || address || `${latitude?.toFixed(4)}, ${longitude?.toFixed(4)}`}
                       </span>
                     </>
                   ) : (

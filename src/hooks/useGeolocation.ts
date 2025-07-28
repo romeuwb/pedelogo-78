@@ -5,6 +5,7 @@ interface GeolocationState {
   latitude: number | null;
   longitude: number | null;
   address: string | null;
+  city: string | null;
   isLoading: boolean;
   error: string | null;
   isLocationEnabled: boolean;
@@ -29,6 +30,7 @@ export const useGeolocation = (options: UseGeolocationOptions = {}) => {
     latitude: null,
     longitude: null,
     address: null,
+    city: null,
     isLoading: false,
     error: null,
     isLocationEnabled: false
@@ -50,8 +52,10 @@ export const useGeolocation = (options: UseGeolocationOptions = {}) => {
       async (position) => {
         const { latitude, longitude } = position.coords;
         
-        // Reverse geocoding para obter o endereço
+        // Reverse geocoding para obter o endereço e cidade
         let address = null;
+        let city = null;
+        
         try {
           if (window.google && window.google.maps) {
             const geocoder = new window.google.maps.Geocoder();
@@ -60,14 +64,33 @@ export const useGeolocation = (options: UseGeolocationOptions = {}) => {
                 { location: { lat: latitude, lng: longitude } },
                 (results: any[], status: any) => {
                   if (status === 'OK' && results[0]) {
-                    resolve(results[0].formatted_address);
+                    resolve(results[0]);
                   } else {
                     reject(new Error('Não foi possível obter o endereço'));
                   }
                 }
               );
             });
-            address = result;
+            
+            address = result.formatted_address;
+            
+            // Extrair cidade do resultado
+            const addressComponents = result.address_components;
+            const cityComponent = addressComponents.find((component: any) => 
+              component.types.includes('administrative_area_level_2') || 
+              component.types.includes('locality') ||
+              component.types.includes('sublocality')
+            );
+            
+            city = cityComponent ? cityComponent.long_name : null;
+            
+            // Se não encontrou cidade pelos tipos acima, tenta extrair do endereço formatado
+            if (!city && address) {
+              const addressParts = address.split(',');
+              if (addressParts.length >= 2) {
+                city = addressParts[addressParts.length - 3]?.trim() || addressParts[1]?.trim();
+              }
+            }
           }
         } catch (geocodeError) {
           console.log('Erro ao obter endereço:', geocodeError);
@@ -78,6 +101,7 @@ export const useGeolocation = (options: UseGeolocationOptions = {}) => {
           latitude,
           longitude,
           address,
+          city,
           isLoading: false,
           error: null,
           isLocationEnabled: true
@@ -85,7 +109,7 @@ export const useGeolocation = (options: UseGeolocationOptions = {}) => {
 
         toast({
           title: 'Localização obtida',
-          description: address || `Lat: ${latitude.toFixed(6)}, Lng: ${longitude.toFixed(6)}`,
+          description: city || address || `Lat: ${latitude.toFixed(6)}, Lng: ${longitude.toFixed(6)}`,
         });
       },
       (error) => {
@@ -128,6 +152,7 @@ export const useGeolocation = (options: UseGeolocationOptions = {}) => {
       latitude: null,
       longitude: null,
       address: null,
+      city: null,
       isLoading: false,
       error: null,
       isLocationEnabled: false
