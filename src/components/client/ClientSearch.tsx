@@ -119,161 +119,209 @@ const ClientSearch = () => {
   };
 
   return (
-    <div className="p-4 space-y-6">
-      {/* Search Header */}
-      <div className="bg-white rounded-lg p-4 shadow-sm">
-        <div className="relative mb-4">
-          <Input
-            type="text"
-            placeholder="Buscar restaurantes ou pratos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-            onKeyPress={(e) => e.key === 'Enter' && performSearch()}
-          />
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+    <div className="bg-background min-h-screen">
+      {/* Search Header - Fixed */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b p-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="relative">
+            <Input
+              type="text"
+              placeholder="Buscar restaurantes, pratos ou categorias..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-12 pr-4 py-4 text-lg rounded-full bg-white shadow-sm border-0 ring-1 ring-border focus:ring-2 focus:ring-primary"
+              onKeyPress={(e) => e.key === 'Enter' && performSearch()}
+            />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={24} />
+            {loading && (
+              <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            )}
+          </div>
         </div>
-
-        <Button onClick={() => performSearch()} className="w-full" disabled={loading}>
-          {loading ? 'Buscando...' : 'Buscar'}
-        </Button>
       </div>
 
-      {/* Search History */}
-      {searchHistory.length > 0 && !searchResults.restaurants.length && !searchResults.products.length && (
-        <div className="bg-white rounded-lg p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Pesquisas recentes</h3>
-            <Button variant="ghost" size="sm" onClick={clearHistory}>
-              <X size={16} />
-            </Button>
+      <div className="max-w-6xl mx-auto p-4 space-y-6">
+        {/* Search History */}
+        {searchHistory.length > 0 && !searchResults.restaurants.length && !searchResults.products.length && (
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-border/50">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-foreground text-lg">Pesquisas recentes</h3>
+              <Button variant="ghost" size="sm" onClick={clearHistory} className="text-muted-foreground hover:text-foreground">
+                <X size={16} />
+              </Button>
+            </div>
+            
+            <div className="grid gap-2">
+              {searchHistory.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 p-3 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors group"
+                  onClick={() => {
+                    setSearchTerm(item.termo_pesquisa);
+                    performSearch(item.termo_pesquisa);
+                  }}
+                >
+                  <div className="p-2 bg-muted rounded-full group-hover:bg-primary/10 transition-colors">
+                    <Clock size={16} className="text-muted-foreground group-hover:text-primary" />
+                  </div>
+                  <span className="text-foreground font-medium flex-1">{item.termo_pesquisa}</span>
+                  {item.categoria && (
+                    <Badge variant="secondary" className="ml-auto">
+                      {item.categoria}
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-          
-          <div className="space-y-2">
-            {searchHistory.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                onClick={() => {
-                  setSearchTerm(item.termo_pesquisa);
-                  performSearch(item.termo_pesquisa);
-                }}
-              >
-                <Clock size={16} className="text-gray-400" />
-                <span className="text-gray-700">{item.termo_pesquisa}</span>
-                {item.categoria && (
-                  <Badge variant="outline" className="ml-auto">
-                    {item.categoria}
-                  </Badge>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Search Results */}
-      {(searchResults.restaurants.length > 0 || searchResults.products.length > 0) && (
-        <div className="space-y-4">
-          {/* Restaurants Results */}
-          {searchResults.restaurants.length > 0 && (
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-3">
-                Restaurantes ({searchResults.restaurants.length})
-              </h3>
-              <div className="space-y-3">
-                {searchResults.restaurants.map((restaurant) => (
-                  <Card key={restaurant.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-4">
-                        <div className="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0">
-                          {restaurant.logo_url ? (
-                            <img
-                              src={restaurant.logo_url}
-                              alt={restaurant.nome_fantasia}
-                              className="w-full h-full object-cover rounded-lg"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gray-300 rounded-lg flex items-center justify-center">
-                              <span className="text-gray-500 text-xs">Logo</span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">
-                            {restaurant.nome_fantasia || restaurant.razao_social}
-                          </h4>
-                          <p className="text-sm text-gray-600">{restaurant.descricao}</p>
-                          <Badge variant="outline" className="mt-2">
+        {/* Search Results */}
+        {(searchResults.restaurants.length > 0 || searchResults.products.length > 0) && (
+          <div className="space-y-8">
+            {/* Restaurants Results */}
+            {searchResults.restaurants.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-6">
+                  <h3 className="font-bold text-foreground text-xl">Restaurantes</h3>
+                  <Badge variant="secondary" className="text-sm">
+                    {searchResults.restaurants.length}
+                  </Badge>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {searchResults.restaurants.map((restaurant) => (
+                    <Card key={restaurant.id} className="group cursor-pointer hover:shadow-lg transition-all duration-300 border-0 bg-white overflow-hidden">
+                      <div className="relative aspect-[16/9] overflow-hidden">
+                        {restaurant.logo_url ? (
+                          <img
+                            src={restaurant.logo_url}
+                            alt={restaurant.nome_fantasia}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
+                            <span className="text-muted-foreground text-sm font-medium">Logo do Restaurante</span>
+                          </div>
+                        )}
+                        <div className="absolute top-3 left-3">
+                          <Badge className="bg-white/90 text-foreground hover:bg-white">
                             {restaurant.categoria}
                           </Badge>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Products Results */}
-          {searchResults.products.length > 0 && (
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-3">
-                Pratos ({searchResults.products.length})
-              </h3>
-              <div className="space-y-3">
-                {searchResults.products.map((product) => (
-                  <Card key={product.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-4">
-                        <div className="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0">
-                          {product.imagem_url ? (
-                            <img
-                              src={product.imagem_url}
-                              alt={product.nome}
-                              className="w-full h-full object-cover rounded-lg"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gray-300 rounded-lg flex items-center justify-center">
-                              <span className="text-gray-500 text-xs">Foto</span>
-                            </div>
-                          )}
+                      <CardContent className="p-4">
+                        <h4 className="font-bold text-foreground text-lg mb-2 line-clamp-1">
+                          {restaurant.nome_fantasia || restaurant.razao_social}
+                        </h4>
+                        <p className="text-muted-foreground text-sm line-clamp-2 leading-relaxed">
+                          {restaurant.descricao}
+                        </p>
+                        <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
+                          <span>⏱ 30-45 min</span>
+                          <span>•</span>
+                          <span>📍 2.5 km</span>
                         </div>
-                        
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">{product.nome}</h4>
-                          <p className="text-sm text-gray-600 line-clamp-2">{product.descricao}</p>
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="font-semibold text-green-600">
-                              R$ {product.preco.toFixed(2)}
-                            </span>
-                            <span className="text-sm text-gray-500">
-                              {product.restaurant_details?.nome_fantasia}
-                            </span>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Products Results */}
+            {searchResults.products.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-6">
+                  <h3 className="font-bold text-foreground text-xl">Pratos</h3>
+                  <Badge variant="secondary" className="text-sm">
+                    {searchResults.products.length}
+                  </Badge>
+                </div>
+                <div className="grid gap-4">
+                  {searchResults.products.map((product) => (
+                    <Card key={product.id} className="group cursor-pointer hover:shadow-lg transition-all duration-300 border-0 bg-white overflow-hidden">
+                      <CardContent className="p-0">
+                        <div className="flex items-start gap-0">
+                          <div className="flex-1 p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 pr-4">
+                                <h4 className="font-bold text-foreground text-lg mb-2 line-clamp-1">
+                                  {product.nome}
+                                </h4>
+                                <p className="text-muted-foreground text-sm line-clamp-2 leading-relaxed mb-3">
+                                  {product.descricao}
+                                </p>
+                                <div className="flex items-center justify-between">
+                                  <div className="space-y-1">
+                                    <span className="font-bold text-foreground text-lg">
+                                      R$ {product.preco.toFixed(2)}
+                                    </span>
+                                    <div className="text-sm text-muted-foreground">
+                                      📍 {product.restaurant_details?.nome_fantasia}
+                                    </div>
+                                  </div>
+                                  <Button size="sm" className="rounded-full">
+                                    Adicionar
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="w-24 h-24 flex-shrink-0 m-4">
+                            {product.imagem_url ? (
+                              <img
+                                src={product.imagem_url}
+                                alt={product.nome}
+                                className="w-full h-full object-cover rounded-lg group-hover:scale-105 transition-transform duration-300"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 rounded-lg flex items-center justify-center">
+                                <span className="text-muted-foreground text-xs text-center">Foto do Prato</span>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* No Results */}
-          {searchResults.restaurants.length === 0 && searchResults.products.length === 0 && searchTerm && (
-            <Card>
-              <CardContent className="p-6 text-center text-gray-500">
-                <Search size={48} className="mx-auto mb-4 text-gray-300" />
-                <p>Nenhum resultado encontrado para "{searchTerm}"</p>
-                <p className="text-sm mt-2">Tente usar termos diferentes ou verifique a ortografia</p>
-              </CardContent>
-            </Card>
-          )}
+            {/* No Results */}
+            {searchResults.restaurants.length === 0 && searchResults.products.length === 0 && searchTerm && (
+              <div className="text-center py-16">
+                <div className="max-w-md mx-auto">
+                  <div className="w-20 h-20 mx-auto mb-6 bg-muted/30 rounded-full flex items-center justify-center">
+                    <Search size={32} className="text-muted-foreground" />
+                  </div>
+                  <h3 className="font-bold text-foreground text-xl mb-2">
+                    Nenhum resultado encontrado
+                  </h3>
+                  <p className="text-muted-foreground mb-1">
+                    Não encontramos nada para "<span className="font-medium">{searchTerm}</span>"
+                  </p>
+                  <p className="text-muted-foreground text-sm">
+                    Tente usar termos diferentes ou verifique a ortografia
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="mt-6"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setSearchResults({ restaurants: [], products: [] });
+                    }}
+                  >
+                    Limpar busca
+                  </Button>
+                </div>
+              </div>
+            )}
         </div>
       )}
+      </div>
     </div>
   );
 };
