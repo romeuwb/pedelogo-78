@@ -96,12 +96,8 @@ const Header = () => {
               </Link>
             </nav>
 
-            {/* Location & Actions */}
+            {/* Actions */}
             <div className="flex items-center space-x-4">
-              <div className="hidden sm:flex items-center space-x-2 text-gray-600">
-                <MapPin className="h-4 w-4" />
-                <span className="text-sm">São Paulo, SP</span>
-              </div>
 
               {user ? (
                 <div className="flex items-center space-x-4">
