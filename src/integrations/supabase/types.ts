@@ -3949,14 +3949,6 @@ export type Database = {
         Args: { p_restaurant_id: string }
         Returns: string
       }
-      is_admin: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
-      is_current_user_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
       is_delivery_owner: {
         Args: { delivery_detail_id: string }
         Returns: boolean
