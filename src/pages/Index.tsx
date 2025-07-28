@@ -37,98 +37,109 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <Header />
-      {/* Hero Section */}
-      <section className="bg-gradient-to-r from-orange-500 to-red-500 text-white py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">
-            A melhor comida
-            <br />
-            <span className="text-yellow-300">de casa!</span> 🍕
-          </h1>
-          <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Descubra os melhores restaurantes da sua região e peça sua comida 
-            favorita com entrega rápida e segura no PedeLogo.
-          </p>
+      
+      {/* Hero Section - Simplified like iFood/Uber Eats */}
+      <section className="bg-gradient-to-br from-primary via-primary/90 to-secondary pt-8 pb-16">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto text-center text-white mb-8">
+            <h1 className="text-3xl md:text-5xl font-bold mb-4">
+              Peça comida que você ama
+            </h1>
+            <p className="text-lg opacity-90 mb-8">
+              Descubra restaurantes próximos e receba suas refeições favoritas em casa
+            </p>
+          </div>
           
-          {/* Search Bar */}
-          <div className="max-w-4xl mx-auto bg-white rounded-lg p-4 shadow-lg">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                <Input
-                  placeholder="Buscar restaurantes ou pratos..."
-                  className="pl-10 h-12 text-gray-900"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                />
+          {/* Search Bar - Modern Style */}
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-2xl p-2 shadow-xl">
+              <div className="flex flex-col md:flex-row gap-2">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar restaurantes, pratos ou categorias..."
+                    className="pl-12 pr-4 py-4 text-lg border-0 bg-transparent focus:ring-0 text-foreground placeholder:text-muted-foreground"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                  />
+                </div>
+                <div className="md:border-l md:border-border md:pl-2">
+                  <div className="flex-1 relative">
+                    <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      placeholder="Sua localização"
+                      className="pl-12 pr-4 py-4 text-lg border-0 bg-transparent focus:ring-0 text-foreground placeholder:text-muted-foreground"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <Button 
+                  className="py-4 px-8 text-lg font-semibold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground"
+                  onClick={handleSearch}
+                >
+                  Buscar
+                </Button>
               </div>
-              <div className="flex-1 relative">
-                <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                <Input
-                  placeholder="São Paulo, SP"
-                  className="pl-10 h-12 text-gray-900"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                />
-              </div>
-              <Button 
-                className="h-12 px-8 bg-orange-500 hover:bg-orange-600"
-                onClick={handleSearch}
-              >
-                Buscar
-              </Button>
             </div>
           </div>
         </div>
       </section>
 
       {/* Categories */}
-      <section className="py-16 bg-white">
+      <section className="py-12 bg-background">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">Categorias Populares</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-            {['Pizza', 'Hambúrguer', 'Japonês', 'Italiana', 'Mexicana', 'Brasileira'].map((category) => (
-              <Card 
-                key={category} 
-                className="text-center hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => handleCategoryClick(category)}
+          <h2 className="text-2xl font-bold text-foreground mb-8">Explorar por categoria</h2>
+          <div className="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-8 gap-4">
+            {[
+              { name: 'Pizza', emoji: '🍕' },
+              { name: 'Hambúrguer', emoji: '🍔' },
+              { name: 'Japonês', emoji: '🍱' },
+              { name: 'Italiana', emoji: '🍝' },
+              { name: 'Mexicana', emoji: '🌮' },
+              { name: 'Brasileira', emoji: '🍖' },
+              { name: 'Doces', emoji: '🍰' },
+              { name: 'Bebidas', emoji: '🥤' }
+            ].map((category) => (
+              <div
+                key={category.name} 
+                className="flex flex-col items-center p-4 hover:bg-muted/50 rounded-xl cursor-pointer transition-colors group"
+                onClick={() => handleCategoryClick(category.name)}
               >
-                <CardContent className="p-6">
-                  <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl">🍕</span>
-                  </div>
-                  <h3 className="font-semibold">{category}</h3>
-                </CardContent>
-              </Card>
+                <div className="w-14 h-14 bg-muted/30 rounded-full flex items-center justify-center mb-3 group-hover:bg-primary/10 transition-colors">
+                  <span className="text-2xl">{category.emoji}</span>
+                </div>
+                <span className="text-sm font-medium text-foreground text-center leading-tight">{category.name}</span>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* Featured Restaurants */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-12 bg-muted/20">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">Restaurantes em Destaque</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-8">Restaurantes próximos</h2>
           <RestaurantList selectedCategory={selectedCategory} />
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-orange-500 text-white">
+      <section className="py-16 bg-gradient-to-r from-primary to-secondary text-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-6">Pronto para começar?</h2>
-          <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Junte-se a milhares de pessoas que já descobriram a praticidade 
-            de pedir comida pelo PedeLogo.
+          <h2 className="text-3xl font-bold mb-4">Seja nosso parceiro</h2>
+          <p className="text-lg opacity-90 mb-8 max-w-2xl mx-auto">
+            Conecte-se com milhares de clientes e faça crescer seu negócio 
+            com nossa plataforma de delivery.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-md mx-auto">
             <Button 
               onClick={() => setShowLogin(true)}
               size="lg"
-              className="bg-white text-orange-500 hover:bg-gray-100 px-8 py-4 font-semibold text-lg w-full sm:w-auto"
+              className="bg-white text-foreground hover:bg-white/90 px-8 py-4 font-semibold text-lg w-full sm:w-auto rounded-xl shadow-lg"
             >
               Criar Conta
             </Button>
@@ -136,7 +147,7 @@ const Index = () => {
               onClick={() => setShowLogin(true)}
               size="lg"
               variant="outline" 
-              className="border-2 border-white text-white hover:bg-white hover:text-orange-500 px-8 py-4 font-semibold text-lg w-full sm:w-auto bg-transparent"
+              className="border-2 border-white text-white hover:bg-white hover:text-foreground px-8 py-4 font-semibold text-lg w-full sm:w-auto bg-transparent rounded-xl"
             >
               Fazer Login
             </Button>
