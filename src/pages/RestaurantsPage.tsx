@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Search, Star, Clock, MapPin } from 'lucide-react';
+import { Search, Star, Clock, MapPin, Navigation } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { RestaurantMenu } from '@/components/client/RestaurantMenu';
 import Header from '@/components/Header';
@@ -18,6 +18,11 @@ const RestaurantsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('categoria') || '');
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
+  
+  // Get location coordinates from URL params
+  const userLat = searchParams.get('lat');
+  const userLng = searchParams.get('lng');
+  const userLocation = searchParams.get('location');
 
   // Update search term when URL params change
   useEffect(() => {
@@ -140,8 +145,22 @@ const RestaurantsPage = () => {
       
       <div className="max-w-7xl mx-auto p-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Restaurantes</h1>
-          <p className="text-gray-600">Descubra os melhores restaurantes da sua região</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Restaurantes</h1>
+              <p className="text-gray-600">Descubra os melhores restaurantes da sua região</p>
+            </div>
+            
+            {/* Location indicator */}
+            {(userLat && userLng) && (
+              <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full">
+                <MapPin className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">
+                  {userLocation || `${parseFloat(userLat).toFixed(4)}, ${parseFloat(userLng).toFixed(4)}`}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Filters */}

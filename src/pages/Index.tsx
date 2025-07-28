@@ -1,29 +1,52 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { MapPin, Search, Star, Clock } from 'lucide-react';
+import { MapPin, Search, Star, Clock, Navigation, Loader2 } from 'lucide-react';
 import LoginModal from '@/components/auth/LoginModal';
 import RestaurantList from '@/components/RestaurantList';
 import Header from '@/components/Header';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useGeolocation } from '@/hooks/useGeolocation';
 
 const Index = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [location, setLocation] = useState('São Paulo, SP');
   const navigate = useNavigate();
+  
+  // Geolocalização automática
+  const { 
+    latitude, 
+    longitude, 
+    address, 
+    isLoading: isLoadingLocation, 
+    error: locationError,
+    getCurrentLocation,
+    hasLocation
+  } = useGeolocation();
 
   const handleSearch = () => {
+    const params = new URLSearchParams();
+    
     if (searchTerm.trim()) {
-      navigate(`/restaurantes?search=${encodeURIComponent(searchTerm)}&location=${encodeURIComponent(location)}`);
-    } else {
-      navigate('/restaurantes');
+      params.set('search', searchTerm);
     }
+    
+    // Adiciona coordenadas se disponíveis
+    if (hasLocation) {
+      params.set('lat', latitude!.toString());
+      params.set('lng', longitude!.toString());
+      if (address) {
+        params.set('location', address);
+      }
+    }
+    
+    const queryString = params.toString();
+    navigate(`/restaurantes${queryString ? '?' + queryString : ''}`);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -66,17 +89,37 @@ const Index = () => {
                     onKeyPress={handleKeyPress}
                   />
                 </div>
-                <div className="md:border-l md:border-border md:pl-2">
-                  <div className="flex-1 relative">
-                    <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input
-                      placeholder="Sua localização"
-                      className="pl-12 pr-4 py-4 text-lg border-0 bg-transparent focus:ring-0 text-foreground placeholder:text-muted-foreground"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                    />
-                  </div>
+                
+                {/* Location indicator */}
+                <div className="flex items-center gap-2 px-4 py-2 bg-muted/20 rounded-xl">
+                  {isLoadingLocation ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Obtendo localização...</span>
+                    </>
+                  ) : hasLocation ? (
+                    <>
+                      <MapPin className="h-4 w-4 text-primary" />
+                      <span className="text-sm text-foreground font-medium truncate max-w-48">
+                        {address || `${latitude?.toFixed(4)}, ${longitude?.toFixed(4)}`}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Navigation 
+                        className="h-4 w-4 text-muted-foreground cursor-pointer hover:text-primary transition-colors" 
+                        onClick={getCurrentLocation}
+                      />
+                      <span 
+                        className="text-sm text-muted-foreground cursor-pointer hover:text-primary transition-colors"
+                        onClick={getCurrentLocation}
+                      >
+                        Ativar localização
+                      </span>
+                    </>
+                  )}
                 </div>
+                
                 <Button 
                   className="py-4 px-8 text-lg font-semibold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground"
                   onClick={handleSearch}
