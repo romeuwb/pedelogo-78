@@ -156,7 +156,7 @@ const RestaurantsPage = () => {
               <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full">
                 <MapPin className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium text-foreground">
-                  {userLocation || `${parseFloat(userLat).toFixed(4)}, ${parseFloat(userLng).toFixed(4)}`}
+                  {userLocation && !userLocation.includes(',') ? userLocation : 'Localização detectada'}
                 </span>
               </div>
             )}

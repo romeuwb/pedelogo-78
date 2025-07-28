@@ -26,14 +26,32 @@ export const useGeolocation = (options: UseGeolocationOptions = {}) => {
     autoGetLocation = true
   } = options;
 
-  const [state, setState] = useState<GeolocationState>({
-    latitude: null,
-    longitude: null,
-    address: null,
-    city: null,
-    isLoading: false,
-    error: null,
-    isLocationEnabled: false
+  const [state, setState] = useState<GeolocationState>(() => {
+    // Tentar carregar localização salva do localStorage
+    const savedLocation = localStorage.getItem('userLocation');
+    if (savedLocation) {
+      try {
+        const parsed = JSON.parse(savedLocation);
+        return {
+          ...parsed,
+          isLoading: false,
+          error: null,
+          isLocationEnabled: true
+        };
+      } catch {
+        // Se houver erro no parse, usar estado inicial
+      }
+    }
+    
+    return {
+      latitude: null,
+      longitude: null,
+      address: null,
+      city: null,
+      isLoading: false,
+      error: null,
+      isLocationEnabled: false
+    };
   });
 
   const getCurrentLocation = () => {
@@ -155,7 +173,7 @@ export const useGeolocation = (options: UseGeolocationOptions = {}) => {
           }
         }
 
-        setState({
+        const newState = {
           latitude,
           longitude,
           address,
@@ -163,7 +181,17 @@ export const useGeolocation = (options: UseGeolocationOptions = {}) => {
           isLoading: false,
           error: null,
           isLocationEnabled: true
-        });
+        };
+
+        setState(newState);
+
+        // Salvar no localStorage
+        localStorage.setItem('userLocation', JSON.stringify({
+          latitude,
+          longitude,
+          address,
+          city
+        }));
 
         // Toast com informação mais clara
         const locationText = city || 'Localização obtida';
@@ -220,7 +248,8 @@ export const useGeolocation = (options: UseGeolocationOptions = {}) => {
   };
 
   useEffect(() => {
-    if (autoGetLocation) {
+    // Só busca automaticamente se não houver localização salva e autoGetLocation estiver ativo
+    if (autoGetLocation && !state.isLocationEnabled && !state.latitude) {
       getCurrentLocation();
     }
   }, [autoGetLocation]);

@@ -11,24 +11,38 @@ import Header from '@/components/Header';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import { useSearch } from '@/hooks/useSearch';
 
 const Index = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
   
-  // Geolocalização automática
+  // Geolocalização (não busca automaticamente se já estiver salva)
   const { 
     latitude, 
     longitude, 
-    address,
     city,
     isLoading: isLoadingLocation, 
-    error: locationError,
     getCurrentLocation,
     hasLocation
-  } = useGeolocation();
+  } = useGeolocation({ autoGetLocation: false });
+
+  // Busca dinâmica
+  const { 
+    searchTerm, 
+    setSearchTerm, 
+    results, 
+    isLoading: isSearching, 
+    hasResults 
+  } = useSearch({ debounceMs: 300, minLength: 2 });
+
+  // Busca localização automaticamente apenas se não houver uma salva
+  useEffect(() => {
+    if (!hasLocation && !isLoadingLocation) {
+      getCurrentLocation();
+    }
+  }, []);
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -41,8 +55,8 @@ const Index = () => {
     if (hasLocation) {
       params.set('lat', latitude!.toString());
       params.set('lng', longitude!.toString());
-      if (address) {
-        params.set('location', address);
+      if (city) {
+        params.set('location', city);
       }
     }
     
@@ -77,11 +91,11 @@ const Index = () => {
           </div>
           
           {/* Search Bar - Modern Style */}
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-2xl mx-auto relative">
             <div className="bg-white rounded-2xl p-2 shadow-xl">
               <div className="flex flex-col md:flex-row gap-2">
                 <div className="flex-1 relative">
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
                   <Input
                     placeholder="Buscar restaurantes, pratos ou categorias..."
                     className="pl-12 pr-4 py-4 text-lg border-0 bg-transparent focus:ring-0 text-foreground placeholder:text-muted-foreground"
@@ -89,6 +103,9 @@ const Index = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onKeyPress={handleKeyPress}
                   />
+                  {isSearching && (
+                    <Loader2 className="absolute right-4 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
                 </div>
                 
                 {/* Location indicator */}
@@ -101,8 +118,8 @@ const Index = () => {
                   ) : hasLocation ? (
                     <>
                       <MapPin className="h-4 w-4 text-primary" />
-                      <span className="text-sm text-foreground font-medium truncate max-w-48">
-                        {city || (hasLocation ? "Localização detectada" : `${latitude?.toFixed(4)}, ${longitude?.toFixed(4)}`)}
+                      <span className="text-sm text-foreground font-medium truncate max-w-32">
+                        {city || "Localização detectada"}
                       </span>
                     </>
                   ) : (
@@ -129,6 +146,69 @@ const Index = () => {
                 </Button>
               </div>
             </div>
+            
+            {/* Search Results Dropdown */}
+            {hasResults && searchTerm && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border z-50 max-h-80 overflow-y-auto">
+                {results.restaurants.length > 0 && (
+                  <div className="p-4 border-b">
+                    <h4 className="font-semibold text-sm text-muted-foreground mb-3">RESTAURANTES</h4>
+                    {results.restaurants.slice(0, 3).map((restaurant) => (
+                      <div
+                        key={restaurant.id}
+                        className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-lg cursor-pointer"
+                        onClick={() => {
+                          setSearchTerm(restaurant.nome_fantasia);
+                          handleSearch();
+                        }}
+                      >
+                        <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+                          {restaurant.logo_url ? (
+                            <img src={restaurant.logo_url} alt="" className="w-full h-full object-cover rounded-lg" />
+                          ) : (
+                            <span className="text-xl">🍽️</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground truncate">{restaurant.nome_fantasia}</p>
+                          <p className="text-sm text-muted-foreground truncate">{restaurant.categoria}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {results.products.length > 0 && (
+                  <div className="p-4">
+                    <h4 className="font-semibold text-sm text-muted-foreground mb-3">PRATOS</h4>
+                    {results.products.slice(0, 4).map((product) => (
+                      <div
+                        key={product.id}
+                        className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-lg cursor-pointer"
+                        onClick={() => {
+                          setSearchTerm(product.nome);
+                          handleSearch();
+                        }}
+                      >
+                        <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+                          {product.imagem_url ? (
+                            <img src={product.imagem_url} alt="" className="w-full h-full object-cover rounded-lg" />
+                          ) : (
+                            <span className="text-xl">🍽️</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground truncate">{product.nome}</p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {product.restaurant_details?.nome_fantasia} • R$ {product.preco.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </section>
