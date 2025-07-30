@@ -19,7 +19,7 @@ import { AdminHeader } from './AdminHeader';
 import AdminSidebar from './AdminSidebar';
 
 const AdminDashboardLayout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const navigate = useNavigate();
 
@@ -38,13 +38,28 @@ const AdminDashboardLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-16">
       <AdminHeader sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       
       <div className="flex">
-        <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <AdminSidebar 
+          activeTab={activeTab} 
+          onTabChange={setActiveTab} 
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+        />
         
-        <main className="flex-1 ml-64 p-6">
+        {/* Overlay para fechar sidebar em mobile */}
+        {sidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        
+        <main className={`flex-1 transition-all duration-300 p-4 lg:p-6 ${
+          sidebarOpen ? 'lg:ml-64' : ''
+        }`}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="hidden">
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
