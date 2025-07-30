@@ -153,10 +153,10 @@ const ClientHome = () => {
   }
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-3 lg:p-4 space-y-4 lg:space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-lg p-4 shadow-sm">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">
+      <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm">
+        <h1 className="text-xl lg:text-2xl font-bold text-gray-900 mb-4">
           Olá! O que você gostaria de comer hoje?
         </h1>
         
@@ -218,8 +218,8 @@ const ClientHome = () => {
               onClick={() => handleRestaurantClick(restaurant)}
             >
               <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0">
+                 <div className="flex items-start gap-3 lg:gap-4">
+                   <div className="w-14 h-14 lg:w-16 lg:h-16 bg-gray-200 rounded-lg flex-shrink-0">
                     {restaurant.logo_url ? (
                       <img
                         src={restaurant.logo_url}
@@ -241,7 +241,7 @@ const ClientHome = () => {
                       {restaurant.descricao}
                     </p>
                     
-                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                    <div className="flex flex-wrap items-center gap-2 lg:gap-4 mt-2 text-xs lg:text-sm text-gray-500">
                       <div className="flex items-center gap-1">
                         <Star size={14} className="text-yellow-400" />
                         <span>4.5</span>

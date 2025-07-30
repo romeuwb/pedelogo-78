@@ -48,7 +48,7 @@ const ClientApp = () => {
     <div className="min-h-screen bg-gray-50">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {/* Main Content */}
-        <div className="pb-20 md:pb-6 md:ml-64">
+        <div className="pb-20 lg:pb-6 lg:ml-64">
           <TabsContent value="home" className="m-0">
             <ClientHome />
           </TabsContent>
@@ -71,9 +71,9 @@ const ClientApp = () => {
         </div>
 
         {/* Desktop Sidebar Navigation */}
-        <div className="hidden md:fixed md:top-0 md:left-0 md:h-full md:w-64 md:bg-white md:border-r md:border-gray-200 md:shadow-lg md:flex md:flex-col">
-          <div className="p-6">
-            <h1 className="text-xl font-bold text-gray-900">WB Delivery</h1>
+        <div className="hidden lg:fixed lg:top-0 lg:left-0 lg:h-full lg:w-64 lg:bg-white lg:border-r lg:border-gray-200 lg:shadow-lg lg:flex lg:flex-col">
+          <div className="p-4 lg:p-6">
+            <h1 className="text-lg lg:text-xl font-bold text-gray-900">WB Delivery</h1>
           </div>
           
           <TabsList className="flex-col h-auto bg-transparent p-0 space-y-1">
@@ -94,7 +94,7 @@ const ClientApp = () => {
         </div>
 
         {/* Mobile Bottom Navigation */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
           {/* Mobile Tab Navigation */}
           <div className="flex items-center justify-between p-2">
             <Button
@@ -139,17 +139,17 @@ const ClientApp = () => {
           </div>
 
           {/* Traditional Bottom Tabs for larger mobile screens */}
-          <TabsList className="sm:flex w-full h-16 bg-white rounded-none">
+          <TabsList className="hidden md:flex lg:hidden w-full h-16 bg-white rounded-none">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <TabsTrigger 
                   key={tab.id}
                   value={tab.id}
-                  className="flex-1 flex flex-col items-center gap-1 py-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600"
-                >
-                  <Icon size={20} />
-                  <span className="text-xs hidden sm:block">{tab.label}</span>
+                   className="flex-1 flex flex-col items-center gap-1 py-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600"
+                 >
+                   <Icon size={18} />
+                   <span className="text-xs">{tab.label}</span>
                 </TabsTrigger>
               );
             })}

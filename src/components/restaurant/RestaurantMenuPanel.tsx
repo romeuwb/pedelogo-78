@@ -224,10 +224,10 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
             {filteredProducts.map((product) => (
               <Card key={product.id} className="overflow-hidden">
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <h3 className="font-semibold text-lg">{product.nome}</h3>
+                   <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                     <div className="flex-1">
+                       <div className="flex items-center space-x-2 mb-2">
+                         <h3 className="font-semibold text-base lg:text-lg">{product.nome}</h3>
                         {!product.disponivel && (
                           <Badge variant="secondary">Indisponível</Badge>
                         )}
@@ -277,18 +277,18 @@ export const RestaurantMenuPanel = ({ restaurantId }: RestaurantMenuPanelProps) 
                       )}
                     </div>
 
-                    {product.imagem_url && (
-                      <div className="ml-4">
-                        <img
-                          src={product.imagem_url}
-                          alt={product.nome}
-                          className="w-20 h-20 object-cover rounded-lg"
-                        />
-                      </div>
-                    )}
+                     {product.imagem_url && (
+                       <div className="w-20 h-20 lg:ml-4 flex-shrink-0">
+                         <img
+                           src={product.imagem_url}
+                           alt={product.nome}
+                           className="w-full h-full object-cover rounded-lg"
+                         />
+                       </div>
+                     )}
                   </div>
 
-                  <div className="flex items-center justify-end space-x-2 mt-4 pt-4 border-t">
+                  <div className="flex flex-wrap items-center justify-end gap-2 mt-4 pt-4 border-t">
                     <Button
                       size="sm"
                       variant="outline"

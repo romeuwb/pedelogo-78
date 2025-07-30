@@ -121,7 +121,7 @@ const ClientSearch = () => {
   return (
     <div className="bg-background min-h-screen">
       {/* Search Header - Fixed */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b p-4">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b p-3 lg:p-4">
         <div className="max-w-2xl mx-auto">
           <div className="relative">
             <Input
@@ -129,10 +129,10 @@ const ClientSearch = () => {
               placeholder="Buscar restaurantes, pratos ou categorias..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-12 pr-4 py-4 text-lg rounded-full bg-white shadow-sm border-0 ring-1 ring-border focus:ring-2 focus:ring-primary"
+              className="pl-10 lg:pl-12 pr-4 py-3 lg:py-4 text-base lg:text-lg rounded-full bg-white shadow-sm border-0 ring-1 ring-border focus:ring-2 focus:ring-primary"
               onKeyPress={(e) => e.key === 'Enter' && performSearch()}
             />
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={24} />
+            <Search className="absolute left-3 lg:left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={20} />
             {loading && (
               <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
@@ -142,7 +142,7 @@ const ClientSearch = () => {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto p-4 space-y-6">
+      <div className="max-w-6xl mx-auto p-3 lg:p-4 space-y-4 lg:space-y-6">
         {/* Search History */}
         {searchHistory.length > 0 && !searchResults.restaurants.length && !searchResults.products.length && (
           <div className="bg-white rounded-xl p-6 shadow-sm border border-border/50">
@@ -190,7 +190,7 @@ const ClientSearch = () => {
                     {searchResults.restaurants.length}
                   </Badge>
                 </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-3 lg:gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {searchResults.restaurants.map((restaurant) => (
                     <Card key={restaurant.id} className="group cursor-pointer hover:shadow-lg transition-all duration-300 border-0 bg-white overflow-hidden">
                       <div className="relative aspect-[16/9] overflow-hidden">
@@ -211,7 +211,7 @@ const ClientSearch = () => {
                           </Badge>
                         </div>
                       </div>
-                      <CardContent className="p-4">
+                      <CardContent className="p-3 lg:p-4">
                         <h4 className="font-bold text-foreground text-lg mb-2 line-clamp-1">
                           {restaurant.nome_fantasia || restaurant.razao_social}
                         </h4>
@@ -239,7 +239,7 @@ const ClientSearch = () => {
                     {searchResults.products.length}
                   </Badge>
                 </div>
-                <div className="grid gap-4">
+                <div className="grid gap-3 lg:gap-4">
                   {searchResults.products.map((product) => (
                     <Card key={product.id} className="group cursor-pointer hover:shadow-lg transition-all duration-300 border-0 bg-white overflow-hidden">
                       <CardContent className="p-0">
@@ -269,7 +269,7 @@ const ClientSearch = () => {
                               </div>
                             </div>
                           </div>
-                          <div className="w-24 h-24 flex-shrink-0 m-4">
+                          <div className="w-20 h-20 lg:w-24 lg:h-24 flex-shrink-0 m-3 lg:m-4">
                             {product.imagem_url ? (
                               <img
                                 src={product.imagem_url}
