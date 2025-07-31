@@ -14,6 +14,8 @@ import ClientDashboard from '@/pages/ClientDashboard';
 import RestaurantDashboardPage from '@/pages/RestaurantDashboard';
 import DeliveryDashboard from '@/pages/DeliveryDashboard';
 import AdminDashboard from '@/pages/AdminDashboard';
+import TableManagementPage from '@/pages/TableManagementPage';
+import POSSystemPage from '@/pages/POSSystemPage';
 
 // Protected Routes
 import { ClientProtectedRoute } from '@/components/auth/ClientProtectedRoute';
@@ -45,6 +47,10 @@ function App() {
                 <RestaurantDashboardPage />
               </RestaurantProtectedRoute>
             } />
+
+            {/* Módulos Restaurante - Acesso Separado */}
+            <Route path="/restaurante/mesas" element={<TableManagementPage />} />
+            <Route path="/restaurante/pdv" element={<POSSystemPage />} />
 
             {/* Entregador Dashboard */}
             <Route path="/entregador/dashboard/*" element={

@@ -2,6 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { BarChart3, Users, Package, Settings, MapPin, MessageSquare, Calculator, ClipboardList, User } from 'lucide-react';
 import { RestaurantMenuPanel } from './RestaurantMenuPanel';
 import { DeliveryRouteOptimizer } from './DeliveryRouteOptimizer';
@@ -168,11 +169,33 @@ const RestaurantDashboard = ({ restaurantId }: RestaurantDashboardProps) => {
         </TabsContent>
 
         <TabsContent value="tables" className="mt-6">
-          <TableManagementPage restaurantId={restaurantId} />
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Gestão de Mesas</h2>
+              <Button 
+                onClick={() => window.open('/restaurante/mesas', '_blank')}
+                variant="outline"
+              >
+                Abrir em Nova Aba
+              </Button>
+            </div>
+            <TableManagementPage restaurantId={restaurantId} />
+          </div>
         </TabsContent>
 
         <TabsContent value="pos" className="mt-6">
-          <POSSystem restaurantId={restaurantId} />
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Sistema PDV</h2>
+              <Button 
+                onClick={() => window.open('/restaurante/pdv', '_blank')}
+                variant="outline"
+              >
+                Abrir em Nova Aba
+              </Button>
+            </div>
+            <POSSystem restaurantId={restaurantId} />
+          </div>
         </TabsContent>
 
         <TabsContent value="routes" className="mt-6">
