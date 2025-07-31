@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Home, List, Package, User, MapPin } from 'lucide-react';
@@ -9,16 +9,20 @@ const MobileRestaurantApp = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
 
+  useEffect(() => {
+    // Redirecionar direto para login se não autenticado
+    if (!user) {
+      window.location.href = '/auth';
+    }
+  }, [user]);
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
             <h2 className="text-2xl font-bold mb-4">PedeLogo Restaurante</h2>
-            <p className="text-gray-600 mb-4">Faça login para continuar</p>
-            <Button onClick={() => window.location.href = '/'} className="w-full">
-              Ir para Login
-            </Button>
+            <p className="text-gray-600 mb-4">Redirecionando para login...</p>
           </CardContent>
         </Card>
       </div>

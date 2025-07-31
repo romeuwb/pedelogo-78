@@ -11,14 +11,57 @@ const MobileClientApp = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
   const [location, setLocation] = useState('');
+  const [locationPermissionRequested, setLocationPermissionRequested] = useState(false);
 
   useEffect(() => {
-    // Verificar se Capacitor está disponível e solicitar localização
-    if (typeof window !== 'undefined' && 'Capacitor' in window) {
-      // Aqui pode ser implementada a funcionalidade de geolocalização
-      console.log('App rodando em dispositivo móvel');
+    // Solicitar permissão de localização no primeiro uso
+    if (user && !locationPermissionRequested) {
+      requestLocationPermission();
+      setLocationPermissionRequested(true);
     }
-  }, []);
+  }, [user, locationPermissionRequested]);
+
+  const requestLocationPermission = async () => {
+    try {
+      if (typeof window !== 'undefined' && 'Capacitor' in window) {
+        const { Capacitor } = window as any;
+        if (Capacitor.isNativePlatform()) {
+          // Em ambiente nativo, usar Geolocation plugin
+          console.log('Solicitando permissão de localização em ambiente nativo');
+          
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                setLocation(`${position.coords.latitude.toFixed(2)}, ${position.coords.longitude.toFixed(2)}`);
+                console.log('Localização obtida:', position.coords);
+              },
+              (error) => {
+                console.log('Erro ao obter localização:', error);
+                setLocation('Erro ao obter localização');
+              }
+            );
+          }
+        }
+      } else {
+        // Em ambiente web, usar geolocation do navegador
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              setLocation(`${position.coords.latitude.toFixed(2)}, ${position.coords.longitude.toFixed(2)}`);
+              console.log('Localização obtida:', position.coords);
+            },
+            (error) => {
+              console.log('Erro ao obter localização:', error);
+              setLocation('Localização negada');
+            }
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao solicitar localização:', error);
+      setLocation('Erro na localização');
+    }
+  };
 
   if (!user) {
     return (

@@ -14,11 +14,16 @@ const MobileDeliveryApp = () => {
   const [location, setLocation] = useState('');
 
   useEffect(() => {
-    // Verificar se Capacitor está disponível e solicitar localização
+    // Redirecionar direto para login se não autenticado
+    if (!user) {
+      window.location.href = '/auth';
+    }
+    
+    // Verificar se Capacitor está disponível
     if (typeof window !== 'undefined' && 'Capacitor' in window) {
       console.log('App de entregador rodando em dispositivo móvel');
     }
-  }, []);
+  }, [user]);
 
   if (!user) {
     return (
@@ -26,10 +31,7 @@ const MobileDeliveryApp = () => {
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
             <h2 className="text-2xl font-bold mb-4">PedeLogo Entregador</h2>
-            <p className="text-gray-600 mb-4">Faça login para continuar</p>
-            <Button onClick={() => window.location.href = '/'} className="w-full">
-              Ir para Login
-            </Button>
+            <p className="text-gray-600 mb-4">Redirecionando para login...</p>
           </CardContent>
         </Card>
       </div>
