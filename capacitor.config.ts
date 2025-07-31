@@ -1,9 +1,8 @@
-
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.pedelogo.delivery',
-  appName: 'pedelogo-delivery-system',
+  appId: 'com.pedelogo.restaurante',
+  appName: 'PedeLogo Restaurante',
   webDir: 'dist',
   server: {
     url: require('./app.server.url').default,
