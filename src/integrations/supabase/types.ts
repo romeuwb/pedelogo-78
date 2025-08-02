@@ -3911,11 +3911,13 @@ export type Database = {
     }
     Functions: {
       calculate_delivery_earnings: {
-        Args: {
-          delivery_detail_id: string
-          start_date?: string
-          end_date?: string
-        }
+        Args:
+          | { delivery_detail_id: string; start_date: string; end_date: string }
+          | {
+              delivery_detail_id: string
+              start_date?: string
+              end_date?: string
+            }
         Returns: Json
       }
       cleanup_expired_invites: {
