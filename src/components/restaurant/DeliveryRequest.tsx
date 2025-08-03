@@ -17,7 +17,8 @@ import {
   AlertCircle,
   CheckCircle,
   Users,
-  Navigation
+  Navigation,
+  Package
 } from 'lucide-react';
 
 interface DeliveryRequestProps {
@@ -41,7 +42,6 @@ export const DeliveryRequest = ({ restaurantId, orderId }: DeliveryRequestProps)
         .from('delivery_details')
         .select(`
           *,
-          profiles:user_id (nome, telefone),
           delivery_vehicles (tipo_veiculo, marca, modelo)
         `)
         .eq('status_online', true)
@@ -89,36 +89,19 @@ export const DeliveryRequest = ({ restaurantId, orderId }: DeliveryRequestProps)
       fee: number; 
       priority: string; 
     }) => {
-      // Criar solicitação de entrega
-      const { data: request, error: requestError } = await supabase
-        .from('delivery_requests')
-        .insert({
-          restaurant_id: restaurantId,
-          order_id: targetOrderId,
-          radius_km: radius,
-          delivery_fee: fee,
-          priority_level: priority,
-          status: 'open',
-          expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() // 30 min
+      // Por enquanto, apenas marcamos o pedido como disponível para entrega
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'disponivel_entrega',
+          taxa_entrega: fee,
+          updated_at: new Date().toISOString()
         })
-        .select()
-        .single();
+        .eq('id', targetOrderId);
 
-      if (requestError) throw requestError;
+      if (error) throw error;
 
-      // Notificar entregadores disponíveis na área
-      await supabase.functions.invoke('notify-delivery-request', {
-        body: {
-          requestId: request.id,
-          restaurantId,
-          orderId: targetOrderId,
-          radius,
-          fee,
-          priority
-        }
-      });
-
-      return request;
+      return { success: true };
     },
     onSuccess: () => {
       toast({
@@ -346,10 +329,10 @@ export const DeliveryRequest = ({ restaurantId, orderId }: DeliveryRequestProps)
                 <div key={deliverer.id} className="border rounded-lg p-4">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <h4 className="font-semibold">
-                          {deliverer.profiles?.nome || 'Entregador'}
-                        </h4>
+                       <div className="flex items-center space-x-2 mb-2">
+                         <h4 className="font-semibold">
+                           Entregador #{deliverer.id.slice(-8)}
+                         </h4>
                         <div className="flex items-center space-x-1">
                           <Star className="h-4 w-4 text-yellow-500 fill-current" />
                           <span className="text-sm">

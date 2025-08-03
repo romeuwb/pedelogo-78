@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { BarChart3, Users, Package, Settings, MapPin, MessageSquare, Calculator, ClipboardList, User } from 'lucide-react';
+import { BarChart3, Users, Package, Settings, MapPin, MessageSquare, Calculator, ClipboardList, User, Truck } from 'lucide-react';
 import { RestaurantMenuPanel } from './RestaurantMenuPanel';
 import { DeliveryRouteOptimizer } from './DeliveryRouteOptimizer';
 import { RestaurantSettings } from './RestaurantSettings';
@@ -11,6 +11,7 @@ import { CustomerCommunication } from './CustomerCommunication';
 import TableManagementPage from './TableManagementPage';
 import { POSSystem } from './POSSystem';
 import RestaurantProfile from './RestaurantProfile';
+import { DeliveryRequest } from './DeliveryRequest';
 
 interface RestaurantDashboardProps {
   restaurantId: string;
@@ -27,7 +28,7 @@ const RestaurantDashboard = ({ restaurantId }: RestaurantDashboardProps) => {
 
       <Tabs defaultValue="overview" className="w-full">
         {/* Desktop Tabs */}
-        <TabsList className="hidden lg:grid w-full grid-cols-8 h-auto">
+        <TabsList className="hidden lg:grid w-full grid-cols-9 h-auto">
           <TabsTrigger value="overview" className="flex items-center gap-2 text-xs xl:text-sm">
             <BarChart3 className="h-4 w-4" />
             <span className="hidden xl:inline">Visão Geral</span>
@@ -44,6 +45,11 @@ const RestaurantDashboard = ({ restaurantId }: RestaurantDashboardProps) => {
           <TabsTrigger value="pos" className="flex items-center gap-2 text-xs xl:text-sm">
             <Calculator className="h-4 w-4" />
             <span>POS</span>
+          </TabsTrigger>
+          <TabsTrigger value="delivery" className="flex items-center gap-2 text-xs xl:text-sm">
+            <Truck className="h-4 w-4" />
+            <span className="hidden xl:inline">Entregadores</span>
+            <span className="xl:hidden">Delivery</span>
           </TabsTrigger>
           <TabsTrigger value="routes" className="flex items-center gap-2 text-xs xl:text-sm">
             <MapPin className="h-4 w-4" />
@@ -83,6 +89,10 @@ const RestaurantDashboard = ({ restaurantId }: RestaurantDashboardProps) => {
             <TabsTrigger value="pos" className="flex items-center gap-2 text-xs whitespace-nowrap">
               <Calculator className="h-4 w-4" />
               <span>POS</span>
+            </TabsTrigger>
+            <TabsTrigger value="delivery" className="flex items-center gap-2 text-xs whitespace-nowrap">
+              <Truck className="h-4 w-4" />
+              <span>Entregadores</span>
             </TabsTrigger>
             <TabsTrigger value="routes" className="flex items-center gap-2 text-xs whitespace-nowrap">
               <MapPin className="h-4 w-4" />
@@ -196,6 +206,10 @@ const RestaurantDashboard = ({ restaurantId }: RestaurantDashboardProps) => {
             </div>
             <POSSystem restaurantId={restaurantId} />
           </div>
+        </TabsContent>
+
+        <TabsContent value="delivery" className="mt-6">
+          <DeliveryRequest restaurantId={restaurantId} />
         </TabsContent>
 
         <TabsContent value="routes" className="mt-6">
