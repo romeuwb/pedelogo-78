@@ -6,6 +6,7 @@ import { AdminOverview } from './AdminOverview';
 import { AdminUsers } from './AdminUsers';
 import { AdminOrders } from './AdminOrders';
 import { AdminFinancial } from './AdminFinancial';
+import { AdminPayouts } from './AdminPayouts';
 import { AdminProducts } from './AdminProducts';
 import { AdminCoupons } from './AdminCoupons';
 import { AdminDirectAccess } from './AdminDirectAccess';
@@ -66,6 +67,7 @@ const AdminDashboardLayout = () => {
               <TabsTrigger value="users">Usuários</TabsTrigger>
               <TabsTrigger value="orders">Pedidos</TabsTrigger>
               <TabsTrigger value="financial">Financeiro</TabsTrigger>
+              <TabsTrigger value="payouts">Repasses</TabsTrigger>
               <TabsTrigger value="products">Produtos</TabsTrigger>
               <TabsTrigger value="coupons">Cupons</TabsTrigger>
               <TabsTrigger value="banners">Banners</TabsTrigger>
@@ -91,6 +93,10 @@ const AdminDashboardLayout = () => {
 
             <TabsContent value="financial">
               <AdminFinancial />
+            </TabsContent>
+
+            <TabsContent value="payouts">
+              <AdminPayouts />
             </TabsContent>
 
             <TabsContent value="products">

@@ -11,8 +11,14 @@ import {
   Calendar,
   Download,
   CreditCard,
-  Banknote
+  Banknote,
+  ArrowUpRight
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 interface RestaurantFinancialPanelProps {
   restaurantId: string;
@@ -20,6 +26,8 @@ interface RestaurantFinancialPanelProps {
 
 export const RestaurantFinancialPanel = ({ restaurantId }: RestaurantFinancialPanelProps) => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
 
   const { data: financialData, isLoading } = useQuery({
     queryKey: ['restaurant-financial', restaurantId, selectedPeriod],
@@ -97,6 +105,38 @@ export const RestaurantFinancialPanel = ({ restaurantId }: RestaurantFinancialPa
     return colors[status as keyof typeof colors] || 'bg-gray-500';
   };
 
+  const handleWithdrawRequest = async () => {
+    try {
+      const amount = parseFloat(withdrawAmount);
+      if (isNaN(amount) || amount <= 0) {
+        toast.error('Digite um valor válido para retirada');
+        return;
+      }
+
+      if (amount > (financialData?.netRevenue || 0)) {
+        toast.error('Valor solicitado maior que o saldo disponível');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('restaurant_withdrawal_requests')
+        .insert({
+          restaurant_id: restaurantId,
+          valor_solicitado: amount,
+          status: 'pendente'
+        });
+
+      if (error) throw error;
+
+      toast.success('Solicitação de retirada enviada com sucesso!');
+      setShowWithdrawDialog(false);
+      setWithdrawAmount('');
+    } catch (error) {
+      console.error('Erro ao solicitar retirada:', error);
+      toast.error('Erro ao solicitar retirada');
+    }
+  };
+
   const periodOptions = [
     { value: 'today', label: 'Hoje' },
     { value: 'week', label: 'Esta Semana' },
@@ -112,17 +152,52 @@ export const RestaurantFinancialPanel = ({ restaurantId }: RestaurantFinancialPa
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Financeiro</h2>
-        <select
-          value={selectedPeriod}
-          onChange={(e) => setSelectedPeriod(e.target.value)}
-          className="px-3 py-2 border rounded-md"
-        >
-          {periodOptions.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        <div className="flex gap-2 items-center">
+          <select
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value)}
+            className="px-3 py-2 border rounded-md"
+          >
+            {periodOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          
+          <Dialog open={showWithdrawDialog} onOpenChange={setShowWithdrawDialog}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <ArrowUpRight className="h-4 w-4" />
+                Solicitar Retirada
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Solicitar Retirada</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="amount">Valor para retirada</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    placeholder="0,00"
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Saldo disponível: R$ {financialData?.netRevenue?.toFixed(2) || '0,00'}
+                  </p>
+                </div>
+                <Button onClick={handleWithdrawRequest} className="w-full">
+                  Confirmar Solicitação
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Resumo Financeiro */}

@@ -31,6 +31,7 @@ const AdminSidebar = ({ activeTab, onTabChange, sidebarOpen, setSidebarOpen }: A
     { id: 'users', label: 'Usuários', icon: Users },
     { id: 'orders', label: 'Pedidos', icon: ShoppingBag },
     { id: 'financial', label: 'Financeiro', icon: DollarSign },
+    { id: 'payouts', label: 'Repasses', icon: DollarSign },
     { id: 'products', label: 'Produtos', icon: Package },
     { id: 'coupons', label: 'Cupons', icon: Gift },
     { id: 'banners', label: 'Banners', icon: Image },

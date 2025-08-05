@@ -30,6 +30,7 @@ const DeliveryWallet = ({ deliveryDetails }: DeliveryWalletProps) => {
   const [paymentRequests, setPaymentRequests] = useState([]);
   const [showWithdrawForm, setShowWithdrawForm] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawNotes, setWithdrawNotes] = useState('');
   const [loading, setLoading] = useState(true);
   const [bankDetails, setBankDetails] = useState(null);
