@@ -1047,6 +1047,7 @@ export type Database = {
       }
       delivery_details: {
         Row: {
+          aceita_solicitacoes_automaticas: boolean | null
           aceita_termos: boolean | null
           banco_agencia: string | null
           banco_conta: string | null
@@ -1077,11 +1078,13 @@ export type Database = {
           status_online: boolean | null
           tem_experiencia: boolean | null
           total_entregas: number | null
+          ultima_localizacao_update: string | null
           updated_at: string
           user_id: string
           veiculos: string[] | null
         }
         Insert: {
+          aceita_solicitacoes_automaticas?: boolean | null
           aceita_termos?: boolean | null
           banco_agencia?: string | null
           banco_conta?: string | null
@@ -1112,11 +1115,13 @@ export type Database = {
           status_online?: boolean | null
           tem_experiencia?: boolean | null
           total_entregas?: number | null
+          ultima_localizacao_update?: string | null
           updated_at?: string
           user_id: string
           veiculos?: string[] | null
         }
         Update: {
+          aceita_solicitacoes_automaticas?: boolean | null
           aceita_termos?: boolean | null
           banco_agencia?: string | null
           banco_conta?: string | null
@@ -1147,6 +1152,7 @@ export type Database = {
           status_online?: boolean | null
           tem_experiencia?: boolean | null
           total_entregas?: number | null
+          ultima_localizacao_update?: string | null
           updated_at?: string
           user_id?: string
           veiculos?: string[] | null
@@ -1406,6 +1412,70 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_requests: {
+        Row: {
+          accepted_by: string | null
+          created_at: string | null
+          delivery_fee: number
+          expires_at: string
+          id: string
+          order_id: string
+          priority_level: string
+          radius_km: number
+          restaurant_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          accepted_by?: string | null
+          created_at?: string | null
+          delivery_fee: number
+          expires_at: string
+          id?: string
+          order_id: string
+          priority_level?: string
+          radius_km?: number
+          restaurant_id: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          accepted_by?: string | null
+          created_at?: string | null
+          delivery_fee?: number
+          expires_at?: string
+          id?: string
+          order_id?: string
+          priority_level?: string
+          radius_km?: number
+          restaurant_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_requests_accepted_by_fkey"
+            columns: ["accepted_by"]
+            isOneToOne: false
+            referencedRelation: "delivery_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_requests_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
             referencedColumns: ["id"]
           },
         ]
@@ -1715,10 +1785,16 @@ export type Database = {
           endereco_entrega: Json
           entregador_id: string | null
           id: string
+          mercadopago_payment_id: string | null
           metodo_pagamento: string | null
           observacoes: string | null
           pago_em: string | null
+          payment_confirmed_at: string | null
+          payment_failed_at: string | null
+          payment_intent_id: string | null
           payment_method: string | null
+          pix_code: string | null
+          pix_qr_code: string | null
           restaurante_id: string
           status: string | null
           subtotal: number | null
@@ -1733,10 +1809,16 @@ export type Database = {
           endereco_entrega: Json
           entregador_id?: string | null
           id?: string
+          mercadopago_payment_id?: string | null
           metodo_pagamento?: string | null
           observacoes?: string | null
           pago_em?: string | null
+          payment_confirmed_at?: string | null
+          payment_failed_at?: string | null
+          payment_intent_id?: string | null
           payment_method?: string | null
+          pix_code?: string | null
+          pix_qr_code?: string | null
           restaurante_id: string
           status?: string | null
           subtotal?: number | null
@@ -1751,10 +1833,16 @@ export type Database = {
           endereco_entrega?: Json
           entregador_id?: string | null
           id?: string
+          mercadopago_payment_id?: string | null
           metodo_pagamento?: string | null
           observacoes?: string | null
           pago_em?: string | null
+          payment_confirmed_at?: string | null
+          payment_failed_at?: string | null
+          payment_intent_id?: string | null
           payment_method?: string | null
+          pix_code?: string | null
+          pix_qr_code?: string | null
           restaurante_id?: string
           status?: string | null
           subtotal?: number | null
@@ -1871,6 +1959,33 @@ export type Database = {
           tipo_solicitante?: string
           updated_at?: string
           valor_solicitado?: number
+        }
+        Relationships: []
+      }
+      payment_settings: {
+        Row: {
+          ativo: boolean
+          config: Json
+          created_at: string
+          id: string
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          config: Json
+          created_at?: string
+          id?: string
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          config?: Json
+          created_at?: string
+          id?: string
+          provider?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -3919,6 +4034,10 @@ export type Database = {
               end_date?: string
             }
         Returns: Json
+      }
+      cleanup_expired_delivery_requests: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       cleanup_expired_invites: {
         Args: Record<PropertyKey, never>

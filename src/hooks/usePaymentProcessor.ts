@@ -25,6 +25,7 @@ export interface PaymentResult {
   clientSecret?: string;
   pixCode?: string;
   qrCode?: string;
+  mercadoPagoId?: string;
   status: 'pending' | 'approved' | 'failed';
   error?: string;
 }
@@ -83,9 +84,9 @@ export const usePaymentProcessor = () => {
       if (error) throw error;
 
       return {
-        status: data.status,
-        isConfirmed: data.status === 'confirmado',
-        confirmedAt: data.payment_confirmed_at
+        status: data?.status,
+        isConfirmed: data?.status === 'confirmado',
+        confirmedAt: data?.payment_confirmed_at
       };
     } catch (error) {
       console.error('Erro ao verificar status do pedido:', error);

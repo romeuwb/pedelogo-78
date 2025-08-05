@@ -63,14 +63,61 @@ serve(async (req) => {
         status: 'pending'
       };
 
-    } else if (paymentMethod === 'pix') {
-      // Simular PIX (em produção, integrar com gateway PIX real)
-      paymentResult = {
-        success: true,
-        pixCode: `BR${Date.now()}${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-        qrCode: `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==`,
-        status: 'pending'
-      };
+    } else if (paymentMethod === 'pix' || paymentMethod === 'mercadopago') {
+      // Processar PIX via Mercado Pago
+      const mpAccessToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
+      
+      if (mpAccessToken) {
+        try {
+          // Criar pagamento PIX no Mercado Pago
+          const mpPayment = await fetch('https://api.mercadopago.com/v1/payments', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${mpAccessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              transaction_amount: amount,
+              description: `Pedido #${orderId}`,
+              payment_method_id: 'pix',
+              payer: {
+                email: 'customer@example.com',
+              },
+              metadata: {
+                order_id: orderId,
+                restaurant_id: order.restaurante_id,
+              }
+            })
+          });
+
+          const mpData = await mpPayment.json();
+          
+          paymentResult = {
+            success: true,
+            pixCode: mpData.point_of_interaction?.transaction_data?.qr_code || `BR${Date.now()}${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+            qrCode: mpData.point_of_interaction?.transaction_data?.qr_code_base64 || `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==`,
+            mercadoPagoId: mpData.id,
+            status: 'pending'
+          };
+        } catch (error) {
+          console.error('Erro ao processar PIX:', error);
+          // Fallback para PIX simulado
+          paymentResult = {
+            success: true,
+            pixCode: `BR${Date.now()}${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+            qrCode: `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==`,
+            status: 'pending'
+          };
+        }
+      } else {
+        // PIX simulado se não houver token
+        paymentResult = {
+          success: true,
+          pixCode: `BR${Date.now()}${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+          qrCode: `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==`,
+          status: 'pending'
+        };
+      }
 
     } else if (paymentMethod === 'money') {
       // Pagamento em dinheiro - aprovar imediatamente

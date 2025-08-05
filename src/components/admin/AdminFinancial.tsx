@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Table,
   TableBody,
@@ -11,7 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { DollarSign, TrendingUp, TrendingDown, CreditCard } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, CreditCard, Settings } from 'lucide-react';
+import { AdminPaymentSettings } from './AdminPaymentSettings';
 
 export const AdminFinancial = () => {
   const { data: financialData } = useQuery({
@@ -96,68 +98,87 @@ export const AdminFinancial = () => {
         <p className="text-gray-600">Acompanhe receitas, transações e relatórios financeiros</p>
       </div>
 
-      {/* Cards de métricas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {cards.map((card, index) => {
-          const Icon = card.icon;
-          return (
-            <Card key={index}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {card.title}
-                </CardTitle>
-                <div className={`p-2 rounded-lg ${card.bgColor}`}>
-                  <Icon className={`h-4 w-4 ${card.color}`} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{card.value}</div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />
+            Visão Geral
+          </TabsTrigger>
+          <TabsTrigger value="payment-settings" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Configurações de Pagamento
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Transações recentes */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Transações Recentes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {financialData?.transactions?.slice(0, 10).map((transaction) => (
-                <TableRow key={transaction.id}>
-                  <TableCell className="font-mono text-sm">
-                    {transaction.id.slice(0, 8)}...
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{transaction.tipo}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    R$ {Number(transaction.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(transaction.data_transacao).toLocaleDateString('pt-BR')}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="default">Concluída</Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        <TabsContent value="overview" className="space-y-6">
+          {/* Cards de métricas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {cards.map((card, index) => {
+              const Icon = card.icon;
+              return (
+                <Card key={index}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      {card.title}
+                    </CardTitle>
+                    <div className={`p-2 rounded-lg ${card.bgColor}`}>
+                      <Icon className={`h-4 w-4 ${card.color}`} />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{card.value}</div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Transações recentes */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Transações Recentes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Valor</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {financialData?.transactions?.slice(0, 10).map((transaction) => (
+                    <TableRow key={transaction.id}>
+                      <TableCell className="font-mono text-sm">
+                        {transaction.id.slice(0, 8)}...
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{transaction.tipo}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        R$ {Number(transaction.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(transaction.data_transacao).toLocaleDateString('pt-BR')}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="default">Concluída</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="payment-settings">
+          <AdminPaymentSettings />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
