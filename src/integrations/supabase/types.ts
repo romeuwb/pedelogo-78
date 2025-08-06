@@ -1580,6 +1580,60 @@ export type Database = {
           },
         ]
       }
+      delivery_withdrawal_requests: {
+        Row: {
+          created_at: string
+          dados_bancarios: Json | null
+          data_processamento: string | null
+          delivery_detail_id: string
+          id: string
+          observacoes: string | null
+          processado_por: string | null
+          status: string
+          updated_at: string
+          valor_solicitado: number
+        }
+        Insert: {
+          created_at?: string
+          dados_bancarios?: Json | null
+          data_processamento?: string | null
+          delivery_detail_id: string
+          id?: string
+          observacoes?: string | null
+          processado_por?: string | null
+          status?: string
+          updated_at?: string
+          valor_solicitado: number
+        }
+        Update: {
+          created_at?: string
+          dados_bancarios?: Json | null
+          data_processamento?: string | null
+          delivery_detail_id?: string
+          id?: string
+          observacoes?: string | null
+          processado_por?: string | null
+          status?: string
+          updated_at?: string
+          valor_solicitado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_withdrawal_requests_delivery_detail_id_fkey"
+            columns: ["delivery_detail_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_withdrawal_requests_processado_por_fkey"
+            columns: ["processado_por"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       delivery_zones: {
         Row: {
           ativo: boolean | null
@@ -2748,6 +2802,7 @@ export type Database = {
       }
       restaurant_payouts: {
         Row: {
+          comissao_plataforma: number | null
           comprovante_url: string | null
           created_at: string | null
           data_processamento: string | null
@@ -2757,12 +2812,14 @@ export type Database = {
           periodo_inicio: string
           restaurant_id: string
           status: string | null
+          taxa_pagamento: number | null
           updated_at: string | null
           valor_bruto: number
           valor_comissao: number
           valor_liquido: number
         }
         Insert: {
+          comissao_plataforma?: number | null
           comprovante_url?: string | null
           created_at?: string | null
           data_processamento?: string | null
@@ -2772,12 +2829,14 @@ export type Database = {
           periodo_inicio: string
           restaurant_id: string
           status?: string | null
+          taxa_pagamento?: number | null
           updated_at?: string | null
           valor_bruto: number
           valor_comissao: number
           valor_liquido: number
         }
         Update: {
+          comissao_plataforma?: number | null
           comprovante_url?: string | null
           created_at?: string | null
           data_processamento?: string | null
@@ -2787,6 +2846,7 @@ export type Database = {
           periodo_inicio?: string
           restaurant_id?: string
           status?: string | null
+          taxa_pagamento?: number | null
           updated_at?: string | null
           valor_bruto?: number
           valor_comissao?: number
@@ -3355,6 +3415,60 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "restaurant_tables_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_withdrawal_requests: {
+        Row: {
+          created_at: string
+          dados_bancarios: Json | null
+          data_processamento: string | null
+          id: string
+          observacoes: string | null
+          processado_por: string | null
+          restaurant_id: string
+          status: string
+          updated_at: string
+          valor_solicitado: number
+        }
+        Insert: {
+          created_at?: string
+          dados_bancarios?: Json | null
+          data_processamento?: string | null
+          id?: string
+          observacoes?: string | null
+          processado_por?: string | null
+          restaurant_id: string
+          status?: string
+          updated_at?: string
+          valor_solicitado: number
+        }
+        Update: {
+          created_at?: string
+          dados_bancarios?: Json | null
+          data_processamento?: string | null
+          id?: string
+          observacoes?: string | null
+          processado_por?: string | null
+          restaurant_id?: string
+          status?: string
+          updated_at?: string
+          valor_solicitado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_withdrawal_requests_processado_por_fkey"
+            columns: ["processado_por"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "restaurant_withdrawal_requests_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurant_details"

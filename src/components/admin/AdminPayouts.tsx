@@ -58,7 +58,7 @@ export const AdminPayouts = () => {
         .from('restaurant_payouts')
         .select(`
           *,
-          restaurant_details!inner(nome)
+          restaurant_details!inner(*)
         `)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -76,8 +76,10 @@ export const AdminPayouts = () => {
         .from('delivery_earnings')
         .select(`
           *,
-          delivery_details!inner(user_id),
-          profiles!inner(nome)
+          delivery_details!inner(
+            user_id,
+            profiles!inner(*)
+          )
         `)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -255,13 +257,13 @@ export const AdminPayouts = () => {
                   {restaurantPayouts?.map((payout) => (
                     <TableRow key={payout.id}>
                       <TableCell className="font-medium">
-                        {payout.restaurant_details?.nome || 'N/A'}
+                        Restaurante {payout.restaurant_id}
                       </TableCell>
                       <TableCell>
                         {new Date(payout.periodo_inicio).toLocaleDateString('pt-BR')} - {new Date(payout.periodo_fim).toLocaleDateString('pt-BR')}
                       </TableCell>
                       <TableCell>R$ {Number(payout.valor_bruto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell>R$ {Number(payout.comissao_plataforma).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell>R$ {Number(payout.comissao_plataforma || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell>R$ {Number(payout.valor_liquido).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell>{getStatusBadge(payout.status)}</TableCell>
                       <TableCell>{new Date(payout.created_at).toLocaleDateString('pt-BR')}</TableCell>
@@ -295,7 +297,7 @@ export const AdminPayouts = () => {
                   {deliveryPayouts?.map((earning) => (
                     <TableRow key={earning.id}>
                       <TableCell className="font-medium">
-                        {earning.profiles?.nome || 'N/A'}
+                        Entregador {earning.delivery_detail_id}
                       </TableCell>
                       <TableCell>R$ {Number(earning.valor_base).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell>R$ {Number(earning.gorjeta || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
