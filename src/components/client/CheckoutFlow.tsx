@@ -11,6 +11,7 @@ import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { PaymentProcessor } from '@/components/payments/PaymentProcessor';
 import { MapPin, CreditCard, Wallet, DollarSign } from 'lucide-react';
 
 interface CheckoutFlowProps {
@@ -35,6 +36,7 @@ export const CheckoutFlow = ({ isOpen, onClose }: CheckoutFlowProps) => {
   
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [orderId, setOrderId] = useState<string | null>(null);
   
   // Form states
   const [address, setAddress] = useState<Address>({
@@ -67,16 +69,12 @@ export const CheckoutFlow = ({ isOpen, onClose }: CheckoutFlowProps) => {
     setStep(2);
   };
 
-  const handlePaymentSubmit = () => {
-    setStep(3);
-  };
-
-  const handleOrderSubmit = async () => {
+  const handlePaymentSubmit = async () => {
     if (!cart || !user) return;
 
     setLoading(true);
     try {
-      // Create order
+      // Create order first
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -111,16 +109,8 @@ export const CheckoutFlow = ({ isOpen, onClose }: CheckoutFlowProps) => {
 
       if (itemsError) throw itemsError;
 
-      // Clear cart
-      await clearCart();
-
-      toast({
-        title: "Pedido realizado!",
-        description: `Pedido #${order.id.slice(-8)} foi criado com sucesso`,
-      });
-
-      onClose();
-      setStep(1);
+      setOrderId(order.id);
+      setStep(3);
     } catch (error) {
       console.error('Error creating order:', error);
       toast({
@@ -133,9 +123,29 @@ export const CheckoutFlow = ({ isOpen, onClose }: CheckoutFlowProps) => {
     }
   };
 
+  const handlePaymentSuccess = async (paymentId: string) => {
+    await clearCart();
+    toast({
+      title: "Pagamento realizado!",
+      description: `Pedido #${orderId?.slice(-8)} foi confirmado com sucesso`,
+    });
+    onClose();
+    setStep(1);
+    setOrderId(null);
+  };
+
+  const handlePaymentError = (error: string) => {
+    toast({
+      title: "Erro no pagamento",
+      description: error,
+      variant: "destructive",
+    });
+  };
+
   const handleClose = () => {
     onClose();
     setStep(1);
+    setOrderId(null);
   };
 
   if (!cart) return null;
@@ -254,18 +264,26 @@ export const CheckoutFlow = ({ isOpen, onClose }: CheckoutFlowProps) => {
               </div>
               
               <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                <RadioGroupItem value="dinheiro" id="dinheiro" />
-                <Label htmlFor="dinheiro" className="flex items-center space-x-2 cursor-pointer">
-                  <Wallet className="h-4 w-4" />
-                  <span>Dinheiro na Entrega</span>
+                <RadioGroupItem value="credit_card" id="credit_card" />
+                <Label htmlFor="credit_card" className="flex items-center space-x-2 cursor-pointer">
+                  <CreditCard className="h-4 w-4" />
+                  <span>Cartão de Crédito</span>
                 </Label>
               </div>
               
               <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                <RadioGroupItem value="cartao" id="cartao" />
-                <Label htmlFor="cartao" className="flex items-center space-x-2 cursor-pointer">
+                <RadioGroupItem value="debit_card" id="debit_card" />
+                <Label htmlFor="debit_card" className="flex items-center space-x-2 cursor-pointer">
                   <CreditCard className="h-4 w-4" />
-                  <span>Cartão na Entrega</span>
+                  <span>Cartão de Débito</span>
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2 p-3 border rounded-lg">
+                <RadioGroupItem value="money" id="money" />
+                <Label htmlFor="money" className="flex items-center space-x-2 cursor-pointer">
+                  <Wallet className="h-4 w-4" />
+                  <span>Dinheiro na Entrega</span>
                 </Label>
               </div>
             </RadioGroup>
@@ -282,100 +300,42 @@ export const CheckoutFlow = ({ isOpen, onClose }: CheckoutFlowProps) => {
             </div>
 
             <div className="flex space-x-2">
-              <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
+              <Button 
+                variant="outline" 
+                onClick={() => setStep(1)} 
+                className="flex-1"
+                disabled={loading}
+              >
                 Voltar
               </Button>
-              <Button onClick={handlePaymentSubmit} className="flex-1">
-                Revisar Pedido
+              <Button 
+                onClick={handlePaymentSubmit} 
+                className="flex-1"
+                disabled={loading}
+              >
+                {loading ? 'Criando pedido...' : 'Continuar para Pagamento'}
               </Button>
             </div>
           </div>
         )}
 
-        {/* Step 3: Review */}
-        {step === 3 && (
+        {/* Step 3: Payment Processing */}
+        {step === 3 && orderId && (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Revisar Pedido</h3>
-
-            {/* Order Summary */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">{cart.restaurantName}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {cart.items.map((item) => (
-                  <div key={item.productId} className="flex justify-between text-sm">
-                    <span>{item.quantidade}x {item.nome}</span>
-                    <span>R$ {(item.preco * item.quantidade).toFixed(2)}</span>
-                  </div>
-                ))}
-                <Separator />
-                <div className="flex justify-between text-sm">
-                  <span>Subtotal</span>
-                  <span>R$ {subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Taxa de entrega</span>
-                  <span>R$ {taxaEntrega.toFixed(2)}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between font-semibold">
-                  <span>Total</span>
-                  <span>R$ {total.toFixed(2)}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Address Summary */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Endereço de Entrega</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm">
-                  {address.logradouro}, {address.numero}
-                  {address.complemento && `, ${address.complemento}`}
-                </p>
-                <p className="text-sm">
-                  {address.bairro}, {address.cidade} - {address.estado}
-                </p>
-                <p className="text-sm">CEP: {address.cep}</p>
-              </CardContent>
-            </Card>
-
-            {/* Payment Summary */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Pagamento</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm capitalize">{paymentMethod}</p>
-              </CardContent>
-            </Card>
-
-            {observacoes && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Observações</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm">{observacoes}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            <div className="flex space-x-2">
-              <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
-                Voltar
-              </Button>
-              <Button 
-                onClick={handleOrderSubmit} 
-                disabled={loading}
-                className="flex-1 bg-green-600 hover:bg-green-700"
-              >
-                {loading ? 'Processando...' : 'Confirmar Pedido'}
-              </Button>
-            </div>
+            <PaymentProcessor
+              orderId={orderId}
+              totalAmount={total}
+              onPaymentSuccess={handlePaymentSuccess}
+              onPaymentError={handlePaymentError}
+            />
+            
+            <Button 
+              variant="outline" 
+              onClick={() => setStep(2)} 
+              className="w-full"
+            >
+              Voltar para Pagamento
+            </Button>
           </div>
         )}
       </DialogContent>
