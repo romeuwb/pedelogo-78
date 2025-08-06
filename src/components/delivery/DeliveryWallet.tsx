@@ -66,12 +66,11 @@ const DeliveryWallet = ({ deliveryDetails }: DeliveryWalletProps) => {
       const totalBalance = pendingEarnings.reduce((sum, earning) => sum + earning.valor_total, 0);
       setBalance(totalBalance);
 
-      // Carregar solicitações de pagamento
+      // Carregar solicitações de saque
       const { data: requestsData, error: requestsError } = await supabase
-        .from('payment_requests')
+        .from('delivery_withdrawal_requests')
         .select('*')
-        .eq('solicitante_id', deliveryDetails.user_id)
-        .eq('tipo_solicitante', 'entregador')
+        .eq('delivery_detail_id', deliveryDetails.id)
         .order('created_at', { ascending: false });
 
       if (requestsError) throw requestsError;
@@ -122,16 +121,13 @@ const DeliveryWallet = ({ deliveryDetails }: DeliveryWalletProps) => {
 
     try {
       const { error } = await supabase
-        .from('payment_requests')
+        .from('delivery_withdrawal_requests')
         .insert({
-          solicitante_id: deliveryDetails.user_id,
-          tipo_solicitante: 'entregador',
+          delivery_detail_id: deliveryDetails.id,
           valor_solicitado: parseFloat(withdrawAmount),
-          data_inicio: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          data_fim: new Date().toISOString().split('T')[0],
-          periodo_referencia: `Ganhos acumulados até ${new Date().toLocaleDateString()}`,
+          status: 'pendente',
           observacoes: withdrawNotes || null,
-          status: 'pendente'
+          dados_bancarios: bankDetails
         });
 
       if (error) throw error;

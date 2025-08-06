@@ -118,8 +118,15 @@ export const RestaurantFinancialPanel = ({ restaurantId }: RestaurantFinancialPa
         return;
       }
 
-      // Funcionalidade temporariamente desabilitada
-      throw new Error('Funcionalidade em desenvolvimento');
+      const { error } = await supabase
+        .from('restaurant_withdrawal_requests')
+        .insert({
+          restaurant_id: restaurantId,
+          valor_solicitado: amount,
+          status: 'pendente'
+        });
+
+      if (error) throw error;
 
       toast.success('Solicitação de retirada enviada com sucesso!');
       setShowWithdrawDialog(false);
