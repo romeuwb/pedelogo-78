@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { DailySuggestion } from './DailySuggestion';
 import { RestaurantMenu } from './RestaurantMenu';
-import { calculateDistance, extractCoordinatesFromAddress, formatDistance } from '@/utils/distanceCalculation';
+import { calculateDistance, geocodeAddress, formatDistance } from '@/utils/distanceCalculation';
 
 const ClientHome = () => {
   const { user } = useAuth();
@@ -48,39 +48,44 @@ const ClientHome = () => {
 
       // Filtrar por proximidade se temos a localização do usuário
       if (hasLocation && latitude && longitude) {
-        filteredRestaurants = filteredRestaurants
-          .map(restaurant => {
-            const restaurantCoords = extractCoordinatesFromAddress(
-              `${restaurant.endereco}, ${restaurant.cidade}, ${restaurant.estado}`
-            );
-            
-            if (restaurantCoords) {
-              const distance = calculateDistance(
-                latitude,
-                longitude,
-                restaurantCoords.lat,
-                restaurantCoords.lng
-              );
+        // Geocodificar endereços dos restaurantes e calcular distâncias
+        const restaurantsWithDistance = await Promise.all(
+          filteredRestaurants.map(async (restaurant) => {
+            try {
+              const fullAddress = `${restaurant.endereco}, ${restaurant.cidade}, ${restaurant.estado}`;
+              const restaurantCoords = await geocodeAddress(fullAddress);
               
-              return {
-                ...restaurant,
-                distance
-              };
+              if (restaurantCoords) {
+                const distance = calculateDistance(
+                  latitude,
+                  longitude,
+                  restaurantCoords.lat,
+                  restaurantCoords.lng
+                );
+                
+                return {
+                  ...restaurant,
+                  distance,
+                  coordinates: restaurantCoords
+                };
+              }
+              
+              return null; // Remove restaurantes sem coordenadas válidas
+            } catch (error) {
+              console.error('Erro ao geocodificar restaurante:', restaurant.nome_fantasia, error);
+              return null;
             }
-            
-            return {
-              ...restaurant,
-              distance: null
-            };
           })
-          .filter(restaurant => restaurant.distance === null || restaurant.distance <= maxDistance)
-          .sort((a, b) => {
-            // Ordenar por distância (null no final)
-            if (a.distance === null && b.distance === null) return 0;
-            if (a.distance === null) return 1;
-            if (b.distance === null) return -1;
-            return a.distance - b.distance;
-          });
+        );
+
+        // Filtrar apenas restaurantes com coordenadas válidas e dentro do raio
+        filteredRestaurants = restaurantsWithDistance
+          .filter((restaurant): restaurant is NonNullable<typeof restaurant> => 
+            restaurant !== null && 
+            restaurant.distance !== null && 
+            restaurant.distance <= maxDistance
+          )
+          .sort((a, b) => (a.distance || 0) - (b.distance || 0));
       }
 
       setRestaurants(filteredRestaurants);
