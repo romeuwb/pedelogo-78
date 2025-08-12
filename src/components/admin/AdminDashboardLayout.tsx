@@ -58,9 +58,7 @@ const AdminDashboardLayout = () => {
           />
         )}
         
-        <main className={`flex-1 transition-all duration-300 p-4 lg:p-6 ${
-          sidebarOpen ? 'lg:ml-64' : ''
-        }`}>
+        <main className={`flex-1 transition-all duration-300 p-4 lg:p-6 lg:ml-64`}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="hidden">
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
