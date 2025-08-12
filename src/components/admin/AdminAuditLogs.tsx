@@ -408,3 +408,4 @@ const AdminAuditLogs = () => {
 };
 
 export default AdminAuditLogs;
+export { AdminAuditLogs };

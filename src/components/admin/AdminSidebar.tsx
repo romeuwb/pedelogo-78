@@ -46,15 +46,15 @@ const AdminSidebar = ({ activeTab, onTabChange, sidebarOpen, setSidebarOpen }: A
   const handleTabChange = (tabId: string) => {
     onTabChange(tabId);
     // Fechar sidebar no mobile após selecionar item
-    if (window.innerWidth < 1024) {
+    if (window.innerWidth < 768) {
       setSidebarOpen(false);
     }
   };
 
   return (
     <div className={cn(
-      "lg:static lg:top-0 lg:h-auto lg:z-0 fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-white border-r border-gray-200 overflow-y-auto z-50 transition-transform duration-300",
-      sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      "md:static md:top-0 md:h-auto md:z-0 fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-white border-r border-gray-200 overflow-y-auto z-50 transition-transform duration-300",
+      sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
     )}>
       <div className="p-3 lg:p-4">
         <nav className="space-y-1 lg:space-y-2">
@@ -83,3 +83,4 @@ const AdminSidebar = ({ activeTab, onTabChange, sidebarOpen, setSidebarOpen }: A
 };
 
 export default AdminSidebar;
+export { AdminSidebar };

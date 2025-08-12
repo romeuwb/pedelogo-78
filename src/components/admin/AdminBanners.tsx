@@ -330,3 +330,4 @@ const AdminBanners = () => {
 };
 
 export default AdminBanners;
+export { AdminBanners };

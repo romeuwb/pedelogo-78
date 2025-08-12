@@ -39,7 +39,7 @@ export const AdminPaymentSettings: React.FC = () => {
 
   const loadPaymentSettings = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('payment_settings')
         .select('*');
 
@@ -82,7 +82,7 @@ export const AdminPaymentSettings: React.FC = () => {
   const saveStripeSettings = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('payment_settings')
         .upsert({
           provider: 'stripe',
@@ -118,7 +118,7 @@ export const AdminPaymentSettings: React.FC = () => {
   const saveMercadoPagoSettings = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('payment_settings')
         .upsert({
           provider: 'mercadopago',

@@ -341,3 +341,4 @@ const AdminReports = () => {
 };
 
 export default AdminReports;
+export { AdminReports };

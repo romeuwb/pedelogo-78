@@ -73,7 +73,7 @@ const AdminMaps = () => {
 
   const loadRegionsData = async () => {
     try {
-      const { data: serviceRegions, error } = await supabase
+      const { data: serviceRegions, error } = await (supabase as any)
         .from('service_regions')
         .select('*');
 
@@ -145,7 +145,7 @@ const AdminMaps = () => {
 
   const handleCreateCustomRegion = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('service_regions')
         .insert([
           {
@@ -184,7 +184,7 @@ const AdminMaps = () => {
 
   const handleDeleteRegion = async (regionId: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('service_regions')
         .delete()
         .eq('id', regionId);

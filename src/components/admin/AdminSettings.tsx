@@ -603,3 +603,4 @@ const AdminSettings = () => {
 };
 
 export default AdminSettings;
+export { AdminSettings };

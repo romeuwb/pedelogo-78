@@ -12,12 +12,12 @@ import { AdminCoupons } from './AdminCoupons';
 import { AdminDirectAccess } from './AdminDirectAccess';
 import AdminBanners from './AdminBanners';
 import { AdminSupport } from './AdminSupport';
-import AdminSettings from './AdminSettings';
+import { AdminSettings } from './AdminSettings';
 import AdminMaps from './AdminMaps';
-import AdminReports from './AdminReports';
-import AdminAuditLogs from './AdminAuditLogs';
+import { AdminReports } from './AdminReports';
+import { AdminAuditLogs } from './AdminAuditLogs';
 import { AdminHeader } from './AdminHeader';
-import AdminSidebar from './AdminSidebar';
+import { AdminSidebar } from './AdminSidebar';
 
 const AdminDashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -53,12 +53,12 @@ const AdminDashboardLayout = () => {
         {/* Overlay para fechar sidebar em mobile */}
         {sidebarOpen && (
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
         
-        <main className={`flex-1 transition-all duration-300 p-4 lg:p-6 lg:ml-64`}>
+        <main className={`flex-1 transition-all duration-300 p-4 md:p-6 md:ml-64`}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="hidden">
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
