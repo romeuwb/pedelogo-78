@@ -53,7 +53,8 @@ export const AdminHeader = ({ sidebarOpen, setSidebarOpen }: AdminHeaderProps) =
             variant="ghost"
             size="sm"
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="lg:hidden"
+            className="mr-2"
+            aria-label={sidebarOpen ? 'Fechar menu' : 'Abrir menu'}
           >
             <Menu className="h-5 w-5" />
           </Button>
