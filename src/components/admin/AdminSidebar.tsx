@@ -53,7 +53,7 @@ const AdminSidebar = ({ activeTab, onTabChange, sidebarOpen, setSidebarOpen }: A
 
   return (
     <div className={cn(
-      "fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-white border-r border-gray-200 overflow-y-auto z-50 transition-transform duration-300",
+      "lg:static lg:top-0 lg:h-auto lg:z-0 fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-white border-r border-gray-200 overflow-y-auto z-50 transition-transform duration-300",
       sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
     )}>
       <div className="p-3 lg:p-4">
