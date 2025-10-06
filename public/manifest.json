@@ -1,0 +1,9 @@
+{
+  "name": "PedeLogo",
+  "short_name": "PedeLogo",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ff6b00",
+  "description": "PEDELOGO é a plataforma ideal para os que buscam praticidade e economia. Aqui você encontra uma ampla variedade de restaurantes, desde os mais tradicionais até os mais badalados, com culinária para todos os gostos e bolsos."
+}
