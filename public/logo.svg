@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48">
+  <rect width="200" height="48" rx="8" fill="white"/>
+  <text x="16" y="30" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700" fill="#ff6b00">Pede</text>
+  <text x="92" y="30" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700" fill="#16a34a">Logo</text>
+</svg>

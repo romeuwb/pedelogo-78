@@ -11,7 +11,10 @@ import Home from './pages/Home'
 function TopBar() {
   return (
     <header className="p-4 border-b flex items-center justify-between">
-      <Link to="/" className="text-2xl font-bold">PedeLogo</Link>
+      <Link to="/" className="inline-flex items-center gap-2">
+        <img src="/logo.svg" alt="PedeLogo" className="h-8" />
+        <span className="sr-only">PedeLogo</span>
+      </Link>
       {/* Link de acesso removido para não expor informações de admin na página inicial */}
       <div />
     </header>

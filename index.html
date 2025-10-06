@@ -5,10 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PedeLogo</title>
     <meta name="description" content="PEDELOGO é a plataforma ideal para os que buscam praticidade e economia. Aqui você encontra uma ampla variedade de restaurantes, desde os mais tradicionais até os mais badalados, com culinária para todos os gostos e bolsos." />
+    <meta name="theme-color" content="#ff6b00" />
     <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/favicon.ico" />
   </head>
   <body>
+    <div id="preloader" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:white;z-index:9999">
+      <img src="/logo.svg" alt="PedeLogo" style="height:48px;opacity:.9" />
+    </div>
     <div id="root"></div>
+    <script src="https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js" defer></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
