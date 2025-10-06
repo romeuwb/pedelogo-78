@@ -12,9 +12,8 @@ function TopBar() {
   return (
     <header className="p-4 border-b flex items-center justify-between">
       <Link to="/" className="text-2xl font-bold">PedeLogo</Link>
-      <nav className="flex items-center gap-3 text-sm">
-        <Link to="/login" className="text-primary">Acessos</Link>
-      </nav>
+      {/* Link de acesso removido para não expor informações de admin na página inicial */}
+      <div />
     </header>
   )
 }
