@@ -1,73 +1,250 @@
-# Welcome to your Lovable project
+# 🍕 PedeLogo - Aplicativo de Delivery
 
-## Project info
+> Aplicativo de delivery moderno e completo desenvolvido com React, TypeScript, Supabase e Capacitor.
 
-**URL**: https://lovable.dev/projects/4e8eda70-015f-4d8c-b5ce-d3a1ba7be9e2
+## ✨ Características
 
-## How can I edit this code?
+- 🎯 **Multi-plataforma**: Web, Android e iOS
+- 👥 **Multi-usuário**: Clientes, restaurantes e administradores
+- 🗃️ **Backend moderno**: Supabase com PostgreSQL
+- 🎨 **UI moderna**: Tailwind CSS + Radix UI
+- 📱 **Mobile nativo**: Capacitor para iOS/Android
+- 🔐 **Autenticação segura**: Row Level Security (RLS)
+- 🚀 **Performance**: Vite + TypeScript
 
-There are several ways of editing your application.
+## 🛠 Stack Tecnológica
 
-**Use Lovable**
+### Frontend
+- **React 18** + TypeScript
+- **Vite** - Build tool moderna
+- **Tailwind CSS** - Styling utilitário
+- **Radix UI** - Componentes acessíveis
+- **Zustand** - Gerenciamento de estado
+- **React Hook Form** - Formulários performáticos
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/4e8eda70-015f-4d8c-b5ce-d3a1ba7be9e2) and start prompting.
+### Backend & Database
+- **Supabase** - Backend-as-a-Service
+- **PostgreSQL** - Banco de dados relacional
+- **Row Level Security** - Segurança nativa
+- **Realtime** - Atualizações em tempo real
 
-Changes made via Lovable will be committed automatically to this repo.
+### Mobile
+- **Capacitor** - Framework híbrido
+- **PWA** - Progressive Web App
+- **Android/iOS** - Apps nativos
 
-**Use your preferred IDE**
+## 📱 Funcionalidades por Perfil
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 👤 Cliente
+- ✅ Buscar restaurantes por localização
+- ✅ Navegar cardápios com filtros
+- ✅ Carrinho de compras inteligente
+- ✅ Múltiplos endereços de entrega
+- ✅ Acompanhamento de pedidos em tempo real
+- ✅ Histórico completo de pedidos
+- ✅ Avaliação de restaurantes
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 🍳 Restaurante
+- ✅ Dashboard completo de vendas
+- ✅ Gerenciamento de cardápio
+- ✅ Controle de estoque de produtos
+- ✅ Gestão de pedidos em tempo real
+- ✅ Relatórios de vendas e analytics
+- ✅ Configurações de delivery
+- ✅ Perfil público do restaurante
 
-Follow these steps:
+### 👨‍💼 Administrador
+- ✅ Painel de controle geral
+- ✅ Gestão de usuários e restaurantes
+- ✅ Moderação de conteúdo
+- ✅ Analytics gerais da plataforma
+- ✅ Configurações do sistema
+- ✅ Suporte e atendimento
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🚀 Início Rápido
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Pré-requisitos
+- Node.js 18+
+- npm ou yarn
+- Conta no Supabase
 
-# Step 3: Install the necessary dependencies.
-npm i
+### 1. Clone e instale
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+git clone https://github.com/seu-usuario/pedelogo.git
+cd pedelogo
+npm install
 ```
 
-**Edit a file directly in GitHub**
+### 2. Configure o ambiente
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+# Copie o arquivo de exemplo
+cp .env.example .env.local
 
-**Use GitHub Codespaces**
+# Edite com suas credenciais do Supabase
+VITE_SUPABASE_URL=sua_url_do_supabase
+VITE_SUPABASE_ANON_KEY=sua_chave_anonima
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### 3. Configure o banco de dados
 
-## What technologies are used for this project?
+1. Crie um projeto no [Supabase](https://supabase.com)
+2. Execute o schema SQL no SQL Editor:
 
-This project is built with:
+```sql
+-- Copie o conteúdo de database/schema.sql
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### 4. Execute o projeto
 
-## How can I deploy this project?
+```bash
+# Desenvolvimento
+npm run dev
 
-Simply open [Lovable](https://lovable.dev/projects/4e8eda70-015f-4d8c-b5ce-d3a1ba7be9e2) and click on Share -> Publish.
+# Build para produção
+npm run build
 
-## Can I connect a custom domain to my Lovable project?
+# Preview da build
+npm run preview
+```
 
-Yes, you can!
+## 🗄️ Schema do Banco
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+O banco possui uma estrutura otimizada com 8 tabelas principais:
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+- **users**: Dados básicos dos usuários
+- **profiles**: Perfis e roles dos usuários
+- **restaurants**: Informações dos restaurantes
+- **categories**: Categorias de produtos
+- **products**: Catálogo de produtos
+- **delivery_addresses**: Endereços de entrega
+- **orders**: Pedidos dos clientes
+- **order_items**: Itens de cada pedido
+
+### Características do Schema
+- ✅ Row Level Security (RLS) configurado
+- ✅ Índices otimizados para performance
+- ✅ Triggers automáticos para timestamps
+- ✅ Constraints de validação
+- ✅ Tipos enumerados para status
+
+## 📱 Build Mobile
+
+### Android
+```bash
+npm run android:build
+# APK gerado em android/app/build/outputs/apk/
+```
+
+### iOS
+```bash
+npm run ios:build
+# Requer Xcode no macOS
+```
+
+## 📂 Estrutura do Projeto
+
+```
+📦 pedelogo/
+├── 📁 src/
+│   ├── 📁 components/     # Componentes UI reutilizáveis
+│   ├── 📁 pages/         # Páginas da aplicação
+│   ├── 📁 lib/           # Utilitários e configurações
+│   ├── 📁 stores/        # Estado global (Zustand)
+│   ├── 📁 hooks/         # Custom hooks
+│   └── 📁 types/         # Definições de tipos
+├── 📁 database/          # Schema e migrations SQL
+├── 📁 public/           # Assets estáticos
+├── 📁 android/          # Projeto Android (Capacitor)
+├── 📁 ios/             # Projeto iOS (Capacitor)
+└── 📄 package.json     # Dependências e scripts
+```
+
+## 🔒 Segurança
+
+- **RLS**: Cada tabela possui políticas de segurança
+- **Autenticação**: Supabase Auth com JWT
+- **Validação**: Constraints no banco + validação frontend
+- **HTTPS**: Comunicação criptografada
+- **Sanitização**: Dados validados e sanitizados
+
+## 🚀 Deploy
+
+### Vercel (Recomendado)
+1. Conecte seu repositório
+2. Configure as variáveis de ambiente
+3. Deploy automático a cada push
+
+### Netlify
+```bash
+npm run build
+# Deploy da pasta dist/
+```
+
+### Docker
+```dockerfile
+# Dockerfile incluído no projeto
+docker build -t pedelogo .
+docker run -p 3000:3000 pedelogo
+```
+
+## 🧪 Scripts Disponíveis
+
+```bash
+npm run dev          # Desenvolvimento
+npm run build        # Build para produção
+npm run preview      # Preview da build
+npm run lint         # Linter ESLint
+npm run db:reset     # Reset do banco de dados
+npm run android:build # Build Android
+npm run ios:build    # Build iOS
+```
+
+## 📊 Performance
+
+- ⚡ **Vite**: Build ultra-rápida
+- 🗂️ **Code splitting**: Carregamento sob demanda
+- 📱 **PWA**: Cache inteligente offline
+- 🔄 **Lazy loading**: Componentes e rotas
+- 📈 **Otimizações**: Bundle size < 500KB
+
+## 🤝 Contribuindo
+
+1. Fork o projeto
+2. Crie uma branch: `git checkout -b feature/amazing-feature`
+3. Commit: `git commit -m 'feat: add amazing feature'`
+4. Push: `git push origin feature/amazing-feature`
+5. Abra um Pull Request
+
+### Padrões de Commit
+- `feat:` nova funcionalidade
+- `fix:` correção de bug
+- `docs:` documentação
+- `style:` formatação
+- `refactor:` refatoração
+- `test:` testes
+- `chore:` tarefas gerais
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT. Veja [LICENSE](LICENSE) para detalhes.
+
+## 👥 Equipe
+
+- **Desenvolvimento**: [Seu Nome](https://github.com/seu-usuario)
+- **Design**: [Designer](https://github.com/designer)
+- **DevOps**: [DevOps](https://github.com/devops)
+
+## 📞 Suporte
+
+- 🐛 **Bugs**: [Issues](https://github.com/seu-usuario/pedelogo/issues)
+- 💡 **Features**: [Discussions](https://github.com/seu-usuario/pedelogo/discussions)
+- 📧 **Email**: contato@pedelogo.com
+- 💬 **Discord**: [Server](https://discord.gg/pedelogo)
+
+---
+
+<p align="center">
+  Made with ❤️ for the food delivery community
+</p>
